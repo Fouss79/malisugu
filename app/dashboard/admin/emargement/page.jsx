@@ -1,55 +1,72 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+
 import { useAuth } from "../../../context/AuthContext";
+import api from "../../../../lib/api";
 
 export default function EmargementPage() {
   const { user } = useAuth();
 
-  const [jour, setJour] = useState("Lundi");
-  const [anneeId, setAnneeId] = useState("");
+  const [date, setDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
+  const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
+
   const [emploi, setEmploi] = useState([]);
   const [emargements, setEmargements] = useState([]);
 
   const [loadingId, setLoadingId] = useState(null);
 
   // ================= LOAD ANNEES =================
-  useEffect(() => {
-    const loadAnnees = async () => {
-      if (!user?.ecole?.id) return;
+ useEffect(() => {
+  const load = async () => {
+    if (!user?.ecole?.id) return;
 
-      const res = await axios.get(
-        `http://localhost:8080/api/annees/ecole/${user.ecole.id}`
+    try {
+      const res = await api.get(
+        `/annees/ecole/${user.ecole.id}`
       );
 
-      setAnnees(res.data || []);
-      if (res.data.length > 0) setAnneeId(res.data[0].id);
-    };
+      const anneesData = res.data || [];
 
-    loadAnnees();
-  }, [user]);
+      setAnnees(anneesData);
+
+      const anneeActive = anneesData.find(a => a.active);
+
+      if (anneeActive) {
+        setAnneeId(anneeActive.id);
+      } else if (anneesData.length > 0) {
+        setAnneeId(anneesData[0].id);
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  load();
+}, [user]);
 
   // ================= LOAD DATA =================
   const loadAll = useCallback(async () => {
-    if (!anneeId || !jour) return;
-
-    const date = new Date().toISOString().split("T")[0];
+    if (!anneeId || !date) return;
 
     const [resEmploi, resEmargement] = await Promise.all([
-      axios.get("http://localhost:8080/api/emargement/emploi", {
-        params: { jour, anneeId },
+      api.get("/emargement/emploi", {
+        params: { date, anneeId },
       }),
-      axios.get("http://localhost:8080/api/emargement/jour", {
-        params: { jour, date },
+
+      api.get("/emargement/jour", {
+        params: { date },
       }),
     ]);
 
     setEmploi(resEmploi.data || []);
     setEmargements(resEmargement.data || []);
-  }, [jour, anneeId]);
+  }, [date, anneeId]);
 
   useEffect(() => {
     loadAll();
@@ -58,44 +75,29 @@ export default function EmargementPage() {
   // ================= CHECK =================
   const isEmarge = (edt) => {
     return emargements.some(
-      (e) =>
-        e.enseignant?.id === edt.enseignant?.id &&
-        e.classe?.id === edt.classe?.id &&
-        e.matiere?.id === edt.matiere?.id
+      (e) => e.emploiDuTemps?.id === edt.id
     );
   };
 
   // ================= EMARGER =================
   const emarger = async (edtId) => {
-    const edt = emploi.find((e) => e.id === edtId);
-    if (!edt) return;
-
-    if (loadingId === edtId || isEmarge(edt)) return;
+    if (loadingId === edtId) return;
 
     try {
       setLoadingId(edtId);
 
-      await axios.post(
-        `http://localhost:8080/api/emargement/emarger/${edtId}`,
+      await api.post(
+        `/emargement/emarger/${edtId}`,
         null,
-        {
-          params: {
-            date: new Date().toISOString().split("T")[0],
-          },
-        }
+        { params: { date } }
       );
 
       await loadAll();
     } catch (err) {
       if (err.response?.status === 409) {
-        // déjà émargé → update UI
         setEmargements((prev) => [
           ...prev,
-          {
-            enseignant: edt.enseignant,
-            classe: edt.classe,
-            matiere: edt.matiere,
-          },
+          { emploiDuTemps: { id: edtId } },
         ]);
       } else {
         console.error(err);
@@ -106,14 +108,15 @@ export default function EmargementPage() {
   };
 
   return (
-    <div className="min-h-screen">
-     
+    <div className="p-4">
+
       {/* FILTRES */}
-      <div className="flex gap-3 mb-2">
+      <div className="flex gap-3 mb-4">
+
         <select
           value={anneeId}
           onChange={(e) => setAnneeId(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm bg-white"
+          className="border px-3 py-2 rounded"
         >
           {annees.map((a) => (
             <option key={a.id} value={a.id}>
@@ -122,89 +125,62 @@ export default function EmargementPage() {
           ))}
         </select>
 
-        <select
-          value={jour}
-          onChange={(e) => setJour(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm bg-white"
-        >
-          <option>Lundi</option>
-          <option>Mardi</option>
-          <option>Mercredi</option>
-          <option>Jeudi</option>
-          <option>Vendredi</option>
-        </select>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="border px-3 py-2 rounded"
+        />
       </div>
-     <div className="bg-white rounded-lg shadow overflow-hidden">
+
       {/* TABLE */}
-      <table className="w-full">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="p-2">Classe</th>
-            <th className="p-2">Matière</th>
-            <th className="p-2">Enseignant</th>
-            <th className="p-2">Horaire</th>
-            <th className="p-2">Statut</th>
-            <th className="p-2">Action</th>
-          </tr>
-        </thead>
+      <div className="bg-white shadow rounded">
+        <table className="w-full text-sm">
 
-        <tbody>
-          {emploi.map((edt) => {
-            const emarge = isEmarge(edt);
+          <thead className="bg-gray-100">
+            <tr>
+              <th>Classe</th>
+              <th>Matière</th>
+              <th>Enseignant</th>
+              <th>Horaire</th>
+              <th>Statut</th>
+              <th>Action</th>
+            </tr>
+          </thead>
 
-            return (
-              <tr key={edt.id} className="border-t text-center">
-                <td className="p-2">{edt.classe?.nomComplet}</td>
+          <tbody>
+            {emploi.map((edt) => {
+              const ok = isEmarge(edt);
 
-                <td className="p-2">{edt.matiere?.nom}</td>
+              return (
+                <tr key={edt.id} className="text-center border-t">
 
-                <td className="p-2 font-medium text-blue-600">
-                  {edt.enseignant?.nom} {edt.enseignant?.prenom}
-                </td>
+                  <td>{edt.classe?.nomComplet}</td>
+                  <td>{edt.matiere?.nom}</td>
+                  <td>{edt.enseignant?.nom}</td>
+                  <td>{edt.heureDebut}h - {edt.heureFin}h</td>
 
-                <td className="p-2">
-                  {edt.heureDebut}h - {edt.heureFin}h
-                </td>
+                  <td>
+                    {ok ? "✔ Présent" : "❌ Absent"}
+                  </td>
 
-                {/* ✅ STATUT */}
-                <td className="p-2">
-                  {emarge ? (
-                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">
-                      ✔ Présent
-                    </span>
-                  ) : (
-                    <span className="bg-red-100 text-red-600 px-2 py-1 rounded text-sm">
-                      ❌ Non émargé
-                    </span>
-                  )}
-                </td>
+                  <td>
+                    <button
+                      disabled={ok || loadingId === edt.id}
+                      onClick={() => emarger(edt.id)}
+                      className="bg-blue-600 text-white px-3 py-1 rounded"
+                    >
+                      {ok ? "OK" : loadingId === edt.id ? "..." : "Emarger"}
+                    </button>
+                  </td>
 
-                {/* ACTION */}
-                <td className="p-2">
-                  <button
-                    disabled={loadingId === edt.id || emarge}
-                    onClick={() => emarger(edt.id)}
-                    className={`px-3 py-1 rounded text-white transition ${
-                      emarge
-                        ? "bg-green-500 cursor-not-allowed"
-                        : loadingId === edt.id
-                        ? "bg-gray-400"
-                        : "bg-blue-600 hover:bg-blue-700"
-                    }`}
-                  >
-                    {emarge
-                      ? "✔ OK"
-                      : loadingId === edt.id
-                      ? "..."
-                      : "Emarger"}
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                </tr>
+              );
+            })}
+          </tbody>
+
+        </table>
+      </div>
     </div>
   );
 }

@@ -3,279 +3,327 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../../context/AuthContext";
 
+const initialForm = {
+  nom: "",
+  prenom: "",
+  dateNaissance: "",
+  lieuNaissance: "",
+  nationalite: "Malienne",
+  sexe: "M",
+  numeroExtraitNaissance: "",
+  groupeSanguin: "",
+  allergiesMaladies: "",
+  adresse: "",
+  telephone: "",
+  email: "",
+  nomTuteur: "",
+  prenomTuteur: "",
+  lienParente: "Père",
+  telephoneTuteur: "",
+  emailTuteur: "",
+  professionTuteur: "",
+  adresseTuteur: "",
+  classeId: "",
+  anneeScolaire: "",
+  ecoleProvenance: ""
+};
+
+// --- Petits composants réutilisables ---
+
+function Field({ label, required, children, hint }) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-medium text-slate-600">
+        {label} {required && <span className="text-indigo-500">*</span>}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-slate-400">{hint}</p>}
+    </div>
+  );
+}
+
+const inputClass =
+  "w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-800 " +
+  "placeholder:text-slate-400 outline-none transition " +
+  "focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100";
+
+function Section({ number, title, description, children }) {
+  return (
+    <div className="relative pl-10">
+      {/* Ligne verticale connectant les sections */}
+      <div className="absolute left-[15px] top-9 bottom-[-24px] w-px bg-slate-200 last:hidden" />
+      <div className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white shadow-sm shadow-indigo-200">
+        {number}
+      </div>
+      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+      {description && (
+        <p className="mb-3 text-xs text-slate-400">{description}</p>
+      )}
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+    </svg>
+  );
+}
+
 export default function ElevePage() {
   const { user } = useAuth();
-
-  const [form, setForm] = useState({
-    nom: "",
-    prenom: "",
-    dateNaissance: "",
-    sexe: "M",
-    classeId: ""
-  });
-
+  const [form, setForm] = useState(initialForm);
   const [classes, setClasses] = useState([]);
-  const [eleves, setEleves] = useState([]);
-  const [filtreClasse, setFiltreClasse] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
 
-  const [stats, setStats] = useState({
-    total: 0,
-    garcons: 0,
-    filles: 0
-  });
-
-  // ================= LOAD CLASSES =================
   useEffect(() => {
     if (!user?.ecole?.id) return;
-
     fetch(`http://localhost:8080/api/classes/ecole/${user.ecole.id}`)
       .then(res => res.json())
       .then(data => setClasses(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
-
   }, [user?.ecole?.id]);
 
-  // ================= LOAD ELEVES =================
-  const loadEleves = async () => {
-    if (!user?.ecole?.id) return;
-
-    try {
-      const res = await fetch(
-        `http://localhost:8080/api/inscriptions/ecole/${user.ecole.id}/active`
-      );
-
-      const data = await res.json();
-
-      // 🔥 protection
-      const safeData = Array.isArray(data) ? data : [];
-
-      setEleves(safeData);
-      calculStats(safeData);
-
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    loadEleves();
-  }, [user?.ecole?.id]);
-
-  // ================= STATS =================
-  const calculStats = (data) => {
-    if (!Array.isArray(data)) return;
-
-    const garcons = data.filter(e => e.sexe === "M").length;
-    const filles = data.filter(e => e.sexe === "F").length;
-
-    setStats({
-      total: data.length,
-      garcons,
-      filles
-    });
-  };
-
-  // ================= FILTRE =================
-  const elevesFiltres = eleves.filter(e =>
-    !filtreClasse || e.classeId == filtreClasse
-  );
-
-  // ================= FORM =================
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ================= SUBMIT =================
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const validerFormulaire = () => {
+    if (!form.nom.trim() || !form.prenom.trim()) {
+      showToast("error", "Le nom et le prénom sont obligatoires");
+      return false;
+    }
+    if (!form.dateNaissance) {
+      showToast("error", "La date de naissance est obligatoire");
+      return false;
+    }
+    if (!form.classeId) {
+      showToast("error", "Veuillez choisir une classe");
+      return false;
+    }
+    if (!form.nomTuteur.trim() || !form.telephoneTuteur.trim()) {
+      showToast("error", "Le nom et le téléphone du tuteur sont obligatoires");
+      return false;
+    }
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) {
+      showToast("error", "Email de l'élève invalide");
+      return false;
+    }
+    if (form.emailTuteur && !/^\S+@\S+\.\S+$/.test(form.emailTuteur)) {
+      showToast("error", "Email du tuteur invalide");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validerFormulaire()) return;
 
+    setSubmitting(true);
     try {
-     const res = await fetch("http://localhost:8080/api/inscriptions", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-USER-EMAIL": user.email
-  },
-  body: JSON.stringify({
-    ...form,
-    ecoleId: user?.ecole?.id
-  })
-});
-
-const text = await res.text();
-console.log("RESPONSE 👉", text);
-
-if (!res.ok) {
-  if (res.status === 403) {
-    alert("🚫 Abonnement expiré ou école désactivée");
-  } else {
-    alert(text);
-  }
-  return;
-}
-
-      if (!res.ok) throw new Error("Erreur");
-
-      alert("✅ Élève inscrit !");
-
-      // reset form
-      setForm({
-        nom: "",
-        prenom: "",
-        dateNaissance: "",
-        sexe: "M",
-        classeId: ""
+      const res = await fetch("http://localhost:8080/api/inscriptions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-USER-EMAIL": user.email
+        },
+        body: JSON.stringify({ ...form, ecoleId: user?.ecole?.id })
       });
 
-      loadEleves();
+      const text = await res.text();
 
+      if (!res.ok) {
+        showToast(
+          "error",
+          res.status === 403 ? "Abonnement expiré ou école désactivée" : text
+        );
+        return;
+      }
+
+      showToast("success", "Élève préinscrit avec succès");
+      setForm(initialForm);
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de l'inscription");
+      showToast("error", "Erreur lors de l'inscription");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // ================= UI =================
   return (
-    <div className="p-6 space-y-6 bg-gray-100 min-h-screen">
+    <div className="min-h-screen bg-slate-50 py-10">
+      <div className="mx-auto max-w-2xl px-4">
 
-      {/* 🔵 STATS */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-blue-600 text-white p-4 rounded-xl shadow">
-          Total élèves : {stats.total}
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-slate-900">
+            Préinscription d'un élève
+          </h1>
+          <p className="text-sm text-slate-500">
+            Renseignez les informations de l'élève et de son tuteur légal.
+          </p>
         </div>
-        <div className="bg-green-600 text-white p-4 rounded-xl shadow">
-          Garçons : {stats.garcons}
-        </div>
-        <div className="bg-pink-500 text-white p-4 rounded-xl shadow">
-          Filles : {stats.filles}
-        </div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-6">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-8 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm shadow-slate-200/50 sm:p-8"
+        >
+          <Section
+            number="1"
+            title="Identité de l'élève"
+            description="État civil tel qu'il figure sur l'acte de naissance"
+          >
+            <Field label="Nom" required>
+              <input name="nom" value={form.nom} onChange={handleChange} className={inputClass} required />
+            </Field>
+            <Field label="Prénom" required>
+              <input name="prenom" value={form.prenom} onChange={handleChange} className={inputClass} required />
+            </Field>
+            <Field label="Date de naissance" required>
+              <input type="date" name="dateNaissance" value={form.dateNaissance} onChange={handleChange} className={inputClass} required />
+            </Field>
+            <Field label="Sexe">
+              <select name="sexe" value={form.sexe} onChange={handleChange} className={inputClass}>
+                <option value="M">Garçon</option>
+                <option value="F">Fille</option>
+              </select>
+            </Field>
+            <Field label="Lieu de naissance">
+              <input name="lieuNaissance" value={form.lieuNaissance} onChange={handleChange} className={inputClass} />
+            </Field>
+            <Field label="Nationalité">
+              <input name="nationalite" value={form.nationalite} onChange={handleChange} className={inputClass} />
+            </Field>
+            <Field label="N° extrait de naissance">
+              <input name="numeroExtraitNaissance" value={form.numeroExtraitNaissance} onChange={handleChange} className={inputClass} />
+            </Field>
+            <Field label="Groupe sanguin">
+              <select name="groupeSanguin" value={form.groupeSanguin} onChange={handleChange} className={inputClass}>
+                <option value="">Non renseigné</option>
+                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Téléphone élève" hint="Optionnel">
+              <input name="telephone" value={form.telephone} onChange={handleChange} className={inputClass} />
+            </Field>
+            <Field label="Email élève" hint="Optionnel">
+              <input type="email" name="email" value={form.email} onChange={handleChange} className={inputClass} />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Adresse de résidence">
+                <input name="adresse" value={form.adresse} onChange={handleChange} className={inputClass} />
+              </Field>
+            </div>
+            <div className="sm:col-span-2">
+              <Field label="Allergies / maladies particulières" hint="Optionnel — utile pour l'infirmerie">
+                <textarea
+                  name="allergiesMaladies"
+                  value={form.allergiesMaladies}
+                  onChange={handleChange}
+                  rows={2}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          </Section>
 
-        {/* 🔵 FORM */}
-        <div className="bg-white p-5 rounded-2xl shadow space-y-4">
-          <h2 className="font-semibold text-lg">Inscription Élève</h2>
+          <Section
+            number="2"
+            title="Parent / Tuteur légal"
+            description="Contact principal à joindre en cas de besoin"
+          >
+            <Field label="Nom du tuteur" required>
+              <input name="nomTuteur" value={form.nomTuteur} onChange={handleChange} className={inputClass} required />
+            </Field>
+            <Field label="Prénom du tuteur">
+              <input name="prenomTuteur" value={form.prenomTuteur} onChange={handleChange} className={inputClass} />
+            </Field>
+            <Field label="Lien de parenté">
+              <select name="lienParente" value={form.lienParente} onChange={handleChange} className={inputClass}>
+                <option value="Père">Père</option>
+                <option value="Mère">Mère</option>
+                <option value="Tuteur légal">Tuteur légal</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </Field>
+            <Field label="Téléphone" required>
+              <input name="telephoneTuteur" value={form.telephoneTuteur} onChange={handleChange} className={inputClass} required />
+            </Field>
+            <Field label="Email" hint="Optionnel">
+              <input type="email" name="emailTuteur" value={form.emailTuteur} onChange={handleChange} className={inputClass} />
+            </Field>
+            <Field label="Profession">
+              <input name="professionTuteur" value={form.professionTuteur} onChange={handleChange} className={inputClass} />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Adresse" hint="Si différente de celle de l'élève">
+                <input name="adresseTuteur" value={form.adresseTuteur} onChange={handleChange} className={inputClass} />
+              </Field>
+            </div>
+          </Section>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <Section number="3" title="Scolarité">
+            <Field label="Classe" required>
+              <select name="classeId" value={form.classeId} onChange={handleChange} className={inputClass} required>
+                <option value="">Choisir une classe</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.nomComplet}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Année scolaire" hint="Ex : 2025-2026">
+              <input name="anneeScolaire" value={form.anneeScolaire} onChange={handleChange} className={inputClass} />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="École de provenance" hint="Si transfert d'un autre établissement">
+                <input name="ecoleProvenance" value={form.ecoleProvenance} onChange={handleChange} className={inputClass} />
+              </Field>
+            </div>
+          </Section>
 
-            <input
-              name="nom"
-              placeholder="Nom"
-              value={form.nom}
-              onChange={handleChange}
-              className="w-full border p-2 rounded"
-              required
-            />
-
-            <input
-              name="prenom"
-              placeholder="Prénom"
-              value={form.prenom}
-              onChange={handleChange}
-              className="w-full border p-2 rounded"
-              required
-            />
-
-            <input
-              type="date"
-              name="dateNaissance"
-              value={form.dateNaissance}
-              onChange={handleChange}
-              className="w-full border p-2 rounded"
-              required
-            />
-
-            <select
-              name="sexe"
-              value={form.sexe}
-              onChange={handleChange}
-              className="w-full border p-2 rounded"
+          <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
+            <button
+              type="button"
+              onClick={() => setForm(initialForm)}
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100"
             >
-              <option value="M">Garçon</option>
-              <option value="F">Fille</option>
-            </select>
-
-            <select
-              name="classeId"
-              value={form.classeId}
-              onChange={handleChange}
-              className="w-full border p-2 rounded"
-              required
-            >
-              <option value="">Choisir classe</option>
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.nomComplet}
-                </option>
-              ))}
-            </select>
-
-            <button className="bg-blue-600 text-white w-full py-2 rounded-lg">
-              Inscrire
+              Réinitialiser
             </button>
-
-          </form>
-        </div>
-
-        {/* 🟢 TABLE */}
-        <div className="col-span-2 bg-white p-5 rounded-2xl shadow">
-
-          <div className="flex justify-between mb-4">
-            <h2 className="font-semibold">Liste des élèves</h2>
-
-            <select
-              value={filtreClasse}
-              onChange={(e) => setFiltreClasse(e.target.value)}
-              className="border p-2 rounded"
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">Toutes classes</option>
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.nomComplet}
-                </option>
-              ))}
-            </select>
+              {submitting && <Spinner />}
+              {submitting ? "Enregistrement..." : "Préinscrire l'élève"}
+            </button>
           </div>
-
-          <table className="w-full text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2">Matricule</th>
-                <th className="p-2">Nom</th>
-                <th className="p-2">Prénom</th>
-                <th className="p-2">Classe</th>
-                <th className="p-2">Année</th>
-                <th className="p-2">Statut</th>
-                <th className="p-2">Date</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {elevesFiltres.map(e => (
-                <tr key={e.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2">{e.numeroMatricule}</td>
-                  <td className="p-2">{e.nom}</td>
-                  <td className="p-2">{e.prenom}</td>
-                  <td className="p-2">{e.classeNom}</td>
-                  <td className="p-2">{e.anneeScolaire}</td>
-                  <td className="p-2">{e.statut}</td>
-                  <td className="p-2">
-                    {e.dateInscription?.substring(0, 10)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-
-          </table>
-
-        </div>
-
+        </form>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg ${
+            toast.type === "success" ? "bg-emerald-600" : "bg-rose-600"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

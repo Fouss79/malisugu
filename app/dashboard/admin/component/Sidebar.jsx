@@ -5,6 +5,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+
 import {
   LayoutDashboard,
   Users,
@@ -14,155 +15,188 @@ import {
   ClipboardList,
   UserCheck,
   Printer,
-  Calendar,
-  Settings,
-  Layers,
-  LogOut
 } from "lucide-react";
 
-const Sidebar = () => {
+export default function Sidebar({ collapsed }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [openMenu, setOpenMenu] = useState(null);
 
- const menuList = [
-  { nom: "Tableau de bord", link: "/dashboard/admin", icon: <LayoutDashboard size={18} /> },
-   { nom: "Matières", link: "/dashboard/admin/matieres", icon: <BookOpen size={18} /> },
-  {
-    nom: "Élèves",
-    icon: <Users size={18} />,
-    children: [
-      { nom: "Préinscription", link: "/dashboard/admin/eleves/preinscription" },
-      { nom: "Inscription", link: "/dashboard/admin/eleves/inscriptions" },
-      { nom: "Liste des élèves", link: "/dashboard/admin/eleves" },
-    ]
-  },
+  const permissions = user?.permissions || [];
 
-   {
-    nom: "Enseignants",
-    icon: <UserCheck size={18} />,
-    children: [
-      { nom: "Habilitation", link: "/dashboard/admin/enseignants/habilitation" },
-      { nom: "Affectation", link: "/dashboard/admin/enseignants/affectation" },
-      { nom: "Liste des enseignants", link: "/dashboard/admin/enseignants" },
-    ]
-  },
-  {
-    nom: "Classes",
-    icon: <GraduationCap size={18} />,
-    children: [
-      { nom: "Niveau", link: "/dashboard/admin/classes/niveau" },
-      { nom: "Filiere", link: "/dashboard/admin/classes/filiere" },
-      { nom: "Groupe", link: "/dashboard/admin/classes/groupe" },
-      { nom: "Classes", link: "/dashboard/admin/classes" },
-      { nom: "Matieres", link: "/dashboard/admin/classes/matiereclasse" },
-    ]
-  },
-  
+  const hasPermission = (permission) =>
+    permissions.includes(permission);
 
-  { nom: "Notes", link: "/dashboard/admin/notes",icon: <Printer size={18} /> },
-  { nom: "Emargement", link: "/dashboard/admin/emargement",icon: <FileText size={18} />  },
+  const menuList = [
+    {
+      nom: "Tableau de bord",
+      link: "/dashboard/admin",
+      icon: <LayoutDashboard size={18} />,
+    },
 
-  { nom: "Présences", link: "/dashboard/admin/presences", icon: <ClipboardList size={18} /> },
-  { nom: "Emplois du temps", link: "/dashboard/admin/emploisdutemps", icon: <ClipboardList size={18} /> },
-  { nom: "Finances", link: "/dashboard/admin/finances", icon: <ClipboardList size={18} /> },
-];
+    hasPermission("GESTION_MATIERES") && {
+      nom: "Matières",
+      link: "/dashboard/admin/matieres",
+      icon: <BookOpen size={18} />,
+    },
+      hasPermission("GESTION_ELEVES") && {
+      link:"/dashboard/admin/eleves/listeinscrit",
+      nom: "Élèves",
+      icon: <Users size={18} />,},
+     
+    hasPermission("GESTION_CLASSES") && {
+      nom: "Classes",
+      link: "/dashboard/admin/afficheclasse",
+      icon: <GraduationCap size={18} />,
+    },
+    
+
+    hasPermission("GESTION_ENSEIGNANTS") && {
+      nom: "Enseignants",
+      icon: <UserCheck size={18} />,
+      children: [
+        {
+          nom: "Liste des enseignants",
+          link: "/dashboard/admin/enseignants",
+        },
+        {
+          nom: "Affectation",
+          link: "/dashboard/admin/enseignants/affectation",
+        },
+      ],
+    },
+
+    hasPermission("GESTION_NOTES") && {
+      nom: "Notes",
+      link: "/dashboard/admin/notes",
+      icon: <Printer size={18} />,
+    },
+
+    hasPermission("GESTION_PRESENCES") && {
+      nom: "Présences",
+      link: "/dashboard/admin/presences",
+      icon: <ClipboardList size={18} />,
+    },
+
+    hasPermission("GESTION_PAIEMENTS") && {
+      nom: "Finances",
+      link: "/dashboard/admin/finances",
+      icon: <ClipboardList size={18} />,
+    },
+    hasPermission("GESTION_EMPLOIS_DU_TEMPS") && {
+      nom: "Emplois du temps",
+      link: "/dashboard/admin/emploisdutemps",
+      icon: <GraduationCap size={18} />,
+    },
+    hasPermission("GESTION_EMARGEMENTS") && {
+      nom: "Emargements",
+      link: "/dashboard/admin/emargement",
+      icon: <GraduationCap size={18} />,
+    },
+
+
+
+  ].filter(Boolean); // supprime les menus non autorisés
 
   return (
-    <aside className="flex flex-col justify-between bg-[#054861] text-white  h-screen p-2">
+   <aside
+  className={`flex flex-col justify-between bg-[#054861] text-white h-screen p-2 transition-all duration-300 ${
+    collapsed ? "w-15" : "w-52"
+  }`}
+>   <div>
+        <div
+  className={`flex items-center ${
+    collapsed ? "justify-center" : "gap-2"
+  }`}
+>
+          <div className="flex items-center gap-2">
+            <div className="w-15 h-15 rounded-full bg-gray-300 mb-2"></div>
 
-      {/* PROFIL */}
-      <div className="">
-        <div className="flex flex-col  px-2 ">
-          <div className="flex items-center gap-2 ">
-             <div className="w-15 h-15 rounded-full bg-gray-300 mb-2"></div>
-           <div>
-          <h2 className="font-semibold text-lg">
-            {user?.role || "Admin"}
-          </h2>
-          <h2 className="">
-            {user?.ecole.nom || "Admin"}
-          </h2>
-        </div>
-        </div>
-        </div>
-         
+            {!collapsed && (
+  <div>
+    <h2 className="font-semibold text-lg">
+      {user?.role}
+    </h2>
 
-        {/* MENU */}
-        <ul className="space-y-1 mt-4">
-  {menuList.map((menu, index) => {
-
-    const isOpen = openMenu === index;
-
-    return (
-      <li key={index}>
-
-        {/* 🔥 MENU AVEC SOUS-MENU */}
-        {menu.children ? (
-          <div>
-            <button
-              onClick={() => setOpenMenu(isOpen ? null : index)}
-              className="flex items-center justify-between w-full px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300"
-            >
-              <div className="flex items-center gap-3">
-                {menu.icon}
-                {menu.nom}
-              </div>
-
-              {/* 🔽 flèche */}
-              <span>{isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-            </button>
-
-            {/* 🔥 SOUS-MENU */}
-            {isOpen && (
-              <ul className="ml-6 mt-1 space-y-1">
-                {menu.children.map((child, i) => {
-                  const isActive = pathname === child.link;
-
-                  return (
-                    <li key={i}>
-                      <Link
-                        href={child.link}
-                        className={`block px-3 py-2 rounded-lg text-sm
-                          ${
-                            isActive
-                              ? "bg-[#15878f] text-white"
-                              : "text-gray-400 hover:bg-gray-700"
-                          }`}
-                      >
-                        {child.nom}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+    <h2>{user?.ecole?.nom}</h2>
+  </div>
+)}
           </div>
+        </div>
 
-        ) : (
-          /* 🔥 MENU NORMAL */
-          <Link
-            href={menu.link}
-            className={`flex items-center gap-3 px-4 py-2 rounded-lg transition
-              ${
-                pathname === menu.link
-                  ? " bg-[#9FB9C4] text-white"
-                  : "hover:bg-gray-700 text-gray-300"
-              }`}
-          >
-            {menu.icon}
-            {menu.nom}
-          </Link>
-        )}
-      </li>
-    );
-  })}
-</ul>
+        <ul className="space-y-1 mt-4">
+          {menuList.map((menu, index) => {
+            const isOpen = openMenu === index;
+
+            return (
+              <li key={index}>
+                {menu.children ? (
+                  <div>
+                   <button
+  onClick={() => setOpenMenu(isOpen ? null : index)}
+  className={`flex items-center w-full px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300 ${
+    collapsed ? "justify-center" : "justify-between"
+  }`}
+  title={collapsed ? menu.nom : ""}
+>
+  {collapsed ? (
+    menu.icon
+  ) : (
+    <>
+      <div className="flex items-center gap-3">
+        {menu.icon}
+        {menu.nom}
       </div>
 
-      
+      {isOpen ? (
+        <ChevronUp size={16} />
+      ) : (
+        <ChevronDown size={16} />
+      )}
+    </>
+  )}
+</button>                  
+{!collapsed && isOpen && ( 
+                      <ul className="ml-6 mt-1 space-y-1">
+                        {menu.children.map((child, i) => (
+                          <li key={i}>
+                            <Link
+                              href={child.link}
+                              className={`block px-3 py-2 rounded-lg text-sm ${
+                                pathname === child.link
+                                  ? "bg-[#15878f] text-white"
+                                  : "text-gray-400 hover:bg-gray-700"
+                              }`}
+                            >
+                              {child.nom}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : (
+                <Link
+  href={menu.link}
+  className={`flex items-center ${
+    collapsed ? "justify-center" : "gap-3"
+  } px-4 py-2 rounded-lg ${
+    pathname === menu.link
+      ? "bg-[#9FB9C4] text-white"
+      : "hover:bg-gray-700 text-gray-300"
+  }`}
+  title={collapsed ? menu.nom : ""}
+>
+  {menu.icon}
+  {!collapsed && menu.nom}
+</Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </aside>
   );
 };
 
-export default Sidebar;

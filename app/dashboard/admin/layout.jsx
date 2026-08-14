@@ -1,14 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import Sidebar from "./component/Sidebar";
 import Header from "./component/Header";
+import { BanniereTarifsIncomplets } from "./component/BanniereTarifsIncomplets";
 
 export default function DashboardLayout({ children }) {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
+
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -20,23 +23,21 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <Sidebar
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
 
-      {/* 🔹 Sidebar fixe */}
-      <Sidebar />
-
-      {/* 🔹 Partie droite */}
       <div className="flex flex-col flex-1 h-full">
+        <Header
+    collapsed={collapsed}
+    setCollapsed={setCollapsed}
+/>
 
-        {/* 🔹 Header fixe */}
-        <div className="shrink-0">
-          <Header />
-        </div>
-
-        {/* 🔥 CONTENU SCROLLABLE UNIQUEMENT */}
         <main className="flex-1 overflow-y-auto p-6 bg-[#9FB9C4]">
+         
           {children}
         </main>
-
       </div>
     </div>
   );

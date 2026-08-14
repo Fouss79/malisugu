@@ -87,6 +87,7 @@ useEffect(() => {
     console.log("DATA ENVOYÉE :", form); // 🔥 debug propre
 
     alert("Ajout réussi ✅");
+     loadList();
     
   } catch (err) {
     console.error(err);

@@ -23,7 +23,10 @@ const stats = [
   { label: "Établissements", value: 300 },
 ];
 
-function Counter({ end }) {
+
+
+
+function Counter({ end }: { end: number }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -33,6 +36,7 @@ function Counter({ end }) {
 
     const timer = setInterval(() => {
       start += increment;
+
       if (start >= end) {
         setCount(end);
         clearInterval(timer);

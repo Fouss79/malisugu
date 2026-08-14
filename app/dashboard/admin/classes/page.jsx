@@ -1,20 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import CyclePage from "./component/CyclePage";
 import NiveauPage from "./component/NiveauPage";
 import SeriePage from "./component/SeriePage";
 import GroupePage from "./component/GroupePage";
 import ClassePage from "./component/ClassePage";
+import SallePage from "./component/SallePage";
 
 
 export default function ParametresScolaires() {
 
-  const [tab, setTab] = useState("niveau");
+  const [tab, setTab] = useState("cycle");
 
   const tabs = [
+    { key: "cycle", label: "Cycle" },
     { key: "niveau", label: "Niveau" },
     { key: "serie", label: "Série" },
     { key: "groupe", label: "Groupe" },
+    { key: "salle", label: "Salle" },
     { key: "classe", label: "Classe" } // 🔥 AJOUT ICI
   ];
 
@@ -45,10 +49,12 @@ export default function ParametresScolaires() {
       {/* CONTENT */}
       <div className="mt-1">
 
+        {tab === "cycle" && <CyclePage />}
         {tab === "niveau" && <NiveauPage />}
         {tab === "serie" && <SeriePage />}
         {tab === "groupe" && <GroupePage />}
-        {tab === "classe" && <ClassePage />} {/* 🔥 AJOUT ICI */}
+        {tab === "classe" && <ClassePage />}
+        {tab === "salle" && <SallePage />} {/* 🔥 AJOUT ICI */}
 
       </div>
 

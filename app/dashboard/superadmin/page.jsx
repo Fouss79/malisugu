@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend
 } from "recharts";
-
+import api from "../../../lib/api";
 export default function SuperAdminDashboard() {
 
   const [stats, setStats] = useState(null);
@@ -13,16 +13,30 @@ export default function SuperAdminDashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/superadmin/stats")
-      .then(res => {
-        if (!res.ok) throw new Error("Erreur serveur");
-        return res.json();
-      })
-      .then(data => setStats(data))
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
+      const res = await api.get("/superadmin/stats");
+
+      setStats(res.data);
+
+    } catch (err) {
+      console.error("❌ Erreur statistiques :", err);
+
+      setError(
+        err.response?.data?.message ||
+        "Impossible de récupérer les statistiques."
+      );
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchStats();
+}, []);
   if (loading) return <p className="p-6">Chargement...</p>;
   if (error) return <p className="p-6 text-red-500">{error}</p>;
 

@@ -31,19 +31,34 @@ const login = (data) => {
 
   localStorage.setItem("user", JSON.stringify(data));
 
-  // 🔥 cookies pour middleware
-  document.cookie = `token=true; path=/`;
+  document.cookie = `token=${data.token}; path=/`;
   document.cookie = `role=${data.role}; path=/`;
+
+  document.cookie = `permissions=${encodeURIComponent(
+    JSON.stringify(data.permissions)
+  )}; path=/`;
 };
 
 
 
   // 🚪 Déconnexion
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("cart"); // si tu utilises panier ailleurs
-  };
+
+  setUser(null);
+
+  localStorage.removeItem("user");
+  localStorage.removeItem("cart");
+
+
+  document.cookie =
+    "token=; path=/; max-age=0";
+
+  document.cookie =
+    "role=; path=/; max-age=0";
+
+  document.cookie =
+    "permissions=; path=/; max-age=0";
+};
 
   const isAuthenticated = !!user;
 

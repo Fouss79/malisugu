@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useAuth } from "../../../context/AuthContext";
+import api from "../../../../lib/api";
 
 export default function AnneeScolairePage() {
   const { user } = useAuth();
 
   const [nom, setNom] = useState("");
+  const [debut, setDebut] = useState("");
+  const [fin, setFin] = useState("");
+
   const [annees, setAnnees] = useState([]);
   const [active, setActive] = useState(null);
-
-  const API = "http://localhost:8080/api/annees";
 
   useEffect(() => {
     if (user?.ecole?.id) {
@@ -23,7 +24,7 @@ export default function AnneeScolairePage() {
   // ================= LOAD LIST =================
   const loadData = async () => {
     try {
-      const res = await axios.get(`${API}/ecole/${user.ecole.id}`);
+      const res = await api.get(`/annees/ecole/${user.ecole.id}`);
       setAnnees(res.data);
     } catch (err) {
       console.log(err);
@@ -33,7 +34,7 @@ export default function AnneeScolairePage() {
   // ================= LOAD ACTIVE =================
   const loadActive = async () => {
     try {
-      const res = await axios.get(`${API}/active/${user.ecole.id}`);
+      const res = await api.get(`/annees/active/${user.ecole.id}`);
       setActive(res.data);
     } catch (err) {
       console.log(err);
@@ -44,15 +45,21 @@ export default function AnneeScolairePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!nom) return alert("Nom obligatoire");
+    if (!nom || !debut || !fin)
+      return alert("Tous les champs sont obligatoires");
 
     try {
-      await axios.post(`${API}`, {
+      await api.post(`/annees`, {
         nom,
+        debut: debut,   // yyyy-MM-dd
+        fin: fin,       // yyyy-MM-dd
         ecoleId: user.ecole.id,
       });
 
       setNom("");
+      setDebut("");
+      setFin("");
+
       loadData();
       alert("Année créée ✅");
     } catch (err) {
@@ -63,7 +70,7 @@ export default function AnneeScolairePage() {
   // ================= ACTIVER =================
   const activer = async (id) => {
     try {
-      await axios.put(`${API}/activer/${id}`);
+      await api.put(`/annees/activer/${id}`);
       loadData();
       loadActive();
       alert("Année activée 🔥");
@@ -79,16 +86,31 @@ export default function AnneeScolairePage() {
       </h1>
 
       {/* ================= FORM ================= */}
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 mb-6">
+
         <input
           type="text"
-          placeholder="Ex: 2024-2025"
+          placeholder="Ex: 2025-2026"
           value={nom}
           onChange={(e) => setNom(e.target.value)}
-          className="border p-2 flex-1"
+          className="border p-2"
         />
 
-        <button className="bg-blue-600 text-white px-4">
+        <input
+          type="date"
+          value={debut}
+          onChange={(e) => setDebut(e.target.value)}
+          className="border p-2"
+        />
+
+        <input
+          type="date"
+          value={fin}
+          onChange={(e) => setFin(e.target.value)}
+          className="border p-2"
+        />
+
+        <button className="bg-blue-600 text-white px-4 py-2">
           Créer
         </button>
       </form>
@@ -105,6 +127,8 @@ export default function AnneeScolairePage() {
         <thead>
           <tr className="bg-gray-200">
             <th>Nom</th>
+            <th>Début</th>
+            <th>Fin</th>
             <th>Statut</th>
             <th>Action</th>
           </tr>
@@ -114,16 +138,14 @@ export default function AnneeScolairePage() {
           {annees.map((a) => (
             <tr key={a.id} className="text-center border-t">
               <td>{a.nom}</td>
+              <td>{a.dateDebut}</td>
+              <td>{a.dateFin}</td>
 
               <td>
                 {a.active ? (
-                  <span className="text-green-600 font-bold">
-                    ACTIVE
-                  </span>
+                  <span className="text-green-600 font-bold">ACTIVE</span>
                 ) : (
-                  <span className="text-gray-500">
-                    INACTIVE
-                  </span>
+                  <span className="text-gray-500">INACTIVE</span>
                 )}
               </td>
 

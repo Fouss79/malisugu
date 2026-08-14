@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { Search, Plus, Filter } from "lucide-react";
+import api from "../../../../lib/api";// ⚠️ corrigé — "lib/page" n'existe pas
 
 export default function ElevesPage() {
   const { user } = useAuth();
@@ -10,131 +11,190 @@ export default function ElevesPage() {
   const [search, setSearch] = useState("");
   const [eleves, setEleves] = useState([]);
   const [classeFilter, setClasseFilter] = useState("");
+  const [sousGroupeFilter, setSousGroupeFilter] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // 🔥 LOAD
   useEffect(() => {
-    if (!user?.ecole?.id) return;
+    const loadEleves = async () => {
+      if (!user?.ecole?.id) return;
 
-    fetch(`http://localhost:8080/api/eleves/ecole/${user.ecole.id}`)
-      .then((res) => res.json())
-      .then((data) => setEleves(data))
-      .catch((err) => console.error(err));
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await api.get(`/eleves/ecole/${user.ecole.id}`);
+        setEleves(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error(err);
+        setError("Erreur lors du chargement des élèves");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEleves();
   }, [user]);
 
   // 🔥 CLASSES UNIQUES
-  const classesUniques = [
+  const classesUniques = useMemo(() => [
     ...new Map(
-      eleves
-        .filter((e) => e.classe)
-        .map((e) => [e.classe.id, e.classe])
+      eleves.filter((e) => e.classe).map((e) => [e.classe.id, e.classe])
     ).values(),
-  ];
+  ], [eleves]);
+
+  // 🔥 SOUS-GROUPES UNIQUES (toutes classes confondues)
+  const sousGroupesUniques = useMemo(() => {
+    const map = new Map();
+    eleves.forEach((e) => {
+      (e.sousGroupes || []).forEach((sg) => {
+        if (!map.has(sg.id)) map.set(sg.id, sg);
+      });
+    });
+    return Array.from(map.values());
+  }, [eleves]);
 
   // 🔍 FILTRE + TRI
-  const filteredEleves = eleves
-    .filter((e) => {
-      const matchSearch = `${e.nom} ${e.prenom}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
+  const filteredEleves = useMemo(() => {
+    return eleves
+      .filter((e) => {
+        const matchSearch = `${e.nom} ${e.prenom}`
+          .toLowerCase()
+          .includes(search.toLowerCase());
 
-      const matchClasse =
-        classeFilter === "" || e.classe?.id == classeFilter;
+        const matchClasse = classeFilter === "" || e.classe?.id == classeFilter;
 
-      return matchSearch && matchClasse;
-    })
-    .sort((a, b) => {
-      const classeA = a.classe?.nomComplet || "";
-      const classeB = b.classe?.nomComplet || "";
-      return classeA.localeCompare(classeB);
-    });
+        const matchSousGroupe =
+          sousGroupeFilter === "" ||
+          (e.sousGroupes || []).some((sg) => sg.id == sousGroupeFilter);
+
+        return matchSearch && matchClasse && matchSousGroupe;
+      })
+      .sort((a, b) => {
+        // Tri par classe, puis par sous-groupe (si un filtre de sous-groupe est actif ou juste pour regrouper visuellement)
+        const classeCompare = (a.classe?.nomComplet || "").localeCompare(b.classe?.nomComplet || "");
+        if (classeCompare !== 0) return classeCompare;
+
+        const sgA = (a.sousGroupes || [])[0]?.nom || "";
+        const sgB = (b.sousGroupes || [])[0]?.nom || "";
+        return sgA.localeCompare(sgB);
+      });
+  }, [eleves, search, classeFilter, sousGroupeFilter]);
 
   return (
     <div className="space-y-4">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center flex-wrap gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Liste des élèves</h1>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-wrap items-center gap-3">
 
           {/* SEARCH */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Rechercher..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-lg text-sm w-64 bg-white"
+              className="w-64 rounded-lg border py-2 pl-10 pr-4 text-sm"
             />
           </div>
 
-          {/* SELECT CLASSE */}
+          {/* FILTER CLASSE */}
           <select
             value={classeFilter}
             onChange={(e) => setClasseFilter(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm bg-white"
+            className="rounded-lg border px-3 py-2"
           >
             <option value="">Toutes les classes</option>
             {classesUniques.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nomComplet}
-              </option>
+              <option key={c.id} value={c.id}>{c.nomComplet}</option>
             ))}
           </select>
 
-          <button className="p-2 border rounded-lg hover:bg-gray-50">
+          {/* FILTER SOUS-GROUPE */}
+          <select
+            value={sousGroupeFilter}
+            onChange={(e) => setSousGroupeFilter(e.target.value)}
+            className="rounded-lg border px-3 py-2"
+          >
+            <option value="">Tous les sous-groupes</option>
+            {sousGroupesUniques.map((sg) => (
+              <option key={sg.id} value={sg.id}>{sg.nom}</option>
+            ))}
+          </select>
+
+          <button className="rounded-lg border p-2">
             <Filter size={18} />
           </button>
 
-          <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">
+          <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white">
             <Plus size={18} />
             Ajouter
           </button>
         </div>
       </div>
 
+      {/* STATES */}
+      {loading && <p>Chargement...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+
       {/* TABLE */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-
-          <thead className="bg-gray-100 text-sm">
-            <tr>
-              <th className="p-3 text-left">Classe</th>
-              <th className="p-3 text-left">Matricule</th>
-              <th className="p-3 text-left">Nom</th>
-              <th className="p-3 text-left">Prénom</th>
-              <th className="p-3 text-left">Date naissance</th>
-              <th className="p-3 text-left">Sexe</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredEleves.length === 0 ? (
+      {!loading && !error && (
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <table className="w-full">
+            <thead className="bg-gray-100">
               <tr>
-                <td colSpan="6" className="text-center p-4 text-gray-400">
-                  Aucun élève
-                </td>
+                <th className="p-3 text-left">Classe</th>
+                <th className="p-3 text-left">Sous-groupe(s)</th>
+                <th className="p-3 text-left">Matricule</th>
+                <th className="p-3 text-left">Nom</th>
+                <th className="p-3 text-left">Prénom</th>
+                <th className="p-3 text-left">Date naissance</th>
+                <th className="p-3 text-left">Sexe</th>
               </tr>
-            ) : (
-              filteredEleves.map((e) => (
-                <tr key={e.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3">
-                    {e.classe?.nomComplet || "Non affecté"}
-                  </td>
-                  <td className="p-3">{e.matricule}</td>
-                  <td className="p-3">{e.nom}</td>
-                  <td className="p-3">{e.prenom}</td>
-                  <td className="p-3">{e.dateNaissance}</td>
-                  <td className="p-3">{e.sexe}</td>
+            </thead>
+
+            <tbody>
+              {filteredEleves.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-4 text-center text-gray-400">Aucun élève</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-
-        </table>
-      </div>
-
+              ) : (
+                filteredEleves.map((e) => (
+                  <tr key={e.id} className="border-t hover:bg-gray-50">
+                    <td className="p-3">{e.classe?.nomComplet || "Non affecté"}</td>
+                    <td className="p-3">
+                      {(e.sousGroupes || []).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {e.sousGroupes.map((sg) => (
+                            <span
+                              key={sg.id}
+                              className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600"
+                            >
+                              {sg.nom}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="p-3">{e.matricule}</td>
+                    <td className="p-3">{e.nom}</td>
+                    <td className="p-3">{e.prenom}</td>
+                    <td className="p-3">{e.dateNaissance}</td>
+                    <td className="p-3">{e.sexe}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

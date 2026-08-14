@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import api from "../../lib/api";
 export default function RegisterPage() {
 
   const router = useRouter();
@@ -28,39 +28,33 @@ export default function RegisterPage() {
     });
   };
 
-  // Soumission
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  e.preventDefault();
 
-    try {
-      const res = await fetch("http://localhost:8080/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(form)
-      });
+  setLoading(true);
+  setError("");
 
-      if (!res.ok) {
-        throw new Error("Erreur lors de l'inscription");
-      }
+  try {
+    const res = await api.post("/auth/register", form);
 
-      const data = await res.json();
+    console.log("✅ Inscription réussie :", res.data);
 
-      console.log("Utilisateur créé :", data);
+    // Redirection vers la page de connexion
+    router.push("/login");
 
-      // redirection vers login
-      router.push("/login");
+  } catch (err) {
+    console.error("❌ Erreur inscription :", err);
 
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      "Erreur lors de l'inscription"
+    );
 
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
 

@@ -15,6 +15,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import api from "../../../lib/api";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -32,8 +33,8 @@ export default function DashboardPage() {
     if (!user?.ecole?.id) return;
 
     try {
-      const res = await axios.get(
-        `http://localhost:8080/api/dashboard/stats/${user.ecole.id}`
+      const res = await api.get(
+        `/dashboard/stats/${user.ecole.id}`
       );
       setStats(res.data);
     } catch (err) {
@@ -46,8 +47,8 @@ export default function DashboardPage() {
     if (!user?.ecole?.id) return;
 
     try {
-      const res = await axios.get(
-        `http://localhost:8080/api/dashboard/chart/${user.ecole.id}`
+      const res = await api.get(
+        `/dashboard/chart/${user.ecole.id}`
       );
       setChartData(res.data);
     } catch (err) {

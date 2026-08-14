@@ -30,7 +30,7 @@ export default function HabilitationPage() {
   const loadData = async () => {
     try {
       const [e, m, a] = await Promise.all([
-        axios.get(`http://localhost:8080/api/enseignants/ecole/${user.ecole.id}`),
+        axios.get(`http://localhost:8080/api/enseignants/ecole/Actif/${user.ecole.id}`),
         axios.get(`http://localhost:8080/api/matieres/ecole/${user.ecole.id}`),
         axios.get(`http://localhost:8080/api/annees/ecole/${user.ecole.id}`)
       ]);
@@ -63,7 +63,7 @@ export default function HabilitationPage() {
   const loadList = async () => {
     try {
       const res = await axios.get(
-        `${API}/ecole/${user.ecole.id}/annee/${form.anneeScolaireId}`
+        `${API}/ecole/${user.ecole.id}`
       );
       setList(res.data || []);
     } catch (err) {
