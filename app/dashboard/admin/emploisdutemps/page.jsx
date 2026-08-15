@@ -80,11 +80,11 @@ export default function EmploiDuTempsForm() {
 
   useEffect(() => {
     if (!form.classeId || !form.anneeId) {
-      setDonnees(prev => ({ 
-        ...prev, 
-        affectations: [], 
-        sousGroupes: [], 
-        emploi: [] 
+      setDonnees(prev => ({
+        ...prev,
+        affectations: [],
+        sousGroupes: [],
+        emploi: []
       }));
       return;
     }
@@ -140,7 +140,7 @@ export default function EmploiDuTempsForm() {
 
   const enseignantsDisponibles = useMemo(() => {
     if (!form.matiereId) return [];
-    
+
     return donnees.affectations
       .filter(a => String(a.matiereId) === String(form.matiereId))
       .map(a => ({
@@ -150,13 +150,25 @@ export default function EmploiDuTempsForm() {
       }));
   }, [donnees.affectations, form.matiereId]);
 
+  // Cours groupés par jour, triés par heure — pour la vue liste mobile
+  const coursParJour = useMemo(() => {
+    const map = new Map(JOURS_SEMAINE.map(j => [j, []]));
+    donnees.emploi.forEach(cours => {
+      if (map.has(cours.jour)) {
+        map.get(cours.jour).push(cours);
+      }
+    });
+    map.forEach(liste => liste.sort((a, b) => a.heureDebut - b.heureDebut));
+    return map;
+  }, [donnees.emploi]);
+
   // =========================================================
   // GESTIONNAIRES D'ÉVÉNEMENTS
   // =========================================================
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     setForm(prev => ({
       ...prev,
       [name]: value,
@@ -254,8 +266,8 @@ export default function EmploiDuTempsForm() {
     } catch (error) {
       console.error("Erreur enregistrement:", error);
       setErreur(
-        error.response?.data?.message || 
-        error.response?.data || 
+        error.response?.data?.message ||
+        error.response?.data ||
         "Erreur lors de l'enregistrement"
       );
     }
@@ -273,7 +285,7 @@ export default function EmploiDuTempsForm() {
       await rechargerEmploi();
     } catch (error) {
       setErreur(
-        error.response?.data || 
+        error.response?.data ||
         "Impossible de supprimer ce créneau"
       );
     }
@@ -304,18 +316,18 @@ export default function EmploiDuTempsForm() {
   };
 
   // =========================================================
-  // RENDU DU TABLEAU
+  // RENDU DU TABLEAU (DESKTOP)
   // =========================================================
 
   const renderCellContent = (jour, heure) => {
     const cours = donnees.emploi.find(
-      c => c.jour === jour && 
-           c.heureDebut <= heure && 
+      c => c.jour === jour &&
+           c.heureDebut <= heure &&
            c.heureFin > heure
     );
 
     if (!cours) {
-      return <td key={jour} className="border text-center">-</td>;
+      return <td key={jour} className="border text-center text-slate-300">-</td>;
     }
 
     // Ne rendre que le début du cours
@@ -329,37 +341,37 @@ export default function EmploiDuTempsForm() {
       <td
         key={jour}
         rowSpan={rowSpan}
-        className="border text-center p-2 bg-blue-100 align-middle"
+        className="border text-center p-1 bg-blue-100 align-middle"
       >
-        <div className="font-bold">{cours.matiere?.nom}</div>
-        <div className="text-xs">
+        <div className="font-bold text-[11px] leading-tight">{cours.matiere?.nom}</div>
+        <div className="text-[10px] leading-tight text-slate-600">
           {cours.enseignant?.prenom} {cours.enseignant?.nom}
         </div>
 
         {cours.sousGroupe && (
-          <div className="mt-1 inline-block rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-700">
+          <div className="mt-0.5 inline-block rounded-full bg-purple-100 px-1.5 py-0 text-[9px] font-semibold text-purple-700">
             👥 {cours.sousGroupe.nom}
           </div>
         )}
 
         {cours.salle && (
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[9px] text-slate-500">
             📍 {cours.salle.nom}
           </div>
         )}
 
-        <div className="flex justify-center gap-2 mt-2">
+        <div className="flex justify-center gap-1.5 mt-1">
           <button
             type="button"
             onClick={() => handleEdit(cours)}
-            className="hover:scale-110 transition-transform"
+            className="hover:scale-110 transition-transform text-xs"
           >
             ✏️
           </button>
           <button
             type="button"
             onClick={() => handleDelete(cours.id)}
-            className="hover:scale-110 transition-transform"
+            className="hover:scale-110 transition-transform text-xs"
           >
             🗑️
           </button>
@@ -383,7 +395,7 @@ export default function EmploiDuTempsForm() {
       )}
 
       {/* En-tête avec bouton d'ouverture/fermeture */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-base font-semibold text-slate-900">
           {editingId ? "Modifier le créneau" : "Emploi du temps"}
         </h2>
@@ -391,7 +403,7 @@ export default function EmploiDuTempsForm() {
         <button
           type="button"
           onClick={toggleForm}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? "Fermer" : "Ajouter un créneau"}
@@ -400,7 +412,7 @@ export default function EmploiDuTempsForm() {
 
       {/* Formulaire */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 md:grid-cols-3">
 
           {/* Année */}
           <select
@@ -527,54 +539,125 @@ export default function EmploiDuTempsForm() {
           </div>
 
           {/* Boutons */}
-          <div className="col-span-1 md:col-span-3 flex justify-between items-center">
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition-colors font-medium"
-              >
-                {editingId ? "Mettre à jour" : "Enregistrer"}
-              </button>
+          <div className="col-span-1 sm:col-span-2 md:col-span-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition-colors font-medium sm:w-auto"
+            >
+              {editingId ? "Mettre à jour" : "Enregistrer"}
+            </button>
 
-              <button
-                type="button"
-                onClick={editingId ? resetForm : toggleForm}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-lg transition-colors"
-              >
-                Annuler
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={editingId ? resetForm : toggleForm}
+              className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-lg transition-colors sm:w-auto"
+            >
+              Annuler
+            </button>
           </div>
         </form>
       )}
 
-      {/* Tableau de l'emploi du temps */}
-      <div className="bg-white rounded-2xl shadow-md overflow-x-auto">
-        <div className="flex justify-end p-3 border-b">
+      {/* ===== VUE MOBILE : LISTE PAR JOUR (compacte) ===== */}
+      <div className="space-y-3 rounded-2xl bg-white p-3 shadow-md sm:hidden">
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={() => window.print()}
-            className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 text-sm rounded-lg transition-colors"
+            className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1.5 text-xs rounded-lg transition-colors"
           >
             🖨️ Imprimer
           </button>
         </div>
 
-        <table className="w-full text-sm border-collapse min-w-[800px]">
+        {JOURS_SEMAINE.map(jour => {
+          const coursDuJour = coursParJour.get(jour) || [];
+          return (
+            <div key={jour}>
+              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {jour}
+              </h3>
+
+              {coursDuJour.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 px-2 py-2 text-center text-[11px] text-slate-400">
+                  Aucun cours
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {coursDuJour.map(cours => (
+                    <div
+                      key={cours.id}
+                      className="rounded-lg bg-blue-50 px-2.5 py-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="shrink-0 text-[10px] font-medium text-slate-500">
+                              {cours.heureDebut}h-{cours.heureFin}h
+                            </span>
+                            <span className="truncate text-xs font-bold text-slate-800">
+                              {cours.matiere?.nom}
+                            </span>
+                          </div>
+                          <p className="truncate text-[10px] text-slate-600">
+                            {cours.enseignant?.prenom} {cours.enseignant?.nom}
+                            {cours.sousGroupe && ` · 👥 ${cours.sousGroupe.nom}`}
+                            {cours.salle && ` · 📍 ${cours.salle.nom}`}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(cours)}
+                            className="hover:scale-110 transition-transform text-xs"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(cours.id)}
+                            className="hover:scale-110 transition-transform text-xs"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ===== VUE DESKTOP : GRILLE HORAIRE (compacte) ===== */}
+      <div className="hidden bg-white rounded-2xl shadow-md overflow-x-auto sm:block">
+        <div className="flex justify-end p-2 border-b">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1.5 text-xs rounded-lg transition-colors"
+          >
+            🖨️ Imprimer
+          </button>
+        </div>
+
+        <table className="w-full text-xs border-collapse min-w-[700px] table-fixed">
           <thead>
             <tr className="bg-gray-100">
-              <th className="p-2 border">Heure</th>
+              <th className="p-1 border w-16">Heure</th>
               {JOURS_SEMAINE.map(j => (
-                <th key={j} className="p-2 border">{j}</th>
+                <th key={j} className="p-1 border">{j}</th>
               ))}
             </tr>
           </thead>
 
           <tbody>
             {PLAGE_HORAIRES.map(heure => (
-              <tr key={heure}>
-                <td className="border p-2 font-bold whitespace-nowrap">
-                  {heure}:00 - {heure + 1}:00
+              <tr key={heure} className="h-10">
+                <td className="border p-1 font-bold whitespace-nowrap text-[11px]">
+                  {heure}h-{heure + 1}h
                 </td>
 
                 {JOURS_SEMAINE.map(jour => renderCellContent(jour, heure))}
