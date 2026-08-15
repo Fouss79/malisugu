@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import api from "../../../../lib/api";
 
 export default function EcolesPage() {
 
@@ -17,7 +18,7 @@ export default function EcolesPage() {
   const [durees, setDurees] = useState({});
 
   const load = async () => {
-    const res = await axios.get("http://localhost:8080/api/ecoles");
+    const res = await api.get("/ecoles");
     setEcoles(res.data);
   };
 
@@ -29,7 +30,7 @@ export default function EcolesPage() {
   const create = async (e) => {
     e.preventDefault();
 
-    await axios.post("http://localhost:8080/api/ecoles", form);
+    await api.post("/ecoles", form);
 
     setForm({ nom: "", ville: "", pays: "" });
     load();
@@ -43,8 +44,8 @@ export default function EcolesPage() {
 
     console.log("DATA 👉", { id, plan, duree });
 
-    await axios.put(
-      `http://localhost:8080/api/superadmin/abonnements/${id}`,
+    await api.put(
+      `/superadmin/abonnements/${id}`,
       null,
       {
         params: { plan, duree }
@@ -56,7 +57,7 @@ export default function EcolesPage() {
 
   // 🔴 toggle actif/inactif
   const toggle = async (id) => {
-    await axios.put(`http://localhost:8080/api/ecoles/toggle/${id}`);
+    await api.put(`/ecoles/toggle/${id}`);
     load();
   };
 
