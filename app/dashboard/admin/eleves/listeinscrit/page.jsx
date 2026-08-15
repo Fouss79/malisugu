@@ -60,14 +60,14 @@ function formatMontant(valeur) {
 function ModalAjout({ onClose, onSaved }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white"
+        className="h-full w-full overflow-y-auto bg-white sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b p-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
           <h2 className="text-lg font-semibold">
             Ajouter un élève
           </h2>
@@ -96,14 +96,14 @@ function ModalAjout({ onClose, onSaved }) {
 function ModalEdition({ eleveId, onClose, onSaved }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white"
+        className="h-full w-full overflow-y-auto bg-white sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b p-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
           <h2 className="text-lg font-semibold">
             Modifier l'élève
           </h2>
@@ -142,15 +142,15 @@ function EleveDetailModal({ eleve, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-0 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-xl"
+        className="h-full w-full overflow-y-auto bg-white shadow-xl sm:h-auto sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 p-5">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
           <div className="flex items-center gap-3">
             <Avatar nom={eleve.nom} prenom={eleve.prenom} sexe={eleve.sexe} size="h-11 w-11 text-sm" />
             <div>
@@ -167,14 +167,13 @@ function EleveDetailModal({ eleve, onClose }) {
         </div>
 
         {/* Contenu */}
-       {/* Contenu */}
 <div className="space-y-6 p-5">
 
   <div>
     <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
       Identité
     </h3>
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <InfoRow label="Nom" value={eleve.nom} />
       <InfoRow label="Prénom" value={eleve.prenom} />
       <InfoRow label="Date de naissance" value={eleve.dateNaissance} />
@@ -196,7 +195,7 @@ function EleveDetailModal({ eleve, onClose }) {
     <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
       Contact élève
     </h3>
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <InfoRow label="Adresse" value={eleve.adresse} />
       <InfoRow label="Téléphone" value={eleve.telephone} />
       <InfoRow label="Email" value={eleve.email} />
@@ -208,7 +207,7 @@ function EleveDetailModal({ eleve, onClose }) {
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
         Parent / Tuteur
       </h3>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <InfoRow label="Nom" value={`${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim() || "—"} />
         <InfoRow label="Lien de parenté" value={eleve.lienParente} />
         <InfoRow label="Téléphone" value={eleve.telephoneTuteur} />
@@ -221,7 +220,7 @@ function EleveDetailModal({ eleve, onClose }) {
     <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
       Scolarité
     </h3>
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <InfoRow label="Classe" value={eleve.classeNom} />
       <InfoRow label="Année scolaire" value={eleve.annee}  />
       <InfoRow label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
@@ -236,7 +235,7 @@ function EleveDetailModal({ eleve, onClose }) {
     <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
       Paiement
     </h3>
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:grid-cols-3">
       <InfoRow label="Montant total" value={formatMontant(eleve.montantTotal)} />
       <InfoRow label="Payé" value={formatMontant(eleve.montantPaye)} />
       <InfoRow label="Reste à payer" value={formatMontant(eleve.resteAPayer)} />
@@ -283,21 +282,10 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
   setBusyId(id);
 
   try {
-    console.log("➡️ Changement statut :", { id, action });
-
     const response = await api.put(`/inscriptions/${id}/${action}`);
-
-    console.log("✅ Réponse backend :", response.data);
-
-    await loadEleves();  // ✅ nom correct de la fonction
-
+    await loadEleves();
   } catch (error) {
-    console.error("❌ ERREUR CHANGEMENT STATUT");
-    console.error("Status :", error?.response?.status);
-    console.error("Data :", error?.response?.data);
-    console.error("Message :", error?.message);
-    console.error("URL :", error?.config?.url);
-
+    console.error("❌ ERREUR CHANGEMENT STATUT", error);
     alert(
       error?.response?.data?.message ||
       error?.response?.data?.error ||
@@ -332,15 +320,15 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
     <div className="space-y-5">
 
       {/* HEADER */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Liste des élèves</h1>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Liste des élèves</h1>
           <p className="text-sm text-slate-500">
             {loading ? "Chargement..." : `${filteredEleves.length} élève${filteredEleves.length > 1 ? "s" : ""}`}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
 
           {/* SEARCH */}
           <div className="relative">
@@ -350,7 +338,7 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
               placeholder="Rechercher un nom, un matricule..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 sm:w-64"
             />
           </div>
 
@@ -358,7 +346,7 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
           <select
             value={classeFilter}
             onChange={(e) => setClasseFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-400"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-400 sm:w-auto"
           >
             <option value="">Toutes les classes</option>
             {classesUniques.map((classe) => (
@@ -366,31 +354,114 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
             ))}
           </select>
 
- {/* ACTIONS TABLEAU */}
         </div>
 
       </div>
-      <div className="flex justify-center gap-3">
-  <button
-    onClick={() => setModalAjoutOuvert(true)}
-    className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-  >
-    <Plus size={18} />
-    Ajouter
-  </button>
 
-  <Link
-    href="/dashboard/admin/eleves/reinscription"
-    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
-  >
-    <Users size={18} />
-    Réinscrire
-  </Link>
-</div>
+      {/* ACTIONS */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <button
+          onClick={() => setModalAjoutOuvert(true)}
+          className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+        >
+          <Plus size={18} />
+          Ajouter
+        </button>
 
+        <Link
+          href="/dashboard/admin/eleves/reinscription"
+          className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
+        >
+          <Users size={18} />
+          Réinscrire
+        </Link>
+      </div>
 
-      {/* TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40">
+      {/* ===== VUE MOBILE : CARTES ===== */}
+      <div className="space-y-3 sm:hidden">
+        {loading && (
+          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-10 text-center text-sm text-slate-400 shadow-sm">
+            Chargement des élèves...
+          </div>
+        )}
+
+        {!loading && filteredEleves.length === 0 && (
+          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-10 shadow-sm">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Users className="text-slate-400" size={22} />
+              </div>
+              <p className="text-sm font-medium text-slate-600">Aucun élève trouvé</p>
+              <p className="text-xs text-slate-400">
+                Essayez un autre nom, matricule ou changez de filtre de classe.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!loading && filteredEleves.map((e) => (
+          <div
+            key={e.id}
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar nom={e.nom} prenom={e.prenom} sexe={e.sexe} />
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-800">{e.prenom} {e.nom}</p>
+                  <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+                </div>
+              </div>
+              <StatutBadge statut={e.statut} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+              <p><span className="text-slate-400">Matricule :</span> {e.matricule || "—"}</p>
+              <p><span className="text-slate-400">Sexe :</span> {e.sexe === "F" ? "Fille" : "Garçon"}</p>
+              <p className="col-span-2"><span className="text-slate-400">Naissance :</span> {e.dateNaissance || "—"}</p>
+            </div>
+
+            <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                onClick={() => setEleveDetail(e)}
+                title="Voir détails"
+                className="rounded-lg bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200"
+              >
+                <Eye size={16} />
+              </button>
+
+              <button
+                onClick={() => setEleveEnEdition(e.id)}
+                title="Modifier"
+                className="rounded-lg bg-amber-500 p-2 text-white transition hover:bg-amber-600"
+              >
+                <Pencil size={16} />
+              </button>
+
+              <button
+                onClick={() => changerStatut(e.id, "valider")}
+                disabled={busyId === e.id || e.statut === "INSCRIT" || e.statut === "VALIDE"}
+                title="Inscrire"
+                className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Check size={16} />
+              </button>
+
+              <button
+                onClick={() => changerStatut(e.id, "rejeter")}
+                disabled={busyId === e.id || e.statut === "REJETE"}
+                title="Rejeter"
+                className="rounded-lg bg-rose-600 p-2 text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <XCircle size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ===== VUE DESKTOP : TABLEAU ===== */}
+      <div className="hidden overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40 sm:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -398,8 +469,8 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
                 <th className="px-4 py-3 font-medium">Élève</th>
                 <th className="px-4 py-3 font-medium">Matricule</th>
                 <th className="px-4 py-3 font-medium">Classe</th>
-                <th className="px-4 py-3 font-medium">Date naissance</th>
-                <th className="px-4 py-3 font-medium">Sexe</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">Date naissance</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">Sexe</th>
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
@@ -435,22 +506,22 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar nom={e.nom} prenom={e.prenom} sexe={e.sexe} />
-                      <div>
-                        <p className="font-medium text-slate-800">{e.prenom} {e.nom}</p>
-                        <p className="text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-800">{e.prenom} {e.nom}</p>
+                        <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-500">{e.matricule}</td>
                   <td className="px-4 py-3 text-slate-500">{e.classeNom || "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">{e.dateNaissance}</td>
-                  <td className="px-4 py-3 text-slate-500">{e.sexe === "F" ? "Fille" : "Garçon"}</td>
+                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.dateNaissance}</td>
+                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.sexe === "F" ? "Fille" : "Garçon"}</td>
                   <td className="px-4 py-3">
                     <StatutBadge statut={e.statut} />
                   </td>
-                
+
                  <td className="px-4 py-3">
-  <div className="flex justify-end gap-2">
+  <div className="flex flex-wrap justify-end gap-2">
   {/* Détails */}
   <button
     onClick={() => setEleveDetail(e)}
@@ -500,7 +571,7 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
   </button>
 
 </div>
-                    
+
                   </td>
                 </tr>
               ))}
