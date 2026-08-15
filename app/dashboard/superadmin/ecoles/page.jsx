@@ -67,35 +67,7 @@ export default function EcolesPage() {
       <h1 className="text-2xl font-bold">Gestion des Écoles (SaaS)</h1>
 
       {/* FORM */}
-      <form
-        onSubmit={create}
-        className="grid grid-cols-3 gap-3 bg-white p-4 rounded shadow"
-      >
-        <input
-          placeholder="Nom école"
-          value={form.nom}
-          onChange={(e) => setForm({ ...form, nom: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <input
-          placeholder="Ville"
-          value={form.ville}
-          onChange={(e) => setForm({ ...form, ville: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <input
-          placeholder="Pays"
-          value={form.pays}
-          onChange={(e) => setForm({ ...form, pays: e.target.value })}
-          className="border p-2 rounded"
-        />
-
-        <button className="bg-blue-600 text-white p-2 col-span-3 rounded">
-          Créer école
-        </button>
-      </form>
+     
 
       {/* TABLE */}
       <div className="bg-white rounded shadow overflow-x-auto">
