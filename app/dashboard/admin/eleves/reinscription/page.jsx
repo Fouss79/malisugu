@@ -1,9 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../../context/AuthContext";
 import api from "../../../../../lib/api";
 import Link from "next/link";
+import { Users, ArrowLeft } from "lucide-react";
+
+const STATUT_STYLES = {
+  REINSCRIT: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  NON_REINSCRIT: "bg-amber-50 text-amber-700 ring-amber-200",
+};
+
+function StatutBadge({ statut }) {
+  const style = STATUT_STYLES[statut] || "bg-slate-100 text-slate-600 ring-slate-200";
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${style}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {statut ?? "NON_REINSCRIT"}
+    </span>
+  );
+}
+
+function Avatar({ nom, prenom, size = "h-8 w-8 text-xs" }) {
+  const initials = `${prenom?.[0] ?? ""}${nom?.[0] ?? ""}`.toUpperCase();
+  return (
+    <div className={`flex shrink-0 items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-700 ${size}`}>
+      {initials}
+    </div>
+  );
+}
+
+function formatMoyenne(valeur) {
+  return valeur != null ? Number(valeur).toFixed(2) : "-";
+}
+
+const COLONNES = 10;
 
 export default function ReinscriptionPage() {
   const { user } = useAuth();
@@ -11,6 +42,8 @@ export default function ReinscriptionPage() {
   const [eleves, setEleves] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     if (!user?.ecole?.id) return;
@@ -21,6 +54,7 @@ export default function ReinscriptionPage() {
 
   // ===================== ELEVES =====================
   const loadElevesReinscription = async () => {
+    setLoading(true);
     try {
       const res = await api.get(
         `/inscriptions/ecole/${user.ecole.id}/reinscription`
@@ -29,6 +63,8 @@ export default function ReinscriptionPage() {
     } catch (error) {
       console.error("Erreur chargement élèves :", error);
       setEleves([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,6 +99,7 @@ export default function ReinscriptionPage() {
       return;
     }
 
+    setBusyId(inscriptionId);
     try {
       const res = await api.post(
         `/inscriptions/${inscriptionId}/reinscrire/${classeId}`
@@ -70,170 +107,195 @@ export default function ReinscriptionPage() {
 
       alert(res.data?.message || "✅ Réinscription effectuée");
 
-      loadElevesReinscription();
+      await loadElevesReinscription();
     } catch (error) {
       console.error("Erreur complète :", error);
       alert(error.response?.data?.message || error.response?.data || "Erreur lors de la réinscription");
+    } finally {
+      setBusyId(null);
     }
   };
 
+  const elevesTries = useMemo(
+    () => [...eleves].sort((a, b) => (a.classeNom || "").localeCompare(b.classeNom || "")),
+    [eleves]
+  );
+
   // ===================== UI =====================
   return (
-    <div className="min-h-screen px-3 py-4 sm:px-4">
-      <div className="mb-4 flex justify-end">
+    <div className="space-y-5">
+
+      {/* HEADER */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Réinscription des élèves</h1>
+          <p className="text-sm text-slate-500">
+            {loading ? "Chargement..." : `${elevesTries.length} élève${elevesTries.length > 1 ? "s" : ""} à traiter`}
+          </p>
+        </div>
+
         <Link
           href="/dashboard/admin/eleves/listeinscrit"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700"
+          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
         >
-          Inscription
+          <ArrowLeft size={18} />
+          Retour aux inscriptions
         </Link>
       </div>
 
-      <div className="mx-auto max-w-7xl rounded-xl bg-white p-3 shadow sm:p-4">
-        <h1 className="mb-4 text-lg font-bold sm:text-xl">
-          Réinscription des élèves
-        </h1>
-
-        {eleves.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-400">
-            Aucun élève à réinscrire pour l'instant.
-          </p>
+      {/* ===== VUE MOBILE : CARTES ===== */}
+      <div className="space-y-3 sm:hidden">
+        {loading && (
+          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-10 text-center text-sm text-slate-400 shadow-sm">
+            Chargement...
+          </div>
         )}
 
-        {/* ===== VUE MOBILE : CARTES ===== */}
-        <div className="space-y-3 sm:hidden">
-          {eleves.map((e) => (
-            <div
-              key={e.id}
-              className="rounded-xl border border-slate-100 p-3 shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-800">
-                    {e.prenom} {e.nom}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    Matricule : {e.matricule || "—"}
-                  </p>
-                </div>
-                <span
-                  className={`shrink-0 rounded px-2 py-1 text-xs text-white ${
-                    e.statutReinscription === "REINSCRIT"
-                      ? "bg-green-600"
-                      : "bg-orange-500"
-                  }`}
-                >
-                  {e.statutReinscription ?? "NON_REINSCRIT"}
-                </span>
+        {!loading && elevesTries.length === 0 && (
+          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-10 shadow-sm">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Users className="text-slate-400" size={22} />
               </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                <p><span className="text-slate-400">Classe actuelle :</span> {e.classeNom || "—"}</p>
-                <p>
-                  <span className="text-slate-400">Moyenne :</span>{" "}
-                  <span className="font-bold text-blue-600">
-                    {e.moyenneAnnuelle != null ? Number(e.moyenneAnnuelle).toFixed(2) : "-"}
-                  </span>
-                </p>
-                <p><span className="text-slate-400">Mention :</span> {e.mention ?? "-"}</p>
-                <p>
-                  <span className="text-slate-400">Décision :</span>{" "}
-                  <span className="font-bold text-blue-600">{e.decision ?? "-"}</span>
-                </p>
-              </div>
-
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                {e.statutReinscription === "REINSCRIT" ? (
-                  <p className="text-sm text-slate-600">
-                    Nouvelle classe : <span className="font-medium">{e.nouvelleClasseNom}</span>
-                  </p>
-                ) : (
-                  <select
-                    className="w-full rounded-lg border border-slate-200 p-2 text-sm"
-                    value={selectedClasses[e.id] || ""}
-                    onChange={(ev) => handleClasseChange(e.id, ev.target.value)}
-                  >
-                    <option value="">Choisir une classe</option>
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nomComplet}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <button
-                  disabled={e.statutReinscription === "REINSCRIT"}
-                  onClick={() => reinscrire(e.id)}
-                  className={`mt-2 w-full rounded-lg px-4 py-2 text-sm font-medium text-white ${
-                    e.statutReinscription === "REINSCRIT"
-                      ? "cursor-not-allowed bg-gray-400"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
-                >
-                  {e.statutReinscription === "REINSCRIT" ? "Déjà réinscrit" : "Réinscrire"}
-                </button>
-              </div>
+              <p className="text-sm font-medium text-slate-600">Aucun élève à réinscrire</p>
+              <p className="text-xs text-slate-400">
+                Tous les élèves de l'année précédente ont déjà été traités.
+              </p>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
 
-        {/* ===== VUE DESKTOP : TABLEAU ===== */}
-        <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+        {!loading && elevesTries.map((e) => (
+          <div
+            key={e.id}
+            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar nom={e.nom} prenom={e.prenom} />
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-800">{e.prenom} {e.nom}</p>
+                  <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+                </div>
+              </div>
+              <StatutBadge statut={e.statutReinscription} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+              <p><span className="text-slate-400">Matricule :</span> {e.matricule || "—"}</p>
+              <p><span className="text-slate-400">Moyenne :</span> <span className="font-semibold text-indigo-600">{formatMoyenne(e.moyenneAnnuelle)}</span></p>
+              <p><span className="text-slate-400">Mention :</span> {e.mention ?? "-"}</p>
+              <p><span className="text-slate-400">Décision :</span> <span className="font-semibold text-indigo-600">{e.decision ?? "-"}</span></p>
+            </div>
+
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              {e.statutReinscription === "REINSCRIT" ? (
+                <p className="text-sm text-slate-600">
+                  Nouvelle classe : <span className="font-medium">{e.nouvelleClasseNom}</span>
+                </p>
+              ) : (
+                <select
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  value={selectedClasses[e.id] || ""}
+                  onChange={(ev) => handleClasseChange(e.id, ev.target.value)}
+                >
+                  <option value="">Choisir une classe</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nomComplet}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                disabled={busyId === e.id || e.statutReinscription === "REINSCRIT"}
+                onClick={() => reinscrire(e.id)}
+                className="mt-2 w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {e.statutReinscription === "REINSCRIT" ? "Déjà réinscrit" : "Réinscrire"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ===== VUE DESKTOP : TABLEAU ===== */}
+      <div className="hidden overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40 sm:block">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2 text-left">Matricule</th>
-                <th className="p-2 text-left">Nom</th>
-                <th className="p-2 text-left">Prénom</th>
-                <th className="p-2 text-left">Classe actuelle</th>
-                <th className="p-2 text-left">Moyenne</th>
-                <th className="p-2 text-left">Mention</th>
-                <th className="p-2 text-left">Decision</th>
-                <th className="p-2 text-left">Statut</th>
-                <th className="p-2 text-left">Nouvelle classe</th>
-                <th className="p-2 text-left">Action</th>
+              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+                <th className="px-4 py-3 font-medium">Élève</th>
+                <th className="px-4 py-3 font-medium">Matricule</th>
+                <th className="px-4 py-3 font-medium">Classe actuelle</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">Moyenne</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">Mention</th>
+                <th className="px-4 py-3 font-medium">Décision</th>
+                <th className="px-4 py-3 font-medium">Statut</th>
+                <th className="px-4 py-3 font-medium">Nouvelle classe</th>
+                <th className="px-4 py-3 font-medium text-right">Action</th>
               </tr>
             </thead>
 
-            <tbody>
-              {eleves.map((e) => (
-                <tr key={e.id} className="border-t hover:bg-gray-50">
-                  <td className="p-2">{e.matricule}</td>
-                  <td className="p-2">{e.nom}</td>
-                  <td className="p-2">{e.prenom}</td>
-                  <td className="p-2">{e.classeNom}</td>
+            <tbody className="divide-y divide-slate-50">
+              {loading && (
+                <tr>
+                  <td colSpan={COLONNES} className="px-4 py-10 text-center text-sm text-slate-400">
+                    Chargement...
+                  </td>
+                </tr>
+              )}
 
-                  <td className="p-2 font-bold text-blue-600">
-                    {e.moyenneAnnuelle != null
-                      ? Number(e.moyenneAnnuelle).toFixed(2)
-                      : "-"}
+              {!loading && elevesTries.length === 0 && (
+                <tr>
+                  <td colSpan={COLONNES} className="px-4 py-14">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                        <Users className="text-slate-400" size={22} />
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">Aucun élève à réinscrire</p>
+                      <p className="text-xs text-slate-400">
+                        Tous les élèves de l'année précédente ont déjà été traités.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && elevesTries.map((e) => (
+                <tr key={e.id} className="transition hover:bg-slate-50/70">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar nom={e.nom} prenom={e.prenom} />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-800">{e.prenom} {e.nom}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{e.matricule}</td>
+                  <td className="px-4 py-3 text-slate-500">{e.classeNom || "—"}</td>
+
+                  <td className="hidden px-4 py-3 font-semibold text-indigo-600 lg:table-cell">
+                    {formatMoyenne(e.moyenneAnnuelle)}
                   </td>
 
-                  <td className="p-2">{e.mention ?? "-"}</td>
+                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.mention ?? "-"}</td>
 
-                  <td className="p-2 font-bold text-blue-600">
+                  <td className="px-4 py-3 font-semibold text-indigo-600">
                     {e.decision ?? "-"}
                   </td>
 
-                  <td className="p-2">
-                    <span
-                      className={`whitespace-nowrap rounded px-2 py-1 text-xs text-white ${
-                        e.statutReinscription === "REINSCRIT"
-                          ? "bg-green-600"
-                          : "bg-orange-500"
-                      }`}
-                    >
-                      {e.statutReinscription ?? "NON_REINSCRIT"}
-                    </span>
+                  <td className="px-4 py-3">
+                    <StatutBadge statut={e.statutReinscription} />
                   </td>
 
-                  <td className="p-2">
+                  <td className="px-4 py-3">
                     {e.statutReinscription === "REINSCRIT" ? (
-                      e.nouvelleClasseNom
+                      <span className="text-slate-600">{e.nouvelleClasseNom}</span>
                     ) : (
                       <select
-                        className="rounded border p-2"
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-indigo-400"
                         value={selectedClasses[e.id] || ""}
                         onChange={(ev) =>
                           handleClasseChange(e.id, ev.target.value)
@@ -249,15 +311,11 @@ export default function ReinscriptionPage() {
                     )}
                   </td>
 
-                  <td className="p-2">
+                  <td className="px-4 py-3 text-right">
                     <button
-                      disabled={e.statutReinscription === "REINSCRIT"}
+                      disabled={busyId === e.id || e.statutReinscription === "REINSCRIT"}
                       onClick={() => reinscrire(e.id)}
-                      className={`whitespace-nowrap rounded px-4 py-2 text-white ${
-                        e.statutReinscription === "REINSCRIT"
-                          ? "cursor-not-allowed bg-gray-400"
-                          : "bg-green-600 hover:bg-green-700"
-                      }`}
+                      className="whitespace-nowrap rounded-lg bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {e.statutReinscription === "REINSCRIT"
                         ? "Déjà réinscrit"
