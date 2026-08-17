@@ -20,33 +20,38 @@ import {
 
 function AffectationEnseignantFormInner() {
   const { user } = useAuth();
-  const searchParams = useSearchParams();
+const searchParams = useSearchParams();
 
-  const ecoleId =
-    user?.ecoleId ||
-    user?.ecole?.id ||
-    user?.ecole?.ecoleId;
+const ecoleId =
+  user?.ecoleId ||
+  user?.ecole?.id ||
+  user?.ecole?.ecoleId;
 
-  /* =======================================================
-     STATES
-  ======================================================= */
+/* =======================================================
+   PARAMÈTRES URL
+======================================================= */
 
-  const [annees, setAnnees] = useState([]);
-  const [classes, setClasses] = useState([]);
-  const [programmes, setProgrammes] = useState([]);
-  const [affectations, setAffectations] = useState([]);
+const classeIdParam = searchParams.get("classeId");
 
-  const [anneeScolaireId, setAnneeScolaireId] = useState("");
-  const [classeId, setClasseId] = useState("");
+/* =======================================================
+   STATES
+======================================================= */
 
-  const [loadingAnnees, setLoadingAnnees] = useState(false);
-  const [loadingClasses, setLoadingClasses] = useState(false);
-  const [loadingProgrammes, setLoadingProgrammes] = useState(false);
-  const [loadingAffectations, setLoadingAffectations] = useState(false);
+const [annees, setAnnees] = useState([]);
+const [classes, setClasses] = useState([]);
+const [programmes, setProgrammes] = useState([]);
+const [affectations, setAffectations] = useState([]);
 
-  const [erreur, setErreur] = useState("");
-  const [toast, setToast] = useState("");
+const [anneeScolaireId, setAnneeScolaireId] = useState("");
+const [classeId, setClasseId] = useState("");
 
+const [loadingAnnees, setLoadingAnnees] = useState(false);
+const [loadingClasses, setLoadingClasses] = useState(false);
+const [loadingProgrammes, setLoadingProgrammes] = useState(false);
+const [loadingAffectations, setLoadingAffectations] = useState(false);
+
+const [erreur, setErreur] = useState("");
+const [toast, setToast] = useState("");
   /* Modal ajout */
   const [programmeSelectionne, setProgrammeSelectionne] =
     useState(null);
@@ -227,27 +232,25 @@ function AffectationEnseignantFormInner() {
      3. PRÉSELECTION CLASSE DEPUIS URL
   ======================================================= */
 
-  useEffect(() => {
-    const classeParam =
-      searchParams.get("classeId");
+useEffect(() => {
+  if (!classeIdParam || classes.length === 0) {
+    return;
+  }
 
-    if (!classeParam || classes.length === 0) {
-      return;
-    }
+  const classeTrouvee = classes.find(
+    (classe) =>
+      String(classe.id) === String(classeIdParam)
+  );
 
-    const classeTrouvee = classes.find(
-      (classe) =>
-        String(classe.id) ===
-        String(classeParam)
+  if (classeTrouvee) {
+    console.log(
+      "🎯 Classe présélectionnée depuis URL :",
+      classeTrouvee
     );
 
-    if (classeTrouvee) {
-      setClasseId(
-        String(classeTrouvee.id)
-      );
-    }
-  }, [classes, searchParams]);
-
+    setClasseId(String(classeTrouvee.id));
+  }
+}, [classes, classeIdParam]);
   /* =======================================================
      CLASSE SÉLECTIONNÉE
   ======================================================= */

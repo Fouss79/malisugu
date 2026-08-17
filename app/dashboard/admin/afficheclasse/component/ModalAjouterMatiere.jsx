@@ -16,11 +16,13 @@ const FORM_INITIAL = {
 export default function ModalAjouterMatiere({
   classe,
   anneeScolaireId,
+  programme,
   onClose,
   onSaved,
 }) {
   const { user } = useAuth();
   const ecoleId = user?.ecole?.id;
+  const modeModification = !!programme;
 
   const [matieres, setMatieres] = useState([]);
   const [sousGroupes, setSousGroupes] = useState([]);
@@ -33,7 +35,7 @@ export default function ModalAjouterMatiere({
   const [erreur, setErreur] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState("");
-
+ 
   // ============================================================
   // CHARGEMENT DES MATIÈRES
   // ============================================================
@@ -68,6 +70,36 @@ export default function ModalAjouterMatiere({
 
     chargerMatieres();
   }, [ecoleId]);
+
+  useEffect(() => {
+  if (!programme) {
+    setForm(FORM_INITIAL);
+    return;
+  }
+
+  console.log("✏️ PROGRAMME À MODIFIER =", programme);
+
+  setForm({
+    matiereId:
+      programme.matiereId ??
+      programme.matiere?.id ??
+      "",
+
+    sousGroupeId:
+      programme.sousGroupeId ??
+      programme.sousGroupe?.id ??
+      "",
+
+    coefficient:
+      programme.coefficient ?? "",
+
+    nombreHeuresParSemaine:
+      programme.nombreHeuresParSemaine ??
+      programme.volumeHoraire ??
+      programme.heuresParSemaine ??
+      "",
+  });
+}, [programme]);
 
   // ============================================================
   // CHARGEMENT DES SOUS-GROUPES
@@ -242,9 +274,11 @@ export default function ModalAjouterMatiere({
         {/* HEADER */}
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Ajouter une matière
-            </h2>
+           <h2 className="text-lg font-semibold text-slate-800">
+  {modeModification
+    ? "Modifier le programme"
+    : "Ajouter un programme"}
+</h2>
 
             <p className="mt-0.5 text-xs text-slate-400">
               Ajouter une matière au programme de cette classe
@@ -466,8 +500,10 @@ export default function ModalAjouterMatiere({
               className="flex-1 rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting
-                ? "Enregistrement..."
-                : "Ajouter"}
+  ? "Enregistrement..."
+  : modeModification
+    ? "Modifier"
+    : "Ajouter"}
             </button>
           </div>
         </form>

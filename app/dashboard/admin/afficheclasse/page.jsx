@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import api from "../../../../lib/api";
 import ModalAjouterMatiere from "./component/ModalAjouterMatiere";
+import ModalProgrammesClasse from "./component/ModalProgrammesClasse";
 
 function StatCard({ label, value, accent }) {
   return (
@@ -35,8 +36,9 @@ function StatCard({ label, value, accent }) {
 
 export default function ClassesPage() {
   const { user } = useAuth();
-
-  const ecoleId = user?.ecole?.id;
+const ecoleId =
+  user?.ecoleId ||
+  user?.ecole?.id ;
 
   // ============================================================
   // ÉTATS
@@ -53,6 +55,11 @@ export default function ClassesPage() {
   const [search, setSearch] = useState("");
   const [niveauFilter, setNiveauFilter] = useState("");
   const [cycleFilter, setCycleFilter] = useState("");
+  const [classeProgrammes, setClasseProgrammes] =
+  useState(null);
+  
+const [programmeAModifier, setProgrammeAModifier] = useState(null);
+
 
   // Classe actuellement sélectionnée pour le modal
   const [classeMatiere, setClasseMatiere] =
@@ -96,6 +103,21 @@ export default function ClassesPage() {
       setLoading(false);
     }
   };
+  // ============================================================
+// OUVRIR MODAL PROGRAMMES
+// ============================================================
+
+const ouvrirModalProgrammes = (classe) => {
+  if (!anneeScolaireActive?.id) {
+    setErreurAnnee(
+      "Aucune année scolaire active. Activez une année avant de consulter les programmes."
+    );
+
+    return;
+  }
+
+  setClasseProgrammes(classe);
+};
 
   // ============================================================
   // CHARGEMENT DE L'ANNÉE SCOLAIRE ACTIVE
@@ -633,37 +655,37 @@ export default function ClassesPage() {
                   Sous-groupes
                 </Link>
 
-                {/* AJOUTER MATIÈRE */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    ouvrirModalMatiere(c)
-                  }
-                  disabled={
-                    !anneeScolaireActive?.id ||
-                    loadingAnnee
-                  }
-                  title={
-                    !anneeScolaireActive?.id
-                      ? "Aucune année scolaire active"
-                      : "Ajouter une matière"
-                  }
-                  className="flex items-center justify-center gap-1 rounded-lg bg-emerald-50 px-2 py-2 text-xs font-medium text-emerald-600 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <BookOpen size={14} />
+               <button
+  type="button"
+  onClick={() =>
+    ouvrirModalProgrammes(c)
+  }
+  disabled={
+    !anneeScolaireActive?.id ||
+    loadingAnnee
+  }
+  title={
+    !anneeScolaireActive?.id
+      ? "Aucune année scolaire active"
+      : "Voir les programmes de cette classe"
+  }
+  className="flex items-center justify-center gap-1 rounded-lg bg-emerald-50 px-2 py-2 text-xs font-medium text-emerald-600 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <BookOpen size={14} />
 
-                  Matière
-                </button>
+  Programmes
+</button>
 
-                {/* DÉTAILS */}
-                <Link
-                  href={`/dashboard/admin/classes/${c.id}`}
-                  className="flex items-center justify-center gap-1 rounded-lg bg-indigo-50 px-2 py-2 text-xs font-medium text-indigo-600 transition hover:bg-indigo-100"
-                >
-                  Détails
-                  <ArrowRight size={12} />
-                </Link>
-              </div>
+              
+              {/* AFFECTATIONS */}
+<Link
+  href={`/dashboard/admin/enseignants/affectation?classeId=${c.id}`}
+  className="flex items-center justify-center gap-1 rounded-lg bg-indigo-50 px-2 py-2 text-xs font-medium text-indigo-600 transition hover:bg-indigo-100"
+>
+  Affectations
+  <ArrowRight size={12} />
+</Link>
+    </div>
             </div>
           ))}
         </div>
@@ -673,18 +695,49 @@ export default function ClassesPage() {
           MODAL AJOUT MATIÈRE
       ======================================================== */}
 
-      {classeMatiere && (
-        <ModalAjouterMatiere
-          classe={classeMatiere}
-          anneeScolaireId={
-            anneeScolaireActive?.id
-          }
-          onClose={() =>
-            setClasseMatiere(null)
-          }
-          onSaved={handleMatiereSaved}
-        />
-      )}
+     {/* ========================================================
+    MODAL PROGRAMMES DE LA CLASSE
+======================================================== */}
+
+{classeProgrammes && (
+  <ModalProgrammesClasse
+    classe={classeProgrammes}
+    ecoleId={ecoleId}
+    anneeScolaireId={anneeScolaireActive?.id}
+    onClose={() => {
+      setClasseProgrammes(null);
+    }}
+    onAjouter={() => {
+      setProgrammeAModifier(null);
+      setClasseProgrammes(null);
+      setClasseMatiere(classeProgrammes);
+    }}
+    onModifier={(programme) => {
+      console.log("✏️ PROGRAMME À MODIFIER =", programme);
+
+      setProgrammeAModifier(programme);
+      setClasseProgrammes(null);
+      setClasseMatiere(classeProgrammes);
+    }}
+  />
+)}
+
+{/* ========================================================
+    MODAL AJOUT / MODIFICATION MATIÈRE
+======================================================== */}
+
+{classeMatiere && (
+  <ModalAjouterMatiere
+    classe={classeMatiere}
+    anneeScolaireId={anneeScolaireActive?.id}
+    programme={programmeAModifier}
+    onClose={() => {
+      setClasseMatiere(null);
+      setProgrammeAModifier(null);
+    }}
+    onSaved={handleMatiereSaved}
+  />
+)}
     </div>
   );
 }``
