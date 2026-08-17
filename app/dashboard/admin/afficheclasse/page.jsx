@@ -318,13 +318,24 @@ const ouvrirModalProgrammes = (classe) => {
   // APRÈS ENREGISTREMENT
   // ============================================================
 
-  const handleMatiereSaved = async () => {
-    setClasseMatiere(null);
+ const handleMatiereSaved = async () => {
+  console.log("✅ Programme enregistré");
 
-    // On recharge les statistiques des classes
-    await chargerClasses();
-  };
+  // Garder la classe concernée
+  const classe = classeMatiere;
 
+  // Fermer le modal Ajouter/Modifier
+  setClasseMatiere(null);
+  setProgrammeAModifier(null);
+
+  // Recharger les statistiques
+  await chargerClasses();
+
+  // Réouvrir le modal des programmes
+  if (classe) {
+    setClasseProgrammes(classe);
+  }
+};
   // ============================================================
   // RENDU
   // ============================================================
