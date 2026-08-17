@@ -163,10 +163,13 @@ const ImageSlider = () => {
           Se connecter
         </button>
       </Link>
-      <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition shadow">
+      <Link href="/inscrire">
+       <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition shadow">
         S'inscrire
-      </button>
+      </button></Link>
+     
     </div>
+    
 
     {/* BURGER MOBILE */}
     <button
