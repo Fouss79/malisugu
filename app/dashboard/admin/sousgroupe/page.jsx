@@ -339,20 +339,33 @@ export default function SousGroupesPage() {
   // ============================================================
 
   const { dedans, dehors } = useMemo(() => {
-    if (!sousGroupeSelectionne) {
-      return { dedans: [], dehors: elevesClasse };
-    }
-
+  if (!sousGroupeSelectionne) {
     return {
-      dedans: elevesClasse.filter((eleve) =>
-        eleve.sousGroupeIds?.includes(sousGroupeSelectionne.id)
-      ),
-      dehors: elevesClasse.filter(
-        (eleve) => !eleve.sousGroupeIds?.includes(sousGroupeSelectionne.id)
-      ),
+      dedans: [],
+      dehors: [],
     };
-  }, [sousGroupeSelectionne, elevesClasse]);
+  }
 
+  // Élèves appartenant au sous-groupe sélectionné
+  const dedans = elevesClasse.filter((eleve) =>
+    Array.isArray(eleve.sousGroupeIds) &&
+    eleve.sousGroupeIds.includes(sousGroupeSelectionne.id)
+  );
+
+  // Élèves n'appartenant à AUCUN sous-groupe
+  const dehors = elevesClasse.filter((eleve) => {
+    const sousGroupeIds = Array.isArray(eleve.sousGroupeIds)
+      ? eleve.sousGroupeIds
+      : [];
+
+    return sousGroupeIds.length === 0;
+  });
+
+  return {
+    dedans,
+    dehors,
+  };
+}, [sousGroupeSelectionne, elevesClasse]);
   // ============================================================
   // RENDU
   // ============================================================
