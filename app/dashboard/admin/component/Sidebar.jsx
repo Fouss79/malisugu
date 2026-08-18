@@ -66,23 +66,11 @@ export default function Sidebar({ collapsed }) {
       link: "/dashboard/admin/afficheclasse",
       icon: <GraduationCap size={18} />,
     },
-    
-
     hasPermission("GESTION_ENSEIGNANTS") && {
       nom: "Enseignants",
-      icon: <UserCheck size={18} />,
-      children: [
-        {
-          nom: "Liste des enseignants",
-          link: "/dashboard/admin/enseignants",
-        },
-        {
-          nom: "Affectation",
-          link: "/dashboard/admin/enseignants/affectation",
-        },
-      ],
+      link: "/dashboard/admin/enseignants",
+       icon: <UserCheck size={18} />,
     },
-
     hasPermission("GESTION_NOTES") && {
       nom: "Notes",
       link: "/dashboard/admin/notes",
