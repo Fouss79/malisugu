@@ -29,17 +29,21 @@ export default function Sidebar({ collapsed }) {
   const getLogoUrl = (logo) => {
   if (!logo) return null;
 
-  if (logo.startsWith("http")) {
+  if (
+    logo.startsWith("http://") ||
+    logo.startsWith("https://")
+  ) {
     return logo;
   }
 
   const baseUrl =
-    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
     "http://localhost:8080";
 
-  return `${baseUrl}${logo}`;
+  return `${baseUrl.replace(/\/$/, "")}${
+    logo.startsWith("/") ? logo : `/${logo}`
+  }`;
 };
-
   const menuList = [
     {
       nom: "Tableau de bord",
@@ -125,20 +129,23 @@ export default function Sidebar({ collapsed }) {
           <div className="flex items-center gap-2">
             <div className="w-15 h-15 rounded-full bg-gray-300 mb-2 overflow-hidden flex items-center justify-center">
   {user?.ecole?.logo ? (
-    <img
-      src={`http://localhost:8080${user.ecole.logo}`}
-      alt={`Logo ${user?.ecole?.nom || "école"}`}
-      className="w-full h-full object-contain"
-      onLoad={() => {
-        console.log(
-          "✅ LOGO CHARGÉ :",
-          `http://localhost:8080${user.ecole.logo}`
-        );
-      }}
-      onError={(e) => {
-        console.error("❌ ERREUR LOGO :", e.currentTarget.src);
-      }}
-    />
+   <img
+  src={getLogoUrl(user.ecole.logo)}
+  alt={`Logo ${user?.ecole?.nom || "école"}`}
+  className="w-full h-full object-contain"
+  onLoad={() => {
+    console.log(
+      "✅ LOGO CHARGÉ :",
+      getLogoUrl(user.ecole.logo)
+    );
+  }}
+  onError={(e) => {
+    console.error(
+      "❌ ERREUR LOGO :",
+      e.currentTarget.src
+    );
+  }}
+/>
   ) : (
     <span className="text-xs text-gray-500">
       Aucun logo
