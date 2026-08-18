@@ -220,19 +220,25 @@ export default function ModifierEcolePage() {
   // URL LOGO
   // =========================================================
 
+  
   const getLogoUrl = (logo) => {
-    if (!logo) return "";
+  if (!logo) return null;
 
-    if (logo.startsWith("http")) {
-      return logo;
-    }
+  if (
+    logo.startsWith("http://") ||
+    logo.startsWith("https://")
+  ) {
+    return logo;
+  }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:8080";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "http://localhost:8080";
 
-    return `${baseUrl}${logo}`;
-  };
+  return `${baseUrl.replace(/\/$/, "")}${
+    logo.startsWith("/") ? logo : `/${logo}`
+  }`;
+};
 
   // =========================================================
   // RENDER
@@ -443,7 +449,7 @@ export default function ModifierEcolePage() {
 
               {logoFile && (
                 <p className="mb-4 text-xs text-slate-500">
-                  {logoFile.nom}
+                  {logoFile.name}
                 </p>
               )}
 
