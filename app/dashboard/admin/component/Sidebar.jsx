@@ -113,7 +113,7 @@ export default function Sidebar({ collapsed }) {
 
   return (
    <aside
-  className={`flex flex-col justify-between bg-[#054861] text-white h-screen p-2 transition-all duration-300 ${
+  className={`flex flex-col justify-between  bg-[#101B33] text-white h-screen p-2 transition-all duration-300 ${
     collapsed ? "w-15" : "w-52"
   }`}
 >   <div>

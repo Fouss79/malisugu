@@ -28,15 +28,14 @@ function ModalApercu({ resultat, onClose }) {
   const matieres = resultat?.matieres || [];
 
   const formatNote = (value) => {
-    if (value == null || Number.isNaN(Number(value))) return "—";
-    return Number(value).toFixed(2);
-  };
+  if (value == null || Number.isNaN(Number(value))) return "0.00";
+  return Number(value).toFixed(2);
+};
 
   const formatPoints = (value) => {
-    if (value == null || Number.isNaN(Number(value))) return "—";
-    return Number(value).toFixed(2);
-  };
-
+  if (value == null || Number.isNaN(Number(value))) return "0.00";
+  return Number(value).toFixed(2);
+};
   return (
     <div
       className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-2"

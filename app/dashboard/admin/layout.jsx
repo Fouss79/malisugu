@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }) {
     setCollapsed={setCollapsed}
 />
 
-        <main className="flex-1 overflow-y-auto p-6 bg-[#9FB9C4]">
+        <main className="flex-1 overflow-y-auto p-6 bg-[#ECEAE2]">
          
           {children}
         </main>
