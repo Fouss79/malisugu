@@ -5,6 +5,18 @@ import { useAuth } from "../../../context/AuthContext";
 import { Check, X, CalendarCheck, CalendarX } from "lucide-react";
 import api from "../../../../lib/api";
 
+/* =========================================================
+   PALETTE (identique au reste de l'application)
+========================================================= */
+const INK = "#101B33";
+const GOLD = "#C89B3C";
+const GOLD_2 = "#E4B655";
+const TEAL = "#2C8C82";
+const TEAL_SOFT = "#DCEDEA";
+const VIOLET = "#6E5DC6";
+const CORAL = "#D2593F";
+const CORAL_SOFT = "#F7E2DB";
+
 function nomJour(date) {
   const idx = new Date(date).getDay();
   const mapping = { 1: "LUNDI", 2: "MARDI", 3: "MERCREDI", 4: "JEUDI", 5: "VENDREDI", 6: "SAMEDI" };
@@ -31,13 +43,15 @@ export default function PresencePage() {
   useEffect(() => {
     if (!ecoleId) return;
 
-    api.get(`/classes/ecole/${ecoleId}`)
-      .then(res => setClasses(Array.isArray(res.data) ? res.data : []))
+    api
+      .get(`/classes/ecole/${ecoleId}`)
+      .then((res) => setClasses(Array.isArray(res.data) ? res.data : []))
       .catch(() => setClasses([]));
 
-    api.get(`/annees/ecole/${ecoleId}`)
-      .then(res => {
-        const active = (Array.isArray(res.data) ? res.data : []).find(a => a.active);
+    api
+      .get(`/annees/ecole/${ecoleId}`)
+      .then((res) => {
+        const active = (Array.isArray(res.data) ? res.data : []).find((a) => a.active);
         if (active) setAnneeId(active.id);
       })
       .catch(() => {});
@@ -49,9 +63,10 @@ export default function PresencePage() {
 
     const jour = nomJour(date);
 
-    api.get(`/emploi/classe/${classeId}/${anneeId}`)
-      .then(res => {
-        const liste = (Array.isArray(res.data) ? res.data : []).filter(e => e.jour === jour);
+    api
+      .get(`/emploi/classe/${classeId}/${anneeId}`)
+      .then((res) => {
+        const liste = (Array.isArray(res.data) ? res.data : []).filter((e) => e.jour === jour);
 
         setEdts(liste);
         setEdtId(liste[0]?.id ? String(liste[0].id) : "");
@@ -67,8 +82,9 @@ export default function PresencePage() {
       return;
     }
 
-    api.get(`/sous-groupes/classe/${classeId}`)
-      .then(res => setSousGroupes(Array.isArray(res.data) ? res.data : []))
+    api
+      .get(`/sous-groupes/classe/${classeId}`)
+      .then((res) => setSousGroupes(Array.isArray(res.data) ? res.data : []))
       .catch(() => setSousGroupes([]));
 
     setSousGroupeId(""); // reset à chaque changement de classe
@@ -82,8 +98,9 @@ export default function PresencePage() {
       ? `/sous-groupes/${sousGroupeId}/eleves-annee-active`
       : `/presences/classe/${classeId}/eleves-inscriptions`;
 
-    api.get(url)
-      .then(res => setInscriptions(Array.isArray(res.data) ? res.data : []))
+    api
+      .get(url)
+      .then((res) => setInscriptions(Array.isArray(res.data) ? res.data : []))
       .catch(() => setInscriptions([]));
   }, [classeId, sousGroupeId]);
 
@@ -92,8 +109,9 @@ export default function PresencePage() {
     if (!edtId || !date) return;
     setLoading(true);
 
-    api.get(`/presences/cours/${edtId}`, { params: { date } })
-      .then(res => setPresences(Array.isArray(res.data) ? res.data : []))
+    api
+      .get(`/presences/cours/${edtId}`, { params: { date } })
+      .then((res) => setPresences(Array.isArray(res.data) ? res.data : []))
       .catch(() => setPresences([]))
       .finally(() => setLoading(false));
   };
@@ -104,7 +122,7 @@ export default function PresencePage() {
 
   const statutParEleve = useMemo(() => {
     const map = new Map();
-    presences.forEach(p => map.set(p.inscriptionId, p.statut));
+    presences.forEach((p) => map.set(p.inscriptionId, p.statut));
     return map;
   }, [presences]);
 
@@ -134,14 +152,23 @@ export default function PresencePage() {
     }
   };
 
-  const edtSelectionne = edts.find(e => String(e.id) === String(edtId));
+  const edtSelectionne = edts.find((e) => String(e.id) === String(edtId));
 
   return (
     <div className="space-y-5">
-
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Prise de présence</h1>
-        <p className="text-sm text-slate-500">Émargement par classe (ou sous-groupe), par jour et par cours.</p>
+      <div className="flex items-center gap-3">
+        <span
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+          style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+        >
+          <CalendarCheck size={20} />
+        </span>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Prise de présence</h1>
+          <p className="text-sm text-slate-500">
+            Émargement par classe (ou sous-groupe), par jour et par cours.
+          </p>
+        </div>
       </div>
 
       {/* SÉLECTEURS */}
@@ -149,10 +176,14 @@ export default function PresencePage() {
         <select
           value={classeId}
           onChange={(e) => setClasseId(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
         >
           <option value="">Choisir une classe</option>
-          {classes.map(c => <option key={c.id} value={c.id}>{c.nomComplet}</option>)}
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nomComplet}
+            </option>
+          ))}
         </select>
 
         {/* 🔥 Sous-groupe — optionnel */}
@@ -160,11 +191,13 @@ export default function PresencePage() {
           <select
             value={sousGroupeId}
             onChange={(e) => setSousGroupeId(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
           >
             <option value="">Par groupe</option>
-            {sousGroupes.map(sg => (
-              <option key={sg.id} value={sg.id}>{sg.nom}</option>
+            {sousGroupes.map((sg) => (
+              <option key={sg.id} value={sg.id}>
+                {sg.nom}
+              </option>
             ))}
           </select>
         )}
@@ -173,19 +206,17 @@ export default function PresencePage() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
         />
 
         {classeId && (
           <select
             value={edtId}
             onChange={(e) => setEdtId(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
           >
-            <option value="">
-              {edts.length === 0 ? "Aucun cours ce jour" : "Choisir un cours"}
-            </option>
-            {edts.map(e => (
+            <option value="">{edts.length === 0 ? "Aucun cours ce jour" : "Choisir un cours"}</option>
+            {edts.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.matiere.nom} ({e.heureDebut}h-{e.heureFin}h) — {e.enseignant.prenom} {e.enseignant.nom}
               </option>
@@ -196,8 +227,9 @@ export default function PresencePage() {
 
       {sousGroupeId && (
         <p className="text-xs text-slate-400">
-          Affichage limité au sous-groupe : <span className="font-medium text-indigo-600">
-            {sousGroupes.find(sg => String(sg.id) === String(sousGroupeId))?.nom}
+          Affichage limité au sous-groupe :{" "}
+          <span className="font-medium" style={{ color: VIOLET }}>
+            {sousGroupes.find((sg) => String(sg.id) === String(sousGroupeId))?.nom}
           </span>
         </p>
       )}
@@ -206,14 +238,16 @@ export default function PresencePage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => marquerTous("PRESENT")}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
+            style={{ background: TEAL }}
           >
             <CalendarCheck size={14} />
             Marquer tous présents
           </button>
           <button
             onClick={() => marquerTous("ABSENT")}
-            className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-700"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
+            style={{ background: CORAL }}
           >
             <CalendarX size={14} />
             Marquer tous absents
@@ -236,7 +270,9 @@ export default function PresencePage() {
               <tbody className="divide-y divide-slate-50">
                 {loading && (
                   <tr>
-                    <td colSpan={2} className="px-4 py-8 text-center text-slate-400">Chargement...</td>
+                    <td colSpan={2} className="px-4 py-8 text-center text-slate-400">
+                      Chargement...
+                    </td>
                   </tr>
                 )}
 
@@ -248,38 +284,37 @@ export default function PresencePage() {
                   </tr>
                 )}
 
-              {!loading && inscriptions.map((e, index) => {
-  const inscriptionId = e.id ?? e.inscriptionId ?? index;
+                {!loading &&
+                  inscriptions.map((e, index) => {
+                    const inscriptionId = e.id ?? e.inscriptionId ?? index;
 
-  const statut = statutParEleve.get(inscriptionId) || "PRESENT";
-  const estAbsent = statut === "ABSENT";
+                    const statut = statutParEleve.get(inscriptionId) || "PRESENT";
+                    const estAbsent = statut === "ABSENT";
 
-  return (
-    <tr
-      key={`inscription-${inscriptionId}`}
-      className="transition hover:bg-slate-50/70"
-    >
-      <td className="px-4 py-3 font-medium text-slate-800">
-        {e.prenom} {e.nom}
-      </td>
+                    return (
+                      <tr key={`inscription-${inscriptionId}`} className="transition hover:bg-slate-50/70">
+                        <td className="px-4 py-3 font-medium text-slate-800">
+                          {e.prenom} {e.nom}
+                        </td>
 
-      <td className="px-4 py-3 text-right">
-        <button
-          type="button"
-          onClick={() => toggle(inscriptionId)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-            estAbsent
-              ? "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 hover:bg-rose-100"
-              : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
-          }`}
-        >
-          {estAbsent ? <X size={14} /> : <Check size={14} />}
-          {estAbsent ? "Absent" : "Présent"}
-        </button>
-      </td>
-    </tr>
-  );
-})}
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => toggle(inscriptionId)}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition hover:brightness-95"
+                            style={
+                              estAbsent
+                                ? { background: CORAL_SOFT, color: CORAL }
+                                : { background: TEAL_SOFT, color: TEAL }
+                            }
+                          >
+                            {estAbsent ? <X size={14} /> : <Check size={14} />}
+                            {estAbsent ? "Absent" : "Présent"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

@@ -9,6 +9,7 @@ import {
   BarChart3,
   AlertCircle,
   Users,
+  UsersRound,
   CheckCircle,
   BookOpen,
   Clock,

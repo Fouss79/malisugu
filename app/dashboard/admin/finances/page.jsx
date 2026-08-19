@@ -18,6 +18,18 @@ import {
 import { BanniereTarifsIncomplets } from "../component/BanniereTarifsIncomplets";
 import api from "../../../../lib/api";
 
+/* =========================================================
+   PALETTE (identique au reste de l'application)
+========================================================= */
+const INK = "#101B33";
+const GOLD = "#C89B3C";
+const GOLD_2 = "#E4B655";
+const GOLD_DARK = "#8A6A21";
+const TEAL = "#2C8C82";
+const TEAL_SOFT = "#DCEDEA";
+const CORAL = "#D2593F";
+const CORAL_SOFT = "#F7E2DB";
+
 const NOMS_MOIS = {
   1: "Janvier",
   2: "Février",
@@ -34,24 +46,19 @@ const NOMS_MOIS = {
 };
 
 const STATUT_STYLES = {
-  PAYE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  PARTIEL: "bg-amber-50 text-amber-700 ring-amber-200",
-  NON_PAYE: "bg-rose-50 text-rose-700 ring-rose-200",
+  PAYE: { background: TEAL_SOFT, color: TEAL },
+  PARTIEL: { background: `${GOLD}1A`, color: GOLD_DARK },
+  NON_PAYE: { background: CORAL_SOFT, color: CORAL },
 };
 
 function formatMontant(valeur) {
   if (valeur == null) return "—";
 
-  return (
-    new Intl.NumberFormat("fr-FR").format(valeur) +
-    " FCFA"
-  );
+  return new Intl.NumberFormat("fr-FR").format(valeur) + " FCFA";
 }
 
 function StatutBadge({ statut }) {
-  const style =
-    STATUT_STYLES[statut] ||
-    "bg-slate-100 text-slate-600 ring-slate-200";
+  const style = STATUT_STYLES[statut] || { background: "#F1F5F9", color: "#64748B" };
 
   const labels = {
     PAYE: "Payé",
@@ -61,9 +68,10 @@ function StatutBadge({ statut }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${style}`}
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+      style={style}
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
       {labels[statut] || statut}
     </span>
   );
@@ -76,9 +84,7 @@ function StatutBadge({ statut }) {
 function ModalEncaissement({ ligne, onClose, onSaved }) {
   const [lignesMensuelles, setLignesMensuelles] = useState([]);
   const [moisSelectionne, setMoisSelectionne] = useState(
-    ligne.mois && ligne.annee
-      ? `${ligne.mois}-${ligne.annee}`
-      : ""
+    ligne.mois && ligne.annee ? `${ligne.mois}-${ligne.annee}` : ""
   );
 
   const [montant, setMontant] = useState("");
@@ -87,8 +93,7 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false);
   const [erreur, setErreur] = useState("");
 
-  const estMensuel =
-    ligne.typeFraisCode === "SCOLARITE";
+  const estMensuel = ligne.typeFraisCode === "SCOLARITE";
 
   /* Chargement des mois */
 
@@ -98,16 +103,10 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
     api
       .get(`/ligne-frais/inscription/${ligne.inscriptionId}`)
       .then((res) => {
-        const data = Array.isArray(res.data)
-          ? res.data
-          : [];
+        const data = Array.isArray(res.data) ? res.data : [];
 
         const mois = data
-          .filter(
-            (l) =>
-              l.typeFraisCode === "SCOLARITE" &&
-              l.mois != null
-          )
+          .filter((l) => l.typeFraisCode === "SCOLARITE" && l.mois != null)
           .sort((a, b) => {
             if (a.annee !== b.annee) {
               return (a.annee || 0) - (b.annee || 0);
@@ -119,15 +118,11 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
         setLignesMensuelles(mois);
 
         if (mois.length > 0) {
-          const ligneAvecReste =
-            mois.find((m) => m.resteAPayer > 0);
+          const ligneAvecReste = mois.find((m) => m.resteAPayer > 0);
 
-          const premiere =
-            ligneAvecReste || mois[0];
+          const premiere = ligneAvecReste || mois[0];
 
-          setMoisSelectionne(
-            `${premiere.mois}-${premiere.annee}`
-          );
+          setMoisSelectionne(`${premiere.mois}-${premiere.annee}`);
         }
       })
       .catch(console.error);
@@ -138,30 +133,15 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
   const lignePaiement = useMemo(() => {
     if (!moisSelectionne) return ligne;
 
-    const [moisNum, anneeNum] =
-      moisSelectionne.split("-").map(Number);
+    const [moisNum, anneeNum] = moisSelectionne.split("-").map(Number);
 
-    return (
-      lignesMensuelles.find(
-        (l) =>
-          l.mois === moisNum &&
-          l.annee === anneeNum
-      ) || ligne
-    );
-  }, [
-    moisSelectionne,
-    lignesMensuelles,
-    ligne,
-  ]);
+    return lignesMensuelles.find((l) => l.mois === moisNum && l.annee === anneeNum) || ligne;
+  }, [moisSelectionne, lignesMensuelles, ligne]);
 
   /* Pré-remplissage */
 
   useEffect(() => {
-    setMontant(
-      lignePaiement.resteAPayer > 0
-        ? String(lignePaiement.resteAPayer)
-        : ""
-    );
+    setMontant(lignePaiement.resteAPayer > 0 ? String(lignePaiement.resteAPayer) : "");
   }, [lignePaiement.id]);
 
   const submit = async (e) => {
@@ -171,46 +151,27 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
     const montantNum = Number(montant);
 
     if (!montantNum || montantNum <= 0) {
-      setErreur(
-        "Le montant doit être supérieur à zéro."
-      );
+      setErreur("Le montant doit être supérieur à zéro.");
       return;
     }
 
-    if (
-      montantNum >
-      lignePaiement.resteAPayer
-    ) {
-      setErreur(
-        `Le montant dépasse le reste à payer (${formatMontant(
-          lignePaiement.resteAPayer
-        )}).`
-      );
+    if (montantNum > lignePaiement.resteAPayer) {
+      setErreur(`Le montant dépasse le reste à payer (${formatMontant(lignePaiement.resteAPayer)}).`);
       return;
     }
 
-    if (
-      modePaiement !== "CASH" &&
-      !reference.trim()
-    ) {
-      setErreur(
-        "La référence est obligatoire pour ce mode de paiement."
-      );
+    if (modePaiement !== "CASH" && !reference.trim()) {
+      setErreur("La référence est obligatoire pour ce mode de paiement.");
       return;
     }
 
     const payload = {
-      inscriptionId:
-        lignePaiement.inscriptionId,
-      codeTypeFrais:
-        lignePaiement.typeFraisCode,
+      inscriptionId: lignePaiement.inscriptionId,
+      codeTypeFrais: lignePaiement.typeFraisCode,
       mois: lignePaiement.mois ?? null,
       montant: montantNum,
       modePaiement,
-      reference:
-        modePaiement === "CASH"
-          ? null
-          : reference.trim(),
+      reference: modePaiement === "CASH" ? null : reference.trim(),
     };
 
     setSubmitting(true);
@@ -222,9 +183,7 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
       console.error(err);
 
       setErreur(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Erreur lors de l'encaissement."
+        err.response?.data?.message || err.response?.data?.error || "Erreur lors de l'encaissement."
       );
     } finally {
       setSubmitting(false);
@@ -245,18 +204,18 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
         <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                style={{ background: TEAL_SOFT, color: TEAL }}
+              >
                 <Wallet size={21} />
               </div>
 
               <div className="min-w-0">
-                <h2 className="text-base font-bold text-slate-900 sm:text-lg">
-                  Encaisser un paiement
-                </h2>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">Encaisser un paiement</h2>
 
                 <p className="truncate text-xs text-slate-500 sm:text-sm">
-                  {ligne.elevePrenom}{" "}
-                  {ligne.eleveNom}
+                  {ligne.elevePrenom} {ligne.eleveNom}
                   {" • "}
                   {ligne.classeNom}
                 </p>
@@ -276,46 +235,32 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
         <div className="space-y-5 p-5 sm:p-6">
           {/* MOIS */}
 
-          {estMensuel &&
-            lignesMensuelles.length > 0 && (
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Mois à encaisser
-                </label>
+          {estMensuel && lignesMensuelles.length > 0 && (
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Mois à encaisser
+              </label>
 
-                <div className="relative">
-                  <select
-                    value={moisSelectionne}
-                    onChange={(e) =>
-                      setMoisSelectionne(
-                        e.target.value
-                      )
-                    }
-                    className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
-                  >
-                    {lignesMensuelles.map(
-                      (l) => (
-                        <option
-                          key={l.id}
-                          value={`${l.mois}-${l.annee}`}
-                        >
-                          {NOMS_MOIS[l.mois]}{" "}
-                          {l.annee} — reste{" "}
-                          {formatMontant(
-                            l.resteAPayer
-                          )}
-                        </option>
-                      )
-                    )}
-                  </select>
+              <div className="relative">
+                <select
+                  value={moisSelectionne}
+                  onChange={(e) => setMoisSelectionne(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
+                >
+                  {lignesMensuelles.map((l) => (
+                    <option key={l.id} value={`${l.mois}-${l.annee}`}>
+                      {NOMS_MOIS[l.mois]} {l.annee} — reste {formatMontant(l.resteAPayer)}
+                    </option>
+                  ))}
+                </select>
 
-                  <ChevronDown
-                    size={17}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                </div>
+                <ChevronDown
+                  size={17}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
               </div>
-            )}
+            </div>
+          )}
 
           {/* RESUME */}
 
@@ -325,52 +270,34 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
                 {lignePaiement.typeFraisLibelle}
 
                 {lignePaiement.mois ? (
-                  <span className="ml-1 text-indigo-600">
-                    •{" "}
-                    {NOMS_MOIS[
-                      lignePaiement.mois
-                    ]}{" "}
-                    {lignePaiement.annee}
+                  <span className="ml-1" style={{ color: TEAL }}>
+                    • {NOMS_MOIS[lignePaiement.mois]} {lignePaiement.annee}
                   </span>
                 ) : (
-                  <span className="ml-1 text-slate-400">
-                    • Annuel
-                  </span>
+                  <span className="ml-1 text-slate-400">• Annuel</span>
                 )}
               </p>
             </div>
 
             <div className="grid grid-cols-3 divide-x divide-slate-200">
               <div className="p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  Total
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total</p>
                 <p className="mt-1 text-xs font-bold text-slate-700 sm:text-sm">
-                  {formatMontant(
-                    lignePaiement.montantTotal
-                  )}
+                  {formatMontant(lignePaiement.montantTotal)}
                 </p>
               </div>
 
               <div className="p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  Payé
-                </p>
-                <p className="mt-1 text-xs font-bold text-emerald-600 sm:text-sm">
-                  {formatMontant(
-                    lignePaiement.montantPaye
-                  )}
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Payé</p>
+                <p className="mt-1 text-xs font-bold sm:text-sm" style={{ color: TEAL }}>
+                  {formatMontant(lignePaiement.montantPaye)}
                 </p>
               </div>
 
               <div className="p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  Reste
-                </p>
-                <p className="mt-1 text-xs font-bold text-rose-600 sm:text-sm">
-                  {formatMontant(
-                    lignePaiement.resteAPayer
-                  )}
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reste</p>
+                <p className="mt-1 text-xs font-bold sm:text-sm" style={{ color: CORAL }}>
+                  {formatMontant(lignePaiement.resteAPayer)}
                 </p>
               </div>
             </div>
@@ -379,11 +306,11 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
           {/* ERREUR */}
 
           {erreur && (
-            <div className="flex gap-3 rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-700">
-              <AlertCircle
-                size={18}
-                className="mt-0.5 shrink-0"
-              />
+            <div
+              className="flex gap-3 rounded-xl border p-3 text-sm"
+              style={{ background: CORAL_SOFT, color: CORAL, borderColor: "transparent" }}
+            >
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
 
               <p>{erreur}</p>
             </div>
@@ -391,10 +318,7 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
 
           {/* FORMULAIRE */}
 
-          <form
-            onSubmit={submit}
-            className="space-y-4"
-          >
+          <form onSubmit={submit} className="space-y-4">
             {/* MONTANT */}
 
             <div>
@@ -413,10 +337,8 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
                   min="1"
                   placeholder="Ex : 25 000"
                   value={montant}
-                  onChange={(e) =>
-                    setMontant(e.target.value)
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  onChange={(e) => setMontant(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
                   required
                 />
               </div>
@@ -437,28 +359,14 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
 
                 <select
                   value={modePaiement}
-                  onChange={(e) =>
-                    setModePaiement(
-                      e.target.value
-                    )
-                  }
-                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  onChange={(e) => setModePaiement(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
                 >
-                  <option value="CASH">
-                    Espèces
-                  </option>
-                  <option value="ORANGE_MONEY">
-                    Orange Money
-                  </option>
-                  <option value="MOOV_MONEY">
-                    Moov Money
-                  </option>
-                  <option value="VIREMENT">
-                    Virement
-                  </option>
-                  <option value="CHEQUE">
-                    Chèque
-                  </option>
+                  <option value="CASH">Espèces</option>
+                  <option value="ORANGE_MONEY">Orange Money</option>
+                  <option value="MOOV_MONEY">Moov Money</option>
+                  <option value="VIREMENT">Virement</option>
+                  <option value="CHEQUE">Chèque</option>
                 </select>
 
                 <ChevronDown
@@ -480,10 +388,8 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
                   type="text"
                   placeholder="Ex : OM-2026-000123"
                   value={reference}
-                  onChange={(e) =>
-                    setReference(e.target.value)
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  onChange={(e) => setReference(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
                   required
                 />
               </div>
@@ -502,18 +408,13 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
 
               <button
                 type="submit"
-                disabled={
-                  submitting ||
-                  lignePaiement.resteAPayer <= 0
-                }
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+                disabled={submitting || lignePaiement.resteAPayer <= 0}
+                className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+                style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
               >
                 {submitting ? (
                   <>
-                    <Loader2
-                      size={17}
-                      className="animate-spin"
-                    />
+                    <Loader2 size={17} className="animate-spin" />
                     Encaissement...
                   </>
                 ) : (
@@ -535,30 +436,21 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
    CARTE STATISTIQUE
 ========================================================= */
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  iconClass,
-  valueClass,
-}) {
+function StatCard({ label, value, icon: Icon, iconBg, iconColor, valueColor }) {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {label}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
 
-          <p
-            className={`mt-2 text-lg font-bold sm:text-xl ${valueClass}`}
-          >
+          <p className="mt-2 text-lg font-bold sm:text-xl" style={{ color: valueColor }}>
             {value}
           </p>
         </div>
 
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClass}`}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+          style={{ background: iconBg, color: iconColor }}
         >
           <Icon size={19} />
         </div>
@@ -572,17 +464,11 @@ function StatCard({
 ========================================================= */
 
 function PaiementCard({ ligne, onEncaisser }) {
-  const total = ligne._nbMois
-    ? ligne._totalTous
-    : ligne.montantTotal;
+  const total = ligne._nbMois ? ligne._totalTous : ligne.montantTotal;
 
-  const paye = ligne._nbMois
-    ? ligne._payeTous
-    : ligne.montantPaye;
+  const paye = ligne._nbMois ? ligne._payeTous : ligne.montantPaye;
 
-  const reste = ligne._nbMois
-    ? ligne._resteTous
-    : ligne.resteAPayer;
+  const reste = ligne._nbMois ? ligne._resteTous : ligne.resteAPayer;
 
   const disabled = reste <= 0;
 
@@ -592,73 +478,53 @@ function PaiementCard({ ligne, onEncaisser }) {
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-bold text-indigo-600">
-            {(
-              ligne.elevePrenom?.[0] ||
-              ""
-            ).toUpperCase()}
-            {(
-              ligne.eleveNom?.[0] ||
-              ""
-            ).toUpperCase()}
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+            style={{ background: TEAL_SOFT, color: TEAL }}
+          >
+            {(ligne.elevePrenom?.[0] || "").toUpperCase()}
+            {(ligne.eleveNom?.[0] || "").toUpperCase()}
           </div>
 
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-800">
-              {ligne.elevePrenom}{" "}
-              {ligne.eleveNom}
+              {ligne.elevePrenom} {ligne.eleveNom}
             </p>
 
-            <p className="mt-0.5 text-xs text-slate-400">
-              {ligne.classeNom}
-            </p>
+            <p className="mt-0.5 text-xs text-slate-400">{ligne.classeNom}</p>
           </div>
         </div>
 
-        <StatutBadge
-          statut={ligne.statutPaiement}
-        />
+        <StatutBadge statut={ligne.statutPaiement} />
       </div>
 
       {/* TYPE */}
 
       <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
         <div>
-          <p className="text-xs font-semibold text-slate-700">
-            {ligne.typeFraisLibelle}
-          </p>
+          <p className="text-xs font-semibold text-slate-700">{ligne.typeFraisLibelle}</p>
 
-          {ligne._nbMois && (
-            <p className="mt-0.5 text-[11px] text-slate-400">
-              {ligne._nbMois} mois
-            </p>
-          )}
+          {ligne._nbMois && <p className="mt-0.5 text-[11px] text-slate-400">{ligne._nbMois} mois</p>}
         </div>
 
-        <p className="text-xs font-bold text-slate-700">
-          {formatMontant(total)}
-        </p>
+        <p className="text-xs font-bold text-slate-700">{formatMontant(total)}</p>
       </div>
 
       {/* MONTANTS */}
 
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-            Déjà payé
-          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Déjà payé</p>
 
-          <p className="mt-1 text-sm font-bold text-emerald-600">
+          <p className="mt-1 text-sm font-bold" style={{ color: TEAL }}>
             {formatMontant(paye)}
           </p>
         </div>
 
         <div className="text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-            Reste
-          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reste</p>
 
-          <p className="mt-1 text-sm font-bold text-rose-600">
+          <p className="mt-1 text-sm font-bold" style={{ color: CORAL }}>
             {formatMontant(reste)}
           </p>
         </div>
@@ -669,12 +535,11 @@ function PaiementCard({ ligne, onEncaisser }) {
       <button
         onClick={() => onEncaisser(ligne)}
         disabled={disabled}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+        style={!disabled ? { background: `linear-gradient(135deg, ${INK}, #182746)` } : undefined}
       >
         <Wallet size={15} />
-        {disabled
-          ? "Paiement terminé"
-          : "Encaisser"}
+        {disabled ? "Paiement terminé" : "Encaisser"}
       </button>
     </div>
   );
@@ -689,32 +554,23 @@ export default function PaiementForm() {
 
   const ecoleId = user?.ecole?.id;
 
-  const [lignesFrais, setLignesFrais] =
-    useState([]);
+  const [lignesFrais, setLignesFrais] = useState([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
-  const [classeFilter, setClasseFilter] =
-    useState("");
+  const [classeFilter, setClasseFilter] = useState("");
 
-  const [typeFraisFilter, setTypeFraisFilter] =
-    useState("");
+  const [typeFraisFilter, setTypeFraisFilter] = useState("");
 
-  const [statutFilter, setStatutFilter] =
-    useState("");
+  const [statutFilter, setStatutFilter] = useState("");
 
-  const [ligneSelectionnee, setLigneSelectionnee] =
-    useState(null);
+  const [ligneSelectionnee, setLigneSelectionnee] = useState(null);
 
-  const [toast, setToast] =
-    useState(null);
+  const [toast, setToast] = useState(null);
 
-  const [showFilters, setShowFilters] =
-    useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   /* =====================================================
      CHARGEMENT
@@ -728,11 +584,7 @@ export default function PaiementForm() {
     api
       .get(`/ligne-frais/ecole/${ecoleId}`)
       .then((res) => {
-        setLignesFrais(
-          Array.isArray(res.data)
-            ? res.data
-            : []
-        );
+        setLignesFrais(Array.isArray(res.data) ? res.data : []);
       })
       .catch((err) => {
         console.error(err);
@@ -752,11 +604,7 @@ export default function PaiementForm() {
   ===================================================== */
 
   const classesDisponibles = useMemo(() => {
-    const set = new Set(
-      lignesFrais
-        .map((l) => l.classeNom)
-        .filter(Boolean)
-    );
+    const set = new Set(lignesFrais.map((l) => l.classeNom).filter(Boolean));
 
     return Array.from(set).sort();
   }, [lignesFrais]);
@@ -765,14 +613,8 @@ export default function PaiementForm() {
     const map = new Map();
 
     lignesFrais.forEach((l) => {
-      if (
-        l.typeFraisCode &&
-        !map.has(l.typeFraisCode)
-      ) {
-        map.set(
-          l.typeFraisCode,
-          l.typeFraisLibelle
-        );
+      if (l.typeFraisCode && !map.has(l.typeFraisCode)) {
+        map.set(l.typeFraisCode, l.typeFraisLibelle);
       }
     });
 
@@ -784,66 +626,32 @@ export default function PaiementForm() {
   ===================================================== */
 
   const lignesFiltrees = useMemo(() => {
-    const q = search
-      .trim()
-      .toLowerCase();
+    const q = search.trim().toLowerCase();
 
     return lignesFrais
       .filter((l) => {
-        const nomComplet =
-          `${l.eleveNom || ""} ${
-            l.elevePrenom || ""
-          }`.toLowerCase();
+        const nomComplet = `${l.eleveNom || ""} ${l.elevePrenom || ""}`.toLowerCase();
 
-        const matchSearch =
-          !q ||
-          nomComplet.includes(q);
+        const matchSearch = !q || nomComplet.includes(q);
 
-        const matchClasse =
-          !classeFilter ||
-          l.classeNom === classeFilter;
+        const matchClasse = !classeFilter || l.classeNom === classeFilter;
 
-        const matchType =
-          !typeFraisFilter ||
-          l.typeFraisCode ===
-            typeFraisFilter;
+        const matchType = !typeFraisFilter || l.typeFraisCode === typeFraisFilter;
 
-        const matchStatut =
-          !statutFilter ||
-          l.statutPaiement ===
-            statutFilter;
+        const matchStatut = !statutFilter || l.statutPaiement === statutFilter;
 
-        return (
-          matchSearch &&
-          matchClasse &&
-          matchType &&
-          matchStatut
-        );
+        return matchSearch && matchClasse && matchType && matchStatut;
       })
       .sort((a, b) => {
-        const classeCompare =
-          (a.classeNom || "").localeCompare(
-            b.classeNom || ""
-          );
+        const classeCompare = (a.classeNom || "").localeCompare(b.classeNom || "");
 
-        if (classeCompare !== 0)
-          return classeCompare;
+        if (classeCompare !== 0) return classeCompare;
 
-        return `${a.eleveNom || ""}${
-          a.elevePrenom || ""
-        }`.localeCompare(
-          `${b.eleveNom || ""}${
-            b.elevePrenom || ""
-          }`
+        return `${a.eleveNom || ""}${a.elevePrenom || ""}`.localeCompare(
+          `${b.eleveNom || ""}${b.elevePrenom || ""}`
         );
       });
-  }, [
-    lignesFrais,
-    search,
-    classeFilter,
-    typeFraisFilter,
-    statutFilter,
-  ]);
+  }, [lignesFrais, search, classeFilter, typeFraisFilter, statutFilter]);
 
   /* =====================================================
      REGROUPEMENT
@@ -853,48 +661,30 @@ export default function PaiementForm() {
     const map = new Map();
 
     lignesFiltrees.forEach((l) => {
-      const cleGroupe =
-        l.mois != null
-          ? `${l.inscriptionId}-${l.typeFraisCode}`
-          : `${l.id}`;
+      const cleGroupe = l.mois != null ? `${l.inscriptionId}-${l.typeFraisCode}` : `${l.id}`;
 
       if (!map.has(cleGroupe)) {
         map.set(cleGroupe, {
           ...l,
-          _nbMois:
-            l.mois != null ? 1 : null,
-          _totalTous:
-            l.montantTotal || 0,
-          _payeTous:
-            l.montantPaye || 0,
-          _resteTous:
-            l.resteAPayer || 0,
+          _nbMois: l.mois != null ? 1 : null,
+          _totalTous: l.montantTotal || 0,
+          _payeTous: l.montantPaye || 0,
+          _resteTous: l.resteAPayer || 0,
         });
       } else if (l.mois != null) {
-        const existant =
-          map.get(cleGroupe);
+        const existant = map.get(cleGroupe);
 
         existant._nbMois += 1;
-        existant._totalTous +=
-          l.montantTotal || 0;
-        existant._payeTous +=
-          l.montantPaye || 0;
-        existant._resteTous +=
-          l.resteAPayer || 0;
+        existant._totalTous += l.montantTotal || 0;
+        existant._payeTous += l.montantPaye || 0;
+        existant._resteTous += l.resteAPayer || 0;
 
-        if (
-          l.resteAPayer > 0 &&
-          existant.resteAPayer <= 0
-        ) {
+        if (l.resteAPayer > 0 && existant.resteAPayer <= 0) {
           Object.assign(existant, l, {
-            _nbMois:
-              existant._nbMois,
-            _totalTous:
-              existant._totalTous,
-            _payeTous:
-              existant._payeTous,
-            _resteTous:
-              existant._resteTous,
+            _nbMois: existant._nbMois,
+            _totalTous: existant._totalTous,
+            _payeTous: existant._payeTous,
+            _resteTous: existant._resteTous,
           });
         }
       }
@@ -909,23 +699,11 @@ export default function PaiementForm() {
 
   const totaux = useMemo(
     () => ({
-      total: lignesFiltrees.reduce(
-        (s, l) =>
-          s + (l.montantTotal || 0),
-        0
-      ),
+      total: lignesFiltrees.reduce((s, l) => s + (l.montantTotal || 0), 0),
 
-      paye: lignesFiltrees.reduce(
-        (s, l) =>
-          s + (l.montantPaye || 0),
-        0
-      ),
+      paye: lignesFiltrees.reduce((s, l) => s + (l.montantPaye || 0), 0),
 
-      reste: lignesFiltrees.reduce(
-        (s, l) =>
-          s + (l.resteAPayer || 0),
-        0
-      ),
+      reste: lignesFiltrees.reduce((s, l) => s + (l.resteAPayer || 0), 0),
     }),
     [lignesFiltrees]
   );
@@ -937,9 +715,7 @@ export default function PaiementForm() {
   const handleSaved = () => {
     setLigneSelectionnee(null);
 
-    setToast(
-      "Paiement encaissé avec succès"
-    );
+    setToast("Paiement encaissé avec succès");
 
     setTimeout(() => {
       setToast(null);
@@ -955,12 +731,7 @@ export default function PaiementForm() {
     setStatutFilter("");
   };
 
-  const nombreFiltresActifs =
-    [
-      classeFilter,
-      typeFraisFilter,
-      statutFilter,
-    ].filter(Boolean).length;
+  const nombreFiltresActifs = [classeFilter, typeFraisFilter, statutFilter].filter(Boolean).length;
 
   /* =====================================================
      RENDER
@@ -974,19 +745,18 @@ export default function PaiementForm() {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold text-indigo-600">
+          <div
+            className="mb-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold"
+            style={{ background: `${GOLD}1A`, color: GOLD_DARK }}
+          >
             <Wallet size={13} />
             GESTION DES PAIEMENTS
           </div>
 
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            Encaissements
-          </h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Encaissements</h1>
 
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-            Gérez les frais scolaires et
-            enregistrez facilement les
-            paiements des élèves.
+            Gérez les frais scolaires et enregistrez facilement les paiements des élèves.
           </p>
         </div>
 
@@ -995,9 +765,7 @@ export default function PaiementForm() {
             Lignes affichées
           </p>
 
-          <p className="mt-0.5 text-lg font-bold text-slate-800">
-            {lignesAffichees.length}
-          </p>
+          <p className="mt-0.5 text-lg font-bold text-slate-800">{lignesAffichees.length}</p>
         </div>
       </div>
 
@@ -1006,32 +774,29 @@ export default function PaiementForm() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard
           label="Total dû"
-          value={formatMontant(
-            totaux.total
-          )}
+          value={formatMontant(totaux.total)}
           icon={CircleDollarSign}
-          iconClass="bg-slate-100 text-slate-600"
-          valueClass="text-slate-800"
+          iconBg="#F1F5F9"
+          iconColor="#475569"
+          valueColor="#1E293B"
         />
 
         <StatCard
           label="Déjà payé"
-          value={formatMontant(
-            totaux.paye
-          )}
+          value={formatMontant(totaux.paye)}
           icon={TrendingUp}
-          iconClass="bg-emerald-50 text-emerald-600"
-          valueClass="text-emerald-600"
+          iconBg={TEAL_SOFT}
+          iconColor={TEAL}
+          valueColor={TEAL}
         />
 
         <StatCard
           label="Reste à encaisser"
-          value={formatMontant(
-            totaux.reste
-          )}
+          value={formatMontant(totaux.reste)}
           icon={AlertCircle}
-          iconClass="bg-rose-50 text-rose-600"
-          valueClass="text-rose-600"
+          iconBg={CORAL_SOFT}
+          iconColor={CORAL}
+          valueColor={CORAL}
         />
       </div>
 
@@ -1042,39 +807,34 @@ export default function PaiementForm() {
 
         <div className="flex flex-col gap-3 p-3 sm:p-4 lg:flex-row lg:items-center">
           <div className="relative flex-1">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
 
             <input
               type="text"
               placeholder="Rechercher par nom ou prénom..."
               value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100"
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#C89B3C] focus:bg-white focus:ring-4 focus:ring-[#C89B3C]/10"
             />
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              setShowFilters(!showFilters)
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition"
+            style={
+              showFilters || nombreFiltresActifs > 0
+                ? { borderColor: `${GOLD}66`, background: `${GOLD}1A`, color: GOLD_DARK }
+                : { borderColor: "#E2E8F0", color: "#475569" }
             }
-            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-              showFilters ||
-              nombreFiltresActifs > 0
-                ? "border-indigo-200 bg-indigo-50 text-indigo-600"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
           >
             <Filter size={17} />
             Filtres
-
             {nombreFiltresActifs > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] text-white">
+              <span
+                className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] text-white"
+                style={{ background: GOLD }}
+              >
                 {nombreFiltresActifs}
               </span>
             )}
@@ -1093,27 +853,16 @@ export default function PaiementForm() {
 
                 <select
                   value={classeFilter}
-                  onChange={(e) =>
-                    setClasseFilter(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  onChange={(e) => setClasseFilter(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
                 >
-                  <option value="">
-                    Toutes les classes
-                  </option>
+                  <option value="">Toutes les classes</option>
 
-                  {classesDisponibles.map(
-                    (c) => (
-                      <option
-                        key={c}
-                        value={c}
-                      >
-                        {c}
-                      </option>
-                    )
-                  )}
+                  {classesDisponibles.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1124,27 +873,16 @@ export default function PaiementForm() {
 
                 <select
                   value={typeFraisFilter}
-                  onChange={(e) =>
-                    setTypeFraisFilter(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  onChange={(e) => setTypeFraisFilter(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
                 >
-                  <option value="">
-                    Tous les types
-                  </option>
+                  <option value="">Tous les types</option>
 
-                  {typesFraisDisponibles.map(
-                    ([code, libelle]) => (
-                      <option
-                        key={code}
-                        value={code}
-                      >
-                        {libelle}
-                      </option>
-                    )
-                  )}
+                  {typesFraisDisponibles.map(([code, libelle]) => (
+                    <option key={code} value={code}>
+                      {libelle}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1155,25 +893,13 @@ export default function PaiementForm() {
 
                 <select
                   value={statutFilter}
-                  onChange={(e) =>
-                    setStatutFilter(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  onChange={(e) => setStatutFilter(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
                 >
-                  <option value="">
-                    Tous les statuts
-                  </option>
-                  <option value="NON_PAYE">
-                    Non payé
-                  </option>
-                  <option value="PARTIEL">
-                    Partiel
-                  </option>
-                  <option value="PAYE">
-                    Payé
-                  </option>
+                  <option value="">Tous les statuts</option>
+                  <option value="NON_PAYE">Non payé</option>
+                  <option value="PARTIEL">Partiel</option>
+                  <option value="PAYE">Payé</option>
                 </select>
               </div>
             </div>
@@ -1182,7 +908,8 @@ export default function PaiementForm() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                className="mt-3 text-xs font-semibold"
+                style={{ color: GOLD_DARK }}
               >
                 Réinitialiser les filtres
               </button>
@@ -1198,44 +925,27 @@ export default function PaiementForm() {
       <div className="space-y-3 lg:hidden">
         {loading && (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white px-4 py-12 text-center shadow-sm">
-            <Loader2
-              size={25}
-              className="animate-spin text-indigo-600"
-            />
+            <Loader2 size={25} className="animate-spin" style={{ color: GOLD }} />
 
-            <p className="mt-3 text-sm font-medium text-slate-600">
-              Chargement des frais...
-            </p>
+            <p className="mt-3 text-sm font-medium text-slate-600">Chargement des frais...</p>
+          </div>
+        )}
+
+        {!loading && lignesAffichees.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <Search size={20} />
+            </div>
+
+            <p className="mt-3 text-sm font-semibold text-slate-700">Aucun résultat</p>
+
+            <p className="mt-1 text-xs text-slate-400">Aucune ligne de frais ne correspond à vos critères.</p>
           </div>
         )}
 
         {!loading &&
-          lignesAffichees.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-12 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                <Search size={20} />
-              </div>
-
-              <p className="mt-3 text-sm font-semibold text-slate-700">
-                Aucun résultat
-              </p>
-
-              <p className="mt-1 text-xs text-slate-400">
-                Aucune ligne de frais ne
-                correspond à vos critères.
-              </p>
-            </div>
-          )}
-
-        {!loading &&
           lignesAffichees.map((l) => (
-            <PaiementCard
-              key={l.id}
-              ligne={l}
-              onEncaisser={
-                setLigneSelectionnee
-              }
-            />
+            <PaiementCard key={l.id} ligne={l} onEncaisser={setLigneSelectionnee} />
           ))}
       </div>
 
@@ -1248,121 +958,69 @@ export default function PaiementForm() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/70 text-[10px] uppercase tracking-wider text-slate-400">
-                <th className="px-5 py-4 font-bold">
-                  Élève
-                </th>
-
-                <th className="px-5 py-4 font-bold">
-                  Classe
-                </th>
-
-                <th className="px-5 py-4 font-bold">
-                  Type de frais
-                </th>
-
-                <th className="px-5 py-4 font-bold">
-                  Total
-                </th>
-
-                <th className="px-5 py-4 font-bold">
-                  Payé
-                </th>
-
-                <th className="px-5 py-4 font-bold">
-                  Statut
-                </th>
-
-                <th className="px-5 py-4 text-right font-bold">
-                  Action
-                </th>
+                <th className="px-5 py-4 font-bold">Élève</th>
+                <th className="px-5 py-4 font-bold">Classe</th>
+                <th className="px-5 py-4 font-bold">Type de frais</th>
+                <th className="px-5 py-4 font-bold">Total</th>
+                <th className="px-5 py-4 font-bold">Payé</th>
+                <th className="px-5 py-4 font-bold">Statut</th>
+                <th className="px-5 py-4 text-right font-bold">Action</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-50">
               {loading && (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-5 py-14 text-center"
-                  >
-                    <Loader2
-                      size={24}
-                      className="mx-auto animate-spin text-indigo-600"
-                    />
+                  <td colSpan={7} className="px-5 py-14 text-center">
+                    <Loader2 size={24} className="mx-auto animate-spin" style={{ color: GOLD }} />
 
-                    <p className="mt-3 text-sm text-slate-400">
-                      Chargement des frais...
+                    <p className="mt-3 text-sm text-slate-400">Chargement des frais...</p>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && lignesAffichees.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-5 py-14 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                      <Search size={20} />
+                    </div>
+
+                    <p className="mt-3 text-sm font-semibold text-slate-700">Aucun résultat</p>
+
+                    <p className="mt-1 text-xs text-slate-400">
+                      Aucune ligne de frais ne correspond à vos critères.
                     </p>
                   </td>
                 </tr>
               )}
 
               {!loading &&
-                lignesAffichees.length ===
-                  0 && (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-14 text-center"
-                    >
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                        <Search size={20} />
-                      </div>
-
-                      <p className="mt-3 text-sm font-semibold text-slate-700">
-                        Aucun résultat
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        Aucune ligne de frais
-                        ne correspond à vos
-                        critères.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-
-              {!loading &&
                 lignesAffichees.map((l) => {
-                  const total = l._nbMois
-                    ? l._totalTous
-                    : l.montantTotal;
+                  const total = l._nbMois ? l._totalTous : l.montantTotal;
 
-                  const paye = l._nbMois
-                    ? l._payeTous
-                    : l.montantPaye;
+                  const paye = l._nbMois ? l._payeTous : l.montantPaye;
 
-                  const reste = l._nbMois
-                    ? l._resteTous
-                    : l.resteAPayer;
+                  const reste = l._nbMois ? l._resteTous : l.resteAPayer;
 
                   return (
-                    <tr
-                      key={l.id}
-                      className="group transition hover:bg-slate-50/70"
-                    >
+                    <tr key={l.id} className="group transition hover:bg-slate-50/70">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-[11px] font-bold text-indigo-600">
-                            {(
-                              l.elevePrenom?.[0] ||
-                              ""
-                            ).toUpperCase()}
-                            {(
-                              l.eleveNom?.[0] ||
-                              ""
-                            ).toUpperCase()}
+                          <div
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-[11px] font-bold"
+                            style={{ background: TEAL_SOFT, color: TEAL }}
+                          >
+                            {(l.elevePrenom?.[0] || "").toUpperCase()}
+                            {(l.eleveNom?.[0] || "").toUpperCase()}
                           </div>
 
                           <div>
                             <p className="font-semibold text-slate-800">
-                              {l.elevePrenom}{" "}
-                              {l.eleveNom}
+                              {l.elevePrenom} {l.eleveNom}
                             </p>
 
-                            <p className="mt-0.5 text-[11px] text-slate-400">
-                              Élève
-                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-400">Élève</p>
                           </div>
                         </div>
                       </td>
@@ -1374,48 +1032,30 @@ export default function PaiementForm() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-700">
-                          {l.typeFraisLibelle}
-                        </p>
+                        <p className="font-medium text-slate-700">{l.typeFraisLibelle}</p>
 
-                        {l._nbMois && (
-                          <p className="mt-0.5 text-[11px] text-slate-400">
-                            {l._nbMois} mois
-                          </p>
-                        )}
+                        {l._nbMois && <p className="mt-0.5 text-[11px] text-slate-400">{l._nbMois} mois</p>}
                       </td>
 
-                      <td className="px-5 py-4 font-semibold text-slate-700">
-                        {formatMontant(total)}
-                      </td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">{formatMontant(total)}</td>
 
-                      <td className="px-5 py-4 font-semibold text-emerald-600">
+                      <td className="px-5 py-4 font-semibold" style={{ color: TEAL }}>
                         {formatMontant(paye)}
                       </td>
 
                       <td className="px-5 py-4">
-                        <StatutBadge
-                          statut={
-                            l.statutPaiement
-                          }
-                        />
+                        <StatutBadge statut={l.statutPaiement} />
                       </td>
 
                       <td className="px-5 py-4 text-right">
                         <button
-                          onClick={() =>
-                            setLigneSelectionnee(
-                              l
-                            )
-                          }
+                          onClick={() => setLigneSelectionnee(l)}
                           disabled={reste <= 0}
-                          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                          className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+                          style={reste > 0 ? { background: `linear-gradient(135deg, ${INK}, #182746)` } : undefined}
                         >
                           <Wallet size={14} />
-
-                          {reste <= 0
-                            ? "Payé"
-                            : "Encaisser"}
+                          {reste <= 0 ? "Payé" : "Encaisser"}
                         </button>
                       </td>
                     </tr>
@@ -1425,31 +1065,19 @@ export default function PaiementForm() {
           </table>
         </div>
 
-        {!loading &&
-          lignesAffichees.length > 0 && (
-            <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-5 py-3">
-              <p className="text-xs text-slate-400">
-                {lignesAffichees.length}{" "}
-                élément
-                {lignesAffichees.length > 1
-                  ? "s"
-                  : ""}{" "}
-                affiché
-                {lignesAffichees.length > 1
-                  ? "s"
-                  : ""}
-              </p>
+        {!loading && lignesAffichees.length > 0 && (
+          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-5 py-3">
+            <p className="text-xs text-slate-400">
+              {lignesAffichees.length} élément{lignesAffichees.length > 1 ? "s" : ""} affiché
+              {lignesAffichees.length > 1 ? "s" : ""}
+            </p>
 
-              <p className="text-xs font-semibold text-slate-500">
-                Reste à encaisser :{" "}
-                <span className="text-rose-600">
-                  {formatMontant(
-                    totaux.reste
-                  )}
-                </span>
-              </p>
-            </div>
-          )}
+            <p className="text-xs font-semibold text-slate-500">
+              Reste à encaisser :{" "}
+              <span style={{ color: CORAL }}>{formatMontant(totaux.reste)}</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* MODAL */}
@@ -1457,9 +1085,7 @@ export default function PaiementForm() {
       {ligneSelectionnee && (
         <ModalEncaissement
           ligne={ligneSelectionnee}
-          onClose={() =>
-            setLigneSelectionnee(null)
-          }
+          onClose={() => setLigneSelectionnee(null)}
           onSaved={handleSaved}
         />
       )}
@@ -1468,17 +1094,20 @@ export default function PaiementForm() {
 
       {toast && (
         <div className="fixed bottom-4 left-4 right-4 z-[60] sm:bottom-6 sm:left-auto sm:right-6 sm:w-auto">
-          <div className="flex items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-2xl">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500">
+          <div
+            className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold text-white shadow-2xl"
+            style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
+          >
+            <div
+              className="flex h-7 w-7 items-center justify-center rounded-full"
+              style={{ background: TEAL }}
+            >
               <CheckCircle2 size={16} />
             </div>
 
             <span>{toast}</span>
 
-            <button
-              onClick={() => setToast(null)}
-              className="ml-2 text-slate-400 transition hover:text-white"
-            >
+            <button onClick={() => setToast(null)} className="ml-2 text-slate-400 transition hover:text-white">
               <X size={16} />
             </button>
           </div>

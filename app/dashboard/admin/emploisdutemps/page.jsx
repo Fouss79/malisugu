@@ -3,7 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../../../lib/api";
 import { useAuth } from "../../../context/AuthContext";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Printer, Users, MapPin, CalendarDays } from "lucide-react";
+
+/* =========================================================
+   PALETTE (identique au reste de l'application)
+========================================================= */
+const INK = "#101B33";
+const GOLD = "#C89B3C";
+const GOLD_2 = "#E4B655";
+const TEAL = "#2C8C82";
+const TEAL_SOFT = "#DCEDEA";
+const VIOLET = "#6E5DC6";
+const VIOLET_SOFT = "#E7E3F8";
+const CORAL = "#D2593F";
+const CORAL_SOFT = "#F7E2DB";
 
 // Constantes
 const JOURS_SEMAINE = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI"];
@@ -23,7 +36,7 @@ export default function EmploiDuTempsForm() {
     sousGroupeId: "",
     jour: "",
     heureDebut: "",
-    heureFin: ""
+    heureFin: "",
   });
 
   const [editingId, setEditingId] = useState(null);
@@ -37,7 +50,7 @@ export default function EmploiDuTempsForm() {
     salles: [],
     sousGroupes: [],
     affectations: [],
-    emploi: []
+    emploi: [],
   });
 
   // =========================================================
@@ -52,19 +65,19 @@ export default function EmploiDuTempsForm() {
         const [anneesRes, classesRes, sallesRes] = await Promise.all([
           api.get(`/annees/ecole/${ecoleId}`),
           api.get(`/classes/ecole/${ecoleId}`),
-          api.get(`/salles/ecole/${ecoleId}`)
+          api.get(`/salles/ecole/${ecoleId}`),
         ]);
 
         const annees = anneesRes.data || [];
         const classes = classesRes.data || [];
         const salles = sallesRes.data || [];
 
-        setDonnees(prev => ({ ...prev, annees, classes, salles }));
+        setDonnees((prev) => ({ ...prev, annees, classes, salles }));
 
         // Sélection automatique de l'année active
-        const anneeActive = annees.find(a => a.active);
+        const anneeActive = annees.find((a) => a.active);
         if (anneeActive) {
-          setForm(prev => ({ ...prev, anneeId: String(anneeActive.id) }));
+          setForm((prev) => ({ ...prev, anneeId: String(anneeActive.id) }));
         }
       } catch (error) {
         console.error("Erreur chargement données initiales:", error);
@@ -80,11 +93,11 @@ export default function EmploiDuTempsForm() {
 
   useEffect(() => {
     if (!form.classeId || !form.anneeId) {
-      setDonnees(prev => ({
+      setDonnees((prev) => ({
         ...prev,
         affectations: [],
         sousGroupes: [],
-        emploi: []
+        emploi: [],
       }));
       return;
     }
@@ -93,27 +106,27 @@ export default function EmploiDuTempsForm() {
       try {
         const [affectationsRes, sousGroupesRes, emploiRes] = await Promise.all([
           api.get(`/affectations-enseignants/classe/${form.classeId}`, {
-            params: { anneeScolaireId: form.anneeId }
+            params: { anneeScolaireId: form.anneeId },
           }),
           api.get(`/sous-groupes/classe/${form.classeId}`, {
-            params: { anneeScolaireId: form.anneeId }
+            params: { anneeScolaireId: form.anneeId },
           }),
-          api.get(`/emploi/classe/${form.classeId}/${form.anneeId}`)
+          api.get(`/emploi/classe/${form.classeId}/${form.anneeId}`),
         ]);
 
-        setDonnees(prev => ({
+        setDonnees((prev) => ({
           ...prev,
           affectations: affectationsRes.data || [],
           sousGroupes: sousGroupesRes.data || [],
-          emploi: Array.isArray(emploiRes.data) ? emploiRes.data : []
+          emploi: Array.isArray(emploiRes.data) ? emploiRes.data : [],
         }));
       } catch (error) {
         console.error("Erreur chargement données classe:", error);
-        setDonnees(prev => ({
+        setDonnees((prev) => ({
           ...prev,
           affectations: [],
           sousGroupes: [],
-          emploi: []
+          emploi: [],
         }));
       }
     };
@@ -127,11 +140,11 @@ export default function EmploiDuTempsForm() {
 
   const matieresDisponibles = useMemo(() => {
     const matieresUniques = new Map();
-    donnees.affectations.forEach(affectation => {
+    donnees.affectations.forEach((affectation) => {
       if (!matieresUniques.has(affectation.matiereId)) {
         matieresUniques.set(affectation.matiereId, {
           id: affectation.matiereId,
-          nom: affectation.matiereNom
+          nom: affectation.matiereNom,
         });
       }
     });
@@ -142,23 +155,23 @@ export default function EmploiDuTempsForm() {
     if (!form.matiereId) return [];
 
     return donnees.affectations
-      .filter(a => String(a.matiereId) === String(form.matiereId))
-      .map(a => ({
+      .filter((a) => String(a.matiereId) === String(form.matiereId))
+      .map((a) => ({
         id: a.enseignantId,
         nom: a.enseignantNom,
-        prenom: a.enseignantPrenom
+        prenom: a.enseignantPrenom,
       }));
   }, [donnees.affectations, form.matiereId]);
 
   // Cours groupés par jour, triés par heure — pour la vue liste mobile
   const coursParJour = useMemo(() => {
-    const map = new Map(JOURS_SEMAINE.map(j => [j, []]));
-    donnees.emploi.forEach(cours => {
+    const map = new Map(JOURS_SEMAINE.map((j) => [j, []]));
+    donnees.emploi.forEach((cours) => {
       if (map.has(cours.jour)) {
         map.get(cours.jour).push(cours);
       }
     });
-    map.forEach(liste => liste.sort((a, b) => a.heureDebut - b.heureDebut));
+    map.forEach((liste) => liste.sort((a, b) => a.heureDebut - b.heureDebut));
     return map;
   }, [donnees.emploi]);
 
@@ -169,26 +182,26 @@ export default function EmploiDuTempsForm() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       [name]: value,
       // Réinitialisation des champs dépendants
       ...(name === "matiereId" && {
         enseignantId: "",
-        sousGroupeId: ""
+        sousGroupeId: "",
       }),
       ...(name === "classeId" && {
         matiereId: "",
         enseignantId: "",
-        sousGroupeId: ""
-      })
+        sousGroupeId: "",
+      }),
     }));
 
     setErreur("");
   };
 
   const resetForm = () => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       matiereId: "",
       enseignantId: "",
@@ -196,7 +209,7 @@ export default function EmploiDuTempsForm() {
       sousGroupeId: "",
       jour: "",
       heureDebut: "",
-      heureFin: ""
+      heureFin: "",
     }));
     setEditingId(null);
     setErreur("");
@@ -220,16 +233,14 @@ export default function EmploiDuTempsForm() {
     if (!form.classeId || !form.anneeId) return;
 
     try {
-      const response = await api.get(
-        `/emploi/classe/${form.classeId}/${form.anneeId}`
-      );
-      setDonnees(prev => ({
+      const response = await api.get(`/emploi/classe/${form.classeId}/${form.anneeId}`);
+      setDonnees((prev) => ({
         ...prev,
-        emploi: Array.isArray(response.data) ? response.data : []
+        emploi: Array.isArray(response.data) ? response.data : [],
       }));
     } catch (error) {
       console.error("Erreur rechargement EDT:", error);
-      setDonnees(prev => ({ ...prev, emploi: [] }));
+      setDonnees((prev) => ({ ...prev, emploi: [] }));
     }
   };
 
@@ -251,7 +262,7 @@ export default function EmploiDuTempsForm() {
         sousGroupeId: form.sousGroupeId ? Number(form.sousGroupeId) : null,
         jour: form.jour,
         heureDebut: Number(form.heureDebut),
-        heureFin: Number(form.heureFin)
+        heureFin: Number(form.heureFin),
       };
 
       if (editingId) {
@@ -265,11 +276,7 @@ export default function EmploiDuTempsForm() {
       await rechargerEmploi();
     } catch (error) {
       console.error("Erreur enregistrement:", error);
-      setErreur(
-        error.response?.data?.message ||
-        error.response?.data ||
-        "Erreur lors de l'enregistrement"
-      );
+      setErreur(error.response?.data?.message || error.response?.data || "Erreur lors de l'enregistrement");
     }
   };
 
@@ -284,10 +291,7 @@ export default function EmploiDuTempsForm() {
       await api.delete(`/emploi/${id}`);
       await rechargerEmploi();
     } catch (error) {
-      setErreur(
-        error.response?.data ||
-        "Impossible de supprimer ce créneau"
-      );
+      setErreur(error.response?.data || "Impossible de supprimer ce créneau");
     }
   };
 
@@ -305,7 +309,7 @@ export default function EmploiDuTempsForm() {
       sousGroupeId: cours.sousGroupe?.id ? String(cours.sousGroupe.id) : "",
       jour: cours.jour || "",
       heureDebut: cours.heureDebut ?? "",
-      heureFin: cours.heureFin ?? ""
+      heureFin: cours.heureFin ?? "",
     });
 
     setEditingId(cours.id);
@@ -320,14 +324,14 @@ export default function EmploiDuTempsForm() {
   // =========================================================
 
   const renderCellContent = (jour, heure) => {
-    const cours = donnees.emploi.find(
-      c => c.jour === jour &&
-           c.heureDebut <= heure &&
-           c.heureFin > heure
-    );
+    const cours = donnees.emploi.find((c) => c.jour === jour && c.heureDebut <= heure && c.heureFin > heure);
 
     if (!cours) {
-      return <td key={jour} className="border text-center text-slate-300">-</td>;
+      return (
+        <td key={jour} className="border border-slate-100 text-center text-slate-300">
+          -
+        </td>
+      );
     }
 
     // Ne rendre que le début du cours
@@ -341,39 +345,47 @@ export default function EmploiDuTempsForm() {
       <td
         key={jour}
         rowSpan={rowSpan}
-        className="border text-center p-1 bg-blue-100 align-middle"
+        className="border border-slate-100 p-1 text-center align-middle"
+        style={{ background: TEAL_SOFT }}
       >
-        <div className="font-bold text-[11px] leading-tight">{cours.matiere?.nom}</div>
+        <div className="text-[11px] font-bold leading-tight text-slate-800">{cours.matiere?.nom}</div>
         <div className="text-[10px] leading-tight text-slate-600">
           {cours.enseignant?.prenom} {cours.enseignant?.nom}
         </div>
 
         {cours.sousGroupe && (
-          <div className="mt-0.5 inline-block rounded-full bg-purple-100 px-1.5 py-0 text-[9px] font-semibold text-purple-700">
-            👥 {cours.sousGroupe.nom}
+          <div
+            className="mt-0.5 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0 text-[9px] font-semibold"
+            style={{ background: VIOLET_SOFT, color: VIOLET }}
+          >
+            <Users size={9} />
+            {cours.sousGroupe.nom}
           </div>
         )}
 
         {cours.salle && (
-          <div className="text-[9px] text-slate-500">
-            📍 {cours.salle.nom}
+          <div className="flex items-center justify-center gap-0.5 text-[9px] text-slate-500">
+            <MapPin size={9} />
+            {cours.salle.nom}
           </div>
         )}
 
-        <div className="flex justify-center gap-1.5 mt-1">
+        <div className="mt-1 flex justify-center gap-2">
           <button
             type="button"
             onClick={() => handleEdit(cours)}
-            className="hover:scale-110 transition-transform text-xs"
+            className="transition hover:scale-110"
+            style={{ color: GOLD }}
           >
-            ✏️
+            <Pencil size={12} />
           </button>
           <button
             type="button"
             onClick={() => handleDelete(cours.id)}
-            className="hover:scale-110 transition-transform text-xs"
+            className="transition hover:scale-110"
+            style={{ color: CORAL }}
           >
-            🗑️
+            <Trash2 size={12} />
           </button>
         </div>
       </td>
@@ -386,24 +398,35 @@ export default function EmploiDuTempsForm() {
 
   return (
     <div className="space-y-6">
-
       {/* Message d'erreur */}
       {erreur && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          className="rounded-lg px-4 py-3 text-sm"
+          style={{ background: CORAL_SOFT, color: CORAL }}
+        >
           {typeof erreur === "object" ? erreur.message : erreur}
         </div>
       )}
 
       {/* En-tête avec bouton d'ouverture/fermeture */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-base font-semibold text-slate-900">
-          {editingId ? "Modifier le créneau" : "Emploi du temps"}
-        </h2>
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
+            style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+          >
+            <CalendarDays size={17} />
+          </span>
+          <h2 className="text-base font-semibold text-slate-900">
+            {editingId ? "Modifier le créneau" : "Emploi du temps"}
+          </h2>
+        </div>
 
         <button
           type="button"
           onClick={toggleForm}
-          className="flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          className="flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium text-white transition hover:brightness-110"
+          style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? "Fermer" : "Ajouter un créneau"}
@@ -412,19 +435,23 @@ export default function EmploiDuTempsForm() {
 
       {/* Formulaire */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 md:grid-cols-3">
-
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 md:grid-cols-3"
+        >
           {/* Année */}
           <select
             name="anneeId"
             value={form.anneeId}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
             required
           >
             <option value="">Année scolaire</option>
-            {donnees.annees.map(a => (
-              <option key={a.id} value={a.id}>{a.nom}</option>
+            {donnees.annees.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nom}
+              </option>
             ))}
           </select>
 
@@ -433,12 +460,14 @@ export default function EmploiDuTempsForm() {
             name="classeId"
             value={form.classeId}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
             required
           >
             <option value="">Classe</option>
-            {donnees.classes.map(c => (
-              <option key={c.id} value={c.id}>{c.nomComplet}</option>
+            {donnees.classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nomComplet}
+              </option>
             ))}
           </select>
 
@@ -447,13 +476,15 @@ export default function EmploiDuTempsForm() {
             name="matiereId"
             value={form.matiereId}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
             required
             disabled={!form.classeId}
           >
             <option value="">Matière</option>
-            {matieresDisponibles.map(m => (
-              <option key={m.id} value={m.id}>{m.nom}</option>
+            {matieresDisponibles.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nom}
+              </option>
             ))}
           </select>
 
@@ -462,13 +493,15 @@ export default function EmploiDuTempsForm() {
             name="enseignantId"
             value={form.enseignantId}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
             required
             disabled={!form.matiereId}
           >
             <option value="">Enseignant</option>
-            {enseignantsDisponibles.map(e => (
-              <option key={e.id} value={e.id}>{e.prenom} {e.nom}</option>
+            {enseignantsDisponibles.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.prenom} {e.nom}
+              </option>
             ))}
           </select>
 
@@ -477,11 +510,13 @@ export default function EmploiDuTempsForm() {
             name="sousGroupeId"
             value={form.sousGroupeId}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
           >
             <option value="">Classe entière</option>
-            {donnees.sousGroupes.map(sg => (
-              <option key={sg.id} value={sg.id}>{sg.nom}</option>
+            {donnees.sousGroupes.map((sg) => (
+              <option key={sg.id} value={sg.id}>
+                {sg.nom}
+              </option>
             ))}
           </select>
 
@@ -490,11 +525,13 @@ export default function EmploiDuTempsForm() {
             name="salleId"
             value={form.salleId}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
           >
             <option value="">Salle par défaut</option>
-            {donnees.salles.map(s => (
-              <option key={s.id} value={s.id}>{s.nom}</option>
+            {donnees.salles.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nom}
+              </option>
             ))}
           </select>
 
@@ -503,12 +540,14 @@ export default function EmploiDuTempsForm() {
             name="jour"
             value={form.jour}
             onChange={handleChange}
-            className="input bg-white rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
             required
           >
             <option value="">Jour</option>
-            {JOURS_SEMAINE.map(j => (
-              <option key={j} value={j}>{j}</option>
+            {JOURS_SEMAINE.map((j) => (
+              <option key={j} value={j}>
+                {j}
+              </option>
             ))}
           </select>
 
@@ -522,7 +561,7 @@ export default function EmploiDuTempsForm() {
               value={form.heureDebut}
               onChange={handleChange}
               placeholder="Début"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
               required
             />
             <input
@@ -533,16 +572,17 @@ export default function EmploiDuTempsForm() {
               value={form.heureFin}
               onChange={handleChange}
               placeholder="Fin"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:border-[#C89B3C] focus:outline-none"
               required
             />
           </div>
 
           {/* Boutons */}
-          <div className="col-span-1 sm:col-span-2 md:col-span-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="col-span-1 flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:items-center md:col-span-3">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg transition-colors font-medium sm:w-auto"
+              className="w-full rounded-lg px-6 py-2.5 font-medium text-white transition hover:brightness-110 sm:w-auto"
+              style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
             >
               {editingId ? "Mettre à jour" : "Enregistrer"}
             </button>
@@ -550,7 +590,7 @@ export default function EmploiDuTempsForm() {
             <button
               type="button"
               onClick={editingId ? resetForm : toggleForm}
-              className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-lg transition-colors sm:w-auto"
+              className="w-full rounded-lg bg-slate-100 px-4 py-2.5 text-slate-700 transition hover:bg-slate-200 sm:w-auto"
             >
               Annuler
             </button>
@@ -564,19 +604,19 @@ export default function EmploiDuTempsForm() {
           <button
             type="button"
             onClick={() => window.print()}
-            className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1.5 text-xs rounded-lg transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
+            style={{ background: INK }}
           >
-            🖨️ Imprimer
+            <Printer size={12} />
+            Imprimer
           </button>
         </div>
 
-        {JOURS_SEMAINE.map(jour => {
+        {JOURS_SEMAINE.map((jour) => {
           const coursDuJour = coursParJour.get(jour) || [];
           return (
             <div key={jour}>
-              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {jour}
-              </h3>
+              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{jour}</h3>
 
               {coursDuJour.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-slate-200 px-2 py-2 text-center text-[11px] text-slate-400">
@@ -584,41 +624,38 @@ export default function EmploiDuTempsForm() {
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  {coursDuJour.map(cours => (
-                    <div
-                      key={cours.id}
-                      className="rounded-lg bg-blue-50 px-2.5 py-1.5"
-                    >
+                  {coursDuJour.map((cours) => (
+                    <div key={cours.id} className="rounded-lg px-2.5 py-1.5" style={{ background: TEAL_SOFT }}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline gap-1.5">
                             <span className="shrink-0 text-[10px] font-medium text-slate-500">
                               {cours.heureDebut}h-{cours.heureFin}h
                             </span>
-                            <span className="truncate text-xs font-bold text-slate-800">
-                              {cours.matiere?.nom}
-                            </span>
+                            <span className="truncate text-xs font-bold text-slate-800">{cours.matiere?.nom}</span>
                           </div>
                           <p className="truncate text-[10px] text-slate-600">
                             {cours.enseignant?.prenom} {cours.enseignant?.nom}
-                            {cours.sousGroupe && ` · 👥 ${cours.sousGroupe.nom}`}
-                            {cours.salle && ` · 📍 ${cours.salle.nom}`}
+                            {cours.sousGroupe && ` · ${cours.sousGroupe.nom}`}
+                            {cours.salle && ` · ${cours.salle.nom}`}
                           </p>
                         </div>
-                        <div className="flex shrink-0 gap-1.5">
+                        <div className="flex shrink-0 gap-2">
                           <button
                             type="button"
                             onClick={() => handleEdit(cours)}
-                            className="hover:scale-110 transition-transform text-xs"
+                            className="transition hover:scale-110"
+                            style={{ color: GOLD }}
                           >
-                            ✏️
+                            <Pencil size={13} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(cours.id)}
-                            className="hover:scale-110 transition-transform text-xs"
+                            className="transition hover:scale-110"
+                            style={{ color: CORAL }}
                           >
-                            🗑️
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
@@ -632,35 +669,39 @@ export default function EmploiDuTempsForm() {
       </div>
 
       {/* ===== VUE DESKTOP : GRILLE HORAIRE (compacte) ===== */}
-      <div className="hidden bg-white rounded-2xl shadow-md overflow-x-auto sm:block">
-        <div className="flex justify-end p-2 border-b">
+      <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-md sm:block">
+        <div className="flex justify-end border-b border-slate-100 p-2">
           <button
             type="button"
             onClick={() => window.print()}
-            className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1.5 text-xs rounded-lg transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
+            style={{ background: INK }}
           >
-            🖨️ Imprimer
+            <Printer size={12} />
+            Imprimer
           </button>
         </div>
 
-        <table className="w-full text-xs border-collapse min-w-[700px] table-fixed">
+        <table className="w-full min-w-[700px] table-fixed border-collapse text-xs">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="p-1 border w-16">Heure</th>
-              {JOURS_SEMAINE.map(j => (
-                <th key={j} className="p-1 border">{j}</th>
+            <tr style={{ background: "#F8F7F2" }}>
+              <th className="w-16 border border-slate-100 p-1 text-slate-500">Heure</th>
+              {JOURS_SEMAINE.map((j) => (
+                <th key={j} className="border border-slate-100 p-1 text-slate-500">
+                  {j}
+                </th>
               ))}
             </tr>
           </thead>
 
           <tbody>
-            {PLAGE_HORAIRES.map(heure => (
+            {PLAGE_HORAIRES.map((heure) => (
               <tr key={heure} className="h-10">
-                <td className="border p-1 font-bold whitespace-nowrap text-[11px]">
+                <td className="border border-slate-100 p-1 text-[11px] font-bold text-slate-600 whitespace-nowrap">
                   {heure}h-{heure + 1}h
                 </td>
 
-                {JOURS_SEMAINE.map(jour => renderCellContent(jour, heure))}
+                {JOURS_SEMAINE.map((jour) => renderCellContent(jour, heure))}
               </tr>
             ))}
           </tbody>
