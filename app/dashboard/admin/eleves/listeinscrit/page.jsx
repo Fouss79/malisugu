@@ -10,24 +10,40 @@ import {
   Eye,
   Pencil,
   Check,
-  XCircle
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import EleveForm from "../Component/ElevePage";
 import api from "../../../../../lib/api";
 
+/* =========================================================
+   PALETTE (identique au reste de l'application)
+========================================================= */
+const INK = "#101B33";
+const GOLD = "#C89B3C";
+const GOLD_2 = "#E4B655";
+const TEAL = "#2C8C82";
+const TEAL_SOFT = "#DCEDEA";
+const VIOLET = "#6E5DC6";
+const VIOLET_SOFT = "#E7E3F8";
+const CORAL = "#D2593F";
+const CORAL_SOFT = "#F7E2DB";
+
 const STATUT_STYLES = {
-  PREINSCRIT: "bg-amber-50 text-amber-700 ring-amber-200",
-  INSCRIT: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  VALIDE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  REFUSE: "bg-rose-50 text-rose-700 ring-rose-200"
+  PREINSCRIT: { background: `${GOLD}1A`, color: "#8A6A21" },
+  INSCRIT: { background: TEAL_SOFT, color: TEAL },
+  VALIDE: { background: TEAL_SOFT, color: TEAL },
+  REFUSE: { background: CORAL_SOFT, color: CORAL },
 };
 
 function StatutBadge({ statut }) {
-  const style = STATUT_STYLES[statut] || "bg-slate-100 text-slate-600 ring-slate-200";
+  const style = STATUT_STYLES[statut] || { background: "#F1F5F9", color: "#64748B" };
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${style}`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+      style={style}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color }} />
       {statut}
     </span>
   );
@@ -35,9 +51,10 @@ function StatutBadge({ statut }) {
 
 function Avatar({ nom, prenom, sexe, size = "h-8 w-8 text-xs" }) {
   const initials = `${prenom?.[0] ?? ""}${nom?.[0] ?? ""}`.toUpperCase();
-  const color = sexe === "F" ? "bg-pink-100 text-pink-700" : "bg-blue-100 text-blue-700";
+  const style =
+    sexe === "F" ? { background: VIOLET_SOFT, color: VIOLET } : { background: TEAL_SOFT, color: TEAL };
   return (
-    <div className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${size} ${color}`}>
+    <div className={`flex shrink-0 items-center justify-center rounded-full font-semibold ${size}`} style={style}>
       {initials}
     </div>
   );
@@ -53,10 +70,23 @@ function InfoRow({ label, value }) {
   );
 }
 
+function SectionTitle({ children }) {
+  return (
+    <h3
+      className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
+      style={{ color: TEAL }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: GOLD }} />
+      {children}
+    </h3>
+  );
+}
+
 function formatMontant(valeur) {
   if (valeur == null) return "—";
   return new Intl.NumberFormat("fr-FR").format(valeur) + " FCFA";
 }
+
 function ModalAjout({ onClose, onSaved }) {
   return (
     <div
@@ -68,15 +98,18 @@ function ModalAjout({ onClose, onSaved }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
-          <h2 className="text-lg font-semibold">
+          <h2 className="flex items-center gap-2 text-lg font-semibold" style={{ color: INK }}>
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ background: TEAL_SOFT, color: TEAL }}
+            >
+              <Plus size={16} />
+            </span>
             Ajouter un élève
           </h2>
 
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-1 hover:bg-slate-100"
-          >
-            ✕
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X size={18} />
           </button>
         </div>
 
@@ -93,6 +126,7 @@ function ModalAjout({ onClose, onSaved }) {
     </div>
   );
 }
+
 function ModalEdition({ eleveId, onClose, onSaved }) {
   return (
     <div
@@ -104,15 +138,18 @@ function ModalEdition({ eleveId, onClose, onSaved }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white p-4">
-          <h2 className="text-lg font-semibold">
-            Modifier l'élève
+          <h2 className="flex items-center gap-2 text-lg font-semibold" style={{ color: INK }}>
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
+            >
+              <Pencil size={16} />
+            </span>
+            Modifier l&apos;élève
           </h2>
 
-          <button
-            onClick={onClose}
-            className="rounded-lg px-3 py-1 hover:bg-slate-100"
-          >
-            ✕
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X size={18} />
           </button>
         </div>
 
@@ -130,6 +167,7 @@ function ModalEdition({ eleveId, onClose, onSaved }) {
     </div>
   );
 }
+
 // --- Modal détail élève ---
 function EleveDetailModal({ eleve, onClose }) {
   useEffect(() => {
@@ -154,7 +192,9 @@ function EleveDetailModal({ eleve, onClose }) {
           <div className="flex items-center gap-3">
             <Avatar nom={eleve.nom} prenom={eleve.prenom} sexe={eleve.sexe} size="h-11 w-11 text-sm" />
             <div>
-              <h2 className="font-semibold text-slate-900">{eleve.prenom} {eleve.nom}</h2>
+              <h2 className="font-semibold text-slate-900">
+                {eleve.prenom} {eleve.nom}
+              </h2>
               <p className="text-xs text-slate-400">Matricule {eleve.matricule || "—"}</p>
             </div>
           </div>
@@ -167,81 +207,78 @@ function EleveDetailModal({ eleve, onClose }) {
         </div>
 
         {/* Contenu */}
-<div className="space-y-6 p-5">
+        <div className="space-y-6 p-5">
+          <div>
+            <SectionTitle>Identité</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <InfoRow label="Nom" value={eleve.nom} />
+              <InfoRow label="Prénom" value={eleve.prenom} />
+              <InfoRow label="Date de naissance" value={eleve.dateNaissance} />
+              <InfoRow label="Lieu de naissance" value={eleve.lieuNaissance} />
+              <InfoRow label="Sexe" value={eleve.sexe === "F" ? "Fille" : "Garçon"} />
+              <InfoRow label="Nationalité" value={eleve.nationalite} />
+              <InfoRow label="Matricule" value={eleve.matricule} />
+              <InfoRow label="Groupe sanguin" value={eleve.groupeSanguin} />
+            </div>
+            {eleve.allergiesMaladies && (
+              <div
+                className="mt-3 rounded-lg p-3 text-sm"
+                style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
+              >
+                <span className="font-medium">Allergies / maladies : </span>
+                {eleve.allergiesMaladies}
+              </div>
+            )}
+          </div>
 
-  <div>
-    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-      Identité
-    </h3>
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <InfoRow label="Nom" value={eleve.nom} />
-      <InfoRow label="Prénom" value={eleve.prenom} />
-      <InfoRow label="Date de naissance" value={eleve.dateNaissance} />
-      <InfoRow label="Lieu de naissance" value={eleve.lieuNaissance} />
-      <InfoRow label="Sexe" value={eleve.sexe === "F" ? "Fille" : "Garçon"} />
-      <InfoRow label="Nationalité" value={eleve.nationalite} />
-      <InfoRow label="Matricule" value={eleve.matricule} />
-      <InfoRow label="Groupe sanguin" value={eleve.groupeSanguin} />
-    </div>
-    {eleve.allergiesMaladies && (
-      <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 ring-1 ring-inset ring-amber-100">
-        <span className="font-medium">Allergies / maladies : </span>
-        {eleve.allergiesMaladies}
-      </div>
-    )}
-  </div>
+          <div>
+            <SectionTitle>Contact élève</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <InfoRow label="Adresse" value={eleve.adresse} />
+              <InfoRow label="Téléphone" value={eleve.telephone} />
+              <InfoRow label="Email" value={eleve.email} />
+            </div>
+          </div>
 
-  <div>
-    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-      Contact élève
-    </h3>
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <InfoRow label="Adresse" value={eleve.adresse} />
-      <InfoRow label="Téléphone" value={eleve.telephone} />
-      <InfoRow label="Email" value={eleve.email} />
-    </div>
-  </div>
+          {(eleve.nomTuteur || eleve.telephoneTuteur) && (
+            <div>
+              <SectionTitle>Parent / Tuteur</SectionTitle>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <InfoRow
+                  label="Nom"
+                  value={`${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim() || "—"}
+                />
+                <InfoRow label="Lien de parenté" value={eleve.lienParente} />
+                <InfoRow label="Téléphone" value={eleve.telephoneTuteur} />
+                <InfoRow label="Email" value={eleve.emailTuteur} />
+              </div>
+            </div>
+          )}
 
-  {(eleve.nomTuteur || eleve.telephoneTuteur) && (
-    <div>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-        Parent / Tuteur
-      </h3>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <InfoRow label="Nom" value={`${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim() || "—"} />
-        <InfoRow label="Lien de parenté" value={eleve.lienParente} />
-        <InfoRow label="Téléphone" value={eleve.telephoneTuteur} />
-        <InfoRow label="Email" value={eleve.emailTuteur} />
-      </div>
-    </div>
-  )}
+          <div>
+            <SectionTitle>Scolarité</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <InfoRow label="Classe" value={eleve.classeNom} />
+              <InfoRow label="Année scolaire" value={eleve.annee} />
+              <InfoRow label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
+              <div>
+                <p className="text-xs font-medium text-slate-400">Statut</p>
+                <div className="mt-1">
+                  <StatutBadge statut={eleve.statut} />
+                </div>
+              </div>
+            </div>
+          </div>
 
-  <div>
-    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-      Scolarité
-    </h3>
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <InfoRow label="Classe" value={eleve.classeNom} />
-      <InfoRow label="Année scolaire" value={eleve.annee}  />
-      <InfoRow label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
-      <div>
-        <p className="text-xs font-medium text-slate-400">Statut</p>
-        <div className="mt-1"><StatutBadge statut={eleve.statut} /></div>
-      </div>
-    </div>
-  </div>
-
-  <div>
-    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-      Paiement
-    </h3>
-    <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:grid-cols-3">
-      <InfoRow label="Montant total" value={formatMontant(eleve.montantTotal)} />
-      <InfoRow label="Payé" value={formatMontant(eleve.montantPaye)} />
-      <InfoRow label="Reste à payer" value={formatMontant(eleve.resteAPayer)} />
-    </div>
-  </div>
-</div>
+          <div>
+            <SectionTitle>Paiement</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:grid-cols-3">
+              <InfoRow label="Montant total" value={formatMontant(eleve.montantTotal)} />
+              <InfoRow label="Payé" value={formatMontant(eleve.montantPaye)} />
+              <InfoRow label="Reste à payer" value={formatMontant(eleve.resteAPayer)} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -259,16 +296,13 @@ export default function ElevesPage() {
   const [busyId, setBusyId] = useState(null);
   const [eleveDetail, setEleveDetail] = useState(null);
   const [modalAjoutOuvert, setModalAjoutOuvert] = useState(false);
-const [eleveEnEdition, setEleveEnEdition] = useState(null);
-
+  const [eleveEnEdition, setEleveEnEdition] = useState(null);
 
   const loadEleves = async () => {
     if (!user?.ecole?.id) return;
     setLoading(true);
     try {
-      const res = await api.get(
-        `/inscriptions/ecole/${user.ecole.id}/active`
-      );
+      const res = await api.get(`/inscriptions/ecole/${user.ecole.id}/active`);
       setEleves(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
@@ -279,34 +313,35 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
   };
 
   const changerStatut = async (id, action) => {
-  setBusyId(id);
+    setBusyId(id);
 
-  try {
-    const response = await api.put(`/inscriptions/${id}/${action}`);
-    await loadEleves();
-  } catch (error) {
-    console.error("❌ ERREUR CHANGEMENT STATUT", error);
-    alert(
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      `Erreur serveur (${error?.response?.status || "inconnue"})`
-    );
-  } finally {
-    setBusyId(null);
-  }
-};
+    try {
+      const response = await api.put(`/inscriptions/${id}/${action}`);
+      await loadEleves();
+    } catch (error) {
+      console.error("❌ ERREUR CHANGEMENT STATUT", error);
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          `Erreur serveur (${error?.response?.status || "inconnue"})`
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   useEffect(() => {
     loadEleves();
   }, [user?.ecole?.id]);
 
   const classesUniques = useMemo(
-    () => [...new Set(eleves.map(e => e.classeNom).filter(Boolean))],
+    () => [...new Set(eleves.map((e) => e.classeNom).filter(Boolean))],
     [eleves]
   );
 
   const filteredEleves = useMemo(() => {
     return eleves
-      .filter(e => {
+      .filter((e) => {
         const matchSearch = `${e.nom} ${e.prenom} ${e.matricule ?? ""}`
           .toLowerCase()
           .includes(search.toLowerCase());
@@ -318,18 +353,24 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
 
   return (
     <div className="space-y-5">
-
       {/* HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Liste des élèves</h1>
-          <p className="text-sm text-slate-500">
-            {loading ? "Chargement..." : `${filteredEleves.length} élève${filteredEleves.length > 1 ? "s" : ""}`}
-          </p>
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+          >
+            <Users size={20} />
+          </span>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Liste des élèves</h1>
+            <p className="text-sm text-slate-500">
+              {loading ? "Chargement..." : `${filteredEleves.length} élève${filteredEleves.length > 1 ? "s" : ""}`}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-
           {/* SEARCH */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -338,7 +379,10 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
               placeholder="Rechercher un nom, un matricule..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 sm:w-64"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:ring-4 sm:w-64"
+              style={{ "--tw-ring-color": `${GOLD}33` }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = GOLD)}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "")}
             />
           </div>
 
@@ -346,23 +390,24 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
           <select
             value={classeFilter}
             onChange={(e) => setClasseFilter(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-indigo-400 sm:w-auto"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none sm:w-auto"
           >
             <option value="">Toutes les classes</option>
             {classesUniques.map((classe) => (
-              <option key={classe} value={classe}>{classe}</option>
+              <option key={classe} value={classe}>
+                {classe}
+              </option>
             ))}
           </select>
-
         </div>
-
       </div>
 
       {/* ACTIONS */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <button
           onClick={() => setModalAjoutOuvert(true)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+          className="flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:brightness-110"
+          style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
         >
           <Plus size={18} />
           Ajouter
@@ -370,7 +415,8 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
 
         <Link
           href="/dashboard/admin/eleves/reinscription"
-          className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
+          className="flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:brightness-110"
+          style={{ background: TEAL }}
         >
           <Users size={18} />
           Réinscrire
@@ -380,7 +426,11 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
       {/* ===== VUE MOBILE : CARTES ===== */}
       <div className="space-y-3 sm:hidden">
         {loading && (
-          <div className="rounded-2xl border border-slate-100 bg-white px-4 py-10 text-center text-sm text-slate-400 shadow-sm">
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-10 text-center text-sm text-slate-400 shadow-sm">
+            <div
+              className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+              style={{ borderColor: GOLD, borderTopColor: "transparent" }}
+            />
             Chargement des élèves...
           </div>
         )}
@@ -388,8 +438,11 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
         {!loading && filteredEleves.length === 0 && (
           <div className="rounded-2xl border border-slate-100 bg-white px-4 py-10 shadow-sm">
             <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <Users className="text-slate-400" size={22} />
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full"
+                style={{ background: `${INK}0D`, color: INK }}
+              >
+                <Users size={22} />
               </div>
               <p className="text-sm font-medium text-slate-600">Aucun élève trouvé</p>
               <p className="text-xs text-slate-400">
@@ -399,65 +452,75 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
           </div>
         )}
 
-        {!loading && filteredEleves.map((e) => (
-          <div
-            key={e.id}
-            className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Avatar nom={e.nom} prenom={e.prenom} sexe={e.sexe} />
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-slate-800">{e.prenom} {e.nom}</p>
-                  <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+        {!loading &&
+          filteredEleves.map((e) => (
+            <div key={e.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar nom={e.nom} prenom={e.prenom} sexe={e.sexe} />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-800">
+                      {e.prenom} {e.nom}
+                    </p>
+                    <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+                  </div>
                 </div>
+                <StatutBadge statut={e.statut} />
               </div>
-              <StatutBadge statut={e.statut} />
+
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                <p>
+                  <span className="text-slate-400">Matricule :</span> {e.matricule || "—"}
+                </p>
+                <p>
+                  <span className="text-slate-400">Sexe :</span> {e.sexe === "F" ? "Fille" : "Garçon"}
+                </p>
+                <p className="col-span-2">
+                  <span className="text-slate-400">Naissance :</span> {e.dateNaissance || "—"}
+                </p>
+              </div>
+
+              <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
+                <button
+                  onClick={() => setEleveDetail(e)}
+                  title="Voir détails"
+                  className="rounded-lg p-2 transition hover:brightness-95"
+                  style={{ background: "#F1F5F9", color: "#475569" }}
+                >
+                  <Eye size={16} />
+                </button>
+
+                <button
+                  onClick={() => setEleveEnEdition(e.id)}
+                  title="Modifier"
+                  className="rounded-lg p-2 text-white transition hover:brightness-110"
+                  style={{ background: GOLD }}
+                >
+                  <Pencil size={16} />
+                </button>
+
+                <button
+                  onClick={() => changerStatut(e.id, "valider")}
+                  disabled={busyId === e.id || e.statut === "INSCRIT" || e.statut === "VALIDE"}
+                  title="Inscrire"
+                  className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: TEAL }}
+                >
+                  <Check size={16} />
+                </button>
+
+                <button
+                  onClick={() => changerStatut(e.id, "rejeter")}
+                  disabled={busyId === e.id || e.statut === "REJETE"}
+                  title="Rejeter"
+                  className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: CORAL }}
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
             </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
-              <p><span className="text-slate-400">Matricule :</span> {e.matricule || "—"}</p>
-              <p><span className="text-slate-400">Sexe :</span> {e.sexe === "F" ? "Fille" : "Garçon"}</p>
-              <p className="col-span-2"><span className="text-slate-400">Naissance :</span> {e.dateNaissance || "—"}</p>
-            </div>
-
-            <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
-              <button
-                onClick={() => setEleveDetail(e)}
-                title="Voir détails"
-                className="rounded-lg bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200"
-              >
-                <Eye size={16} />
-              </button>
-
-              <button
-                onClick={() => setEleveEnEdition(e.id)}
-                title="Modifier"
-                className="rounded-lg bg-amber-500 p-2 text-white transition hover:bg-amber-600"
-              >
-                <Pencil size={16} />
-              </button>
-
-              <button
-                onClick={() => changerStatut(e.id, "valider")}
-                disabled={busyId === e.id || e.statut === "INSCRIT" || e.statut === "VALIDE"}
-                title="Inscrire"
-                className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Check size={16} />
-              </button>
-
-              <button
-                onClick={() => changerStatut(e.id, "rejeter")}
-                disabled={busyId === e.id || e.statut === "REJETE"}
-                title="Rejeter"
-                className="rounded-lg bg-rose-600 p-2 text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <XCircle size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {/* ===== VUE DESKTOP : TABLEAU ===== */}
@@ -465,7 +528,7 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
+              <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400" style={{ background: "#F8F7F2" }}>
                 <th className="px-4 py-3 font-medium">Élève</th>
                 <th className="px-4 py-3 font-medium">Matricule</th>
                 <th className="px-4 py-3 font-medium">Classe</th>
@@ -479,8 +542,14 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
             <tbody className="divide-y divide-slate-50">
               {loading && (
                 <tr>
-                  <td colSpan={COLONNES} className="px-4 py-10 text-center text-sm text-slate-400">
-                    Chargement des élèves...
+                  <td colSpan={COLONNES} className="px-4 py-10 text-center">
+                    <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
+                      <div
+                        className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+                        style={{ borderColor: GOLD, borderTopColor: "transparent" }}
+                      />
+                      Chargement des élèves...
+                    </div>
                   </td>
                 </tr>
               )}
@@ -489,8 +558,11 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
                 <tr>
                   <td colSpan={COLONNES} className="px-4 py-14">
                     <div className="flex flex-col items-center gap-2 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                        <Users className="text-slate-400" size={22} />
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-full"
+                        style={{ background: `${INK}0D`, color: INK }}
+                      >
+                        <Users size={22} />
                       </div>
                       <p className="text-sm font-medium text-slate-600">Aucun élève trouvé</p>
                       <p className="text-xs text-slate-400">
@@ -501,105 +573,89 @@ const [eleveEnEdition, setEleveEnEdition] = useState(null);
                 </tr>
               )}
 
-              {!loading && filteredEleves.map((e) => (
-                <tr key={e.id} className="transition hover:bg-slate-50/70">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar nom={e.nom} prenom={e.prenom} sexe={e.sexe} />
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-800">{e.prenom} {e.nom}</p>
-                        <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+              {!loading &&
+                filteredEleves.map((e) => (
+                  <tr key={e.id} className="transition hover:bg-slate-50/70">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar nom={e.nom} prenom={e.prenom} sexe={e.sexe} />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-slate-800">
+                            {e.prenom} {e.nom}
+                          </p>
+                          <p className="truncate text-xs text-slate-400">{e.classeNom || "Non affecté"}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{e.matricule}</td>
-                  <td className="px-4 py-3 text-slate-500">{e.classeNom || "—"}</td>
-                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.dateNaissance}</td>
-                  <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.sexe === "F" ? "Fille" : "Garçon"}</td>
-                  <td className="px-4 py-3">
-                    <StatutBadge statut={e.statut} />
-                  </td>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{e.matricule}</td>
+                    <td className="px-4 py-3 text-slate-500">{e.classeNom || "—"}</td>
+                    <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">{e.dateNaissance}</td>
+                    <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">
+                      {e.sexe === "F" ? "Fille" : "Garçon"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatutBadge statut={e.statut} />
+                    </td>
 
-                 <td className="px-4 py-3">
-  <div className="flex flex-wrap justify-end gap-2">
-  {/* Détails */}
-  <button
-    onClick={() => setEleveDetail(e)}
-    title="Voir détails"
-    className="rounded-lg bg-slate-100 p-2 text-slate-600 transition hover:bg-slate-200"
-  >
-    <Eye size={16} />
-  </button>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {/* Détails */}
+                        <button
+                          onClick={() => setEleveDetail(e)}
+                          title="Voir détails"
+                          className="rounded-lg p-2 transition hover:brightness-95"
+                          style={{ background: "#F1F5F9", color: "#475569" }}
+                        >
+                          <Eye size={16} />
+                        </button>
 
+                        {/* Modifier */}
+                        <button
+                          onClick={() => setEleveEnEdition(e.id)}
+                          title="Modifier"
+                          className="rounded-lg p-2 text-white transition hover:brightness-110"
+                          style={{ background: GOLD }}
+                        >
+                          <Pencil size={16} />
+                        </button>
 
-  {/* Modifier */}
-  <button
-    onClick={() => setEleveEnEdition(e.id)}
-    title="Modifier"
-    className="rounded-lg bg-amber-500 p-2 text-white transition hover:bg-amber-600"
-  >
-    <Pencil size={16} />
-  </button>
+                        {/* Inscrire */}
+                        <button
+                          onClick={() => changerStatut(e.id, "valider")}
+                          disabled={busyId === e.id || e.statut === "INSCRIT" || e.statut === "VALIDE"}
+                          title="Inscrire"
+                          className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                          style={{ background: TEAL }}
+                        >
+                          <Check size={16} />
+                        </button>
 
-
-  {/* Inscrire */}
-  <button
-    onClick={() => changerStatut(e.id, "valider")}
-    disabled={
-      busyId === e.id ||
-      e.statut === "INSCRIT" ||
-      e.statut === "VALIDE"
-    }
-    title="Inscrire"
-    className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    <Check size={16} />
-  </button>
-
-
-  {/* Rejeter */}
-  <button
-    onClick={() => changerStatut(e.id, "rejeter")}
-    disabled={
-      busyId === e.id ||
-      e.statut === "REJETE"
-    }
-    title="Rejeter"
-    className="rounded-lg bg-rose-600 p-2 text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    <XCircle size={16} />
-  </button>
-
-</div>
-
-                  </td>
-                </tr>
-              ))}
+                        {/* Rejeter */}
+                        <button
+                          onClick={() => changerStatut(e.id, "rejeter")}
+                          disabled={busyId === e.id || e.statut === "REJETE"}
+                          title="Rejeter"
+                          className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                          style={{ background: CORAL }}
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* MODAL DÉTAIL */}
-      {modalAjoutOuvert && (
-  <ModalAjout
-    onClose={() => setModalAjoutOuvert(false)}
-    onSaved={loadEleves}
-  />
-)}
+      {modalAjoutOuvert && <ModalAjout onClose={() => setModalAjoutOuvert(false)} onSaved={loadEleves} />}
 
-{eleveEnEdition && (
-  <ModalEdition
-    eleveId={eleveEnEdition}
-    onClose={() => setEleveEnEdition(null)}
-    onSaved={loadEleves}
-  />
-)}
+      {eleveEnEdition && (
+        <ModalEdition eleveId={eleveEnEdition} onClose={() => setEleveEnEdition(null)} onSaved={loadEleves} />
+      )}
 
-<EleveDetailModal
-  eleve={eleveDetail}
-  onClose={() => setEleveDetail(null)}
-/>
+      <EleveDetailModal eleve={eleveDetail} onClose={() => setEleveDetail(null)} />
     </div>
   );
 }

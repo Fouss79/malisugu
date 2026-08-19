@@ -7,9 +7,8 @@ import {
   Download,
   Save,
   BarChart3,
-  Users,
-  UsersRound,
   AlertCircle,
+  Users,
   CheckCircle,
   BookOpen,
   Clock,
@@ -21,15 +20,18 @@ import { useParams, useRouter } from "next/navigation";
 // CONSTANTES
 // ============================================================
 
-const API_BASE_URL = "http://localhost:8080/api";
 const PERIODES = ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
 
 const STYLES = {
-  input: "w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100",
-  card: "rounded-2xl border border-slate-100 bg-white p-5 shadow-sm shadow-slate-200/40",
+  input:
+    "w-full rounded-xl border border-[#DEDCD0] bg-[#F8F7F2] px-3.5 py-3 text-sm font-medium text-[#1B2333] outline-none transition placeholder:text-[#8A91A2] hover:border-[#C8C5B8] focus:border-[#C89B3C] focus:bg-white focus:ring-4 focus:ring-[#C89B3C]/10 disabled:cursor-not-allowed disabled:opacity-60",
+  card:
+    "rounded-[20px] border border-[#DEDCD0] bg-white shadow-[0_10px_30px_rgba(16,27,51,0.05)]",
   button: {
-    primary: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition",
-    secondary: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition"
+    primary:
+      "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+    secondary:
+      "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
   }
 };
 
@@ -514,6 +516,7 @@ export default function NotesPage() {
     }
   };
 
+
   // ============================================================
   // RENDU
   // ============================================================
@@ -522,296 +525,656 @@ export default function NotesPage() {
     return <LoadingSpinner />;
   }
 
-  return (
-    <div className="space-y-5">
+  const notesCompletes = donnees.eleves.filter((eleve) => {
+    const note = notes.saisies[String(eleve.id)] || {};
+    return note.nClass !== "" && note.nClass != null &&
+      note.nExem !== "" && note.nExem != null;
+  }).length;
 
+  return (
+    <div className="min-h-full space-y-5 bg-[#ECEAE2] p-3 sm:p-5 lg:p-6">
       {/* =====================================================
           HEADER
       ===================================================== */}
+      <section className="overflow-hidden rounded-[22px] bg-[#101B33] shadow-[0_14px_35px_rgba(16,27,51,0.14)]">
+        <div className="relative px-4 py-5 sm:px-6 sm:py-6 lg:px-7">
+          <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C89B3C]/10 blur-2xl" />
+          <div className="absolute -bottom-24 left-1/3 h-40 w-40 rounded-full bg-[#2C8C82]/10 blur-2xl" />
 
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Saisie des notes</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          La matière, son coefficient et son volume horaire viennent du programme de la classe.
-          Le sous-groupe est automatiquement appliqué pour les matières comme LV2 ou TP.
-        </p>
-      </div>
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[#E4B655]">
+                <BookOpen size={14} />
+                Gestion pédagogique
+              </div>
+
+              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                Saisie des notes
+              </h1>
+
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300 sm:text-[15px]">
+                Saisissez les notes de classe et d&apos;examen. Le programme,
+                le coefficient et le sous-groupe sont automatiquement liés à
+                la classe sélectionnée.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <Users size={14} />
+                  Élèves
+                </div>
+                <div className="mt-1 font-mono text-xl font-bold text-white">
+                  {donnees.eleves.length}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <div className="flex items-center gap-2 text-xs text-slate-300">
+                  <CheckCircle size={14} />
+                  Complètes
+                </div>
+                <div className="mt-1 font-mono text-xl font-bold text-[#E4B655]">
+                  {notesCompletes}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* =====================================================
           ERREUR
       ===================================================== */}
-
       {etats.erreur && (
-        <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 ring-1 ring-inset ring-rose-100">
-          <AlertCircle size={16} />
-          {etats.erreur}
+        <div className="flex items-start gap-3 rounded-2xl border border-[#D2593F]/20 bg-[#F7E2DB] px-4 py-3.5 text-sm text-[#9D3929] shadow-sm">
+          <AlertCircle className="mt-0.5 shrink-0" size={18} />
+          <span className="leading-5">{etats.erreur}</span>
         </div>
       )}
 
       {/* =====================================================
           FILTRES
       ===================================================== */}
-
-      <Card 
-        title="Sélection" 
-        description="Choisissez la classe, l'année, le programme et la période."
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <select
-            name="classeId"
-            value={filtres.classeId}
-            onChange={handleFiltreChange}
-            className={STYLES.input}
-          >
-            <option value="">Classe</option>
-            {donnees.classes.map(classe => (
-              <option key={classe.id} value={classe.id}>
-                {classe.nomComplet}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="anneeScolaireId"
-            value={filtres.anneeScolaireId}
-            onChange={handleFiltreChange}
-            className={STYLES.input}
-          >
-            <option value="">Année scolaire</option>
-            {donnees.annees.map(annee => (
-              <option key={annee.id} value={annee.id}>
-                {annee.nom} {annee.active ? "— Active" : ""}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="coefficientMatiereId"
-            value={filtres.coefficientMatiereId}
-            onChange={handleFiltreChange}
-            disabled={!filtres.classeId || matieresDisponibles.length === 0}
-            className={STYLES.input}
-          >
-            <option value="">Matière</option>
-            {matieresDisponibles.map(matiere => (
-              <option key={matiere.id} value={matiere.id}>
-                {matiere.nom} — Coef. {matiere.coeff}
-                {matiere.sousGroupeNom ? ` — ${matiere.sousGroupeNom}` : ""}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="periode"
-            value={filtres.periode}
-            onChange={handleFiltreChange}
-            className={STYLES.input}
-          >
-            <option value="">Période</option>
-            {PERIODES.map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Informations du programme */}
-        {matiereChoisie && (
-          <div className="mt-4 rounded-xl bg-slate-50 p-4">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-              <div>
-                <span className="text-slate-400">Matière :</span>
-                <span className="ml-1 font-semibold text-slate-800">
-                  {matiereChoisie.nom}
+      <section className={`${STYLES.card} overflow-hidden`}>
+        <div className="border-b border-[#DEDCD0] bg-[#FCFBF8] px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#E7E3F8] text-[#6E5DC6]">
+                  <GraduationCap size={17} />
                 </span>
+                <h2 className="text-base font-bold text-[#101B33] sm:text-lg">
+                  Sélection pédagogique
+                </h2>
               </div>
-              <div>
-                <span className="text-slate-400">Coefficient :</span>
-                <span className="ml-1 font-semibold text-indigo-600">
-                  {matiereChoisie.coeff}
-                </span>
-              </div>
-              {matiereChoisie.heures != null && (
-                <div>
-                  <span className="text-slate-400">Volume horaire :</span>
-                  <span className="ml-1 font-semibold text-slate-800">
-                    {matiereChoisie.heures}h/semaine
-                  </span>
-                </div>
-              )}
-              <div>
-                <span className="text-slate-400">Groupe :</span>
-                <span className={`ml-1 font-semibold ${
-                  sousGroupeNomEffectif ? "text-indigo-600" : "text-emerald-600"
-                }`}>
-                  {sousGroupeNomEffectif || "Toute la classe"}
-                </span>
-              </div>
+              <p className="mt-1 pl-10 text-xs leading-5 text-[#6B7280] sm:text-sm">
+                Choisissez la classe, l&apos;année, la matière et la période.
+              </p>
             </div>
 
-            {sousGroupeIdEffectif && (
-              <div className="mt-3 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
-                <strong>Sous-groupe automatique :</strong> les notes sont enregistrées
-                uniquement pour les élèves du sous-groupe <strong>{sousGroupeNomEffectif}</strong>.
+            {matiereChoisie && (
+              <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#DCEDEA] px-3 py-1.5 text-xs font-semibold text-[#236F68]">
+                <CheckCircle size={14} />
+                Programme sélectionné
               </div>
             )}
           </div>
-        )}
+        </div>
 
-        {filtres.classeId && !donnees.affectations.length && (
-          <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Aucun programme ou aucune affectation trouvée pour cette classe et cette année scolaire.
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[#7A8190]">
+                Classe
+              </span>
+              <select
+                name="classeId"
+                value={filtres.classeId}
+                onChange={handleFiltreChange}
+                className={STYLES.input}
+              >
+                <option value="">Sélectionner une classe</option>
+                {donnees.classes.map((classe) => (
+                  <option key={classe.id} value={classe.id}>
+                    {classe.nomComplet}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[#7A8190]">
+                Année scolaire
+              </span>
+              <select
+                name="anneeScolaireId"
+                value={filtres.anneeScolaireId}
+                onChange={handleFiltreChange}
+                className={STYLES.input}
+              >
+                <option value="">Sélectionner l&apos;année</option>
+                {donnees.annees.map((annee) => (
+                  <option key={annee.id} value={annee.id}>
+                    {annee.nom} {annee.active ? "— Active" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[#7A8190]">
+                Matière / programme
+              </span>
+              <select
+                name="coefficientMatiereId"
+                value={filtres.coefficientMatiereId}
+                onChange={handleFiltreChange}
+                disabled={!filtres.classeId || matieresDisponibles.length === 0}
+                className={STYLES.input}
+              >
+                <option value="">
+                  {!filtres.classeId
+                    ? "Choisissez d'abord une classe"
+                    : matieresDisponibles.length === 0
+                      ? "Aucune matière disponible"
+                      : "Sélectionner une matière"}
+                </option>
+
+                {matieresDisponibles.map((matiere) => (
+                  <option key={matiere.id} value={matiere.id}>
+                    {matiere.nom} — Coef. {matiere.coeff}
+                    {matiere.sousGroupeNom ? ` — ${matiere.sousGroupeNom}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[#7A8190]">
+                Période
+              </span>
+              <select
+                name="periode"
+                value={filtres.periode}
+                onChange={handleFiltreChange}
+                className={STYLES.input}
+              >
+                <option value="">Sélectionner la période</option>
+                {PERIODES.map((periode) => (
+                  <option key={periode} value={periode}>
+                    {periode}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-        )}
-      </Card>
+
+          {/* Informations du programme */}
+          {matiereChoisie && (
+            <div className="mt-5 overflow-hidden rounded-2xl border border-[#DEDCD0] bg-[#F8F7F2]">
+              <div className="border-b border-[#DEDCD0] px-4 py-3 sm:px-5">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#DCEDEA] text-[#2C8C82]">
+                    <BookOpen size={16} />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A91A2]">
+                      Programme sélectionné
+                    </p>
+                    <p className="text-sm font-bold text-[#101B33]">
+                      {matiereChoisie.nom}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 divide-x divide-y divide-[#DEDCD0] sm:grid-cols-4 sm:divide-y-0">
+                <div className="p-4">
+                  <p className="text-xs font-medium text-[#7A8190]">Coefficient</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-[#C89B3C]">
+                    {matiereChoisie.coeff}
+                  </p>
+                </div>
+
+                <div className="p-4">
+                  <p className="text-xs font-medium text-[#7A8190]">Volume horaire</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-[#101B33]">
+                    {matiereChoisie.heures != null
+                      ? `${matiereChoisie.heures}h`
+                      : "—"}
+                    {matiereChoisie.heures != null && (
+                      <span className="ml-1 font-sans text-xs font-medium text-[#7A8190]">
+                        / semaine
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-4">
+                  <p className="text-xs font-medium text-[#7A8190]">Groupe</p>
+                  <p
+                    className={`mt-1 truncate text-sm font-bold ${
+                      sousGroupeNomEffectif
+                        ? "text-[#6E5DC6]"
+                        : "text-[#2C8C82]"
+                    }`}
+                  >
+                    {sousGroupeNomEffectif || "Toute la classe"}
+                  </p>
+                </div>
+
+                <div className="p-4">
+                  <p className="text-xs font-medium text-[#7A8190]">Élèves</p>
+                  <p className="mt-1 font-mono text-lg font-bold text-[#101B33]">
+                    {donnees.eleves.length}
+                  </p>
+                </div>
+              </div>
+
+              {sousGroupeIdEffectif && (
+                <div className="m-3 flex items-start gap-2 rounded-xl bg-[#E7E3F8] px-3.5 py-3 text-xs leading-5 text-[#5747A5] sm:m-4">
+                  <UsersRound className="mt-0.5 shrink-0" size={15} />
+                  <span>
+                    <strong>Sous-groupe automatique :</strong> les notes sont
+                    enregistrées uniquement pour les élèves du sous-groupe{" "}
+                    <strong>{sousGroupeNomEffectif}</strong>.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {filtres.classeId && !donnees.affectations.length && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-[#E4B655]/30 bg-[#FFF7DF] px-3.5 py-3 text-sm text-[#8A6818]">
+              <AlertCircle className="mt-0.5 shrink-0" size={16} />
+              <span>
+                Aucun programme ou aucune affectation trouvée pour cette classe
+                et cette année scolaire.
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* =====================================================
           ACTIONS
       ===================================================== */}
-
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
         <button
           type="button"
           onClick={() => router.push("/dashboard/admin/notes/resultats")}
-          className={`${STYLES.button.primary} bg-indigo-600 hover:bg-indigo-700`}
+          className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
         >
-          <BarChart3 size={16} />
-          Résultats
+          <BarChart3 size={17} />
+          Voir les résultats
         </button>
 
         <button
           type="button"
           onClick={downloadBulletinClasse}
-          className={`${STYLES.button.primary} bg-slate-800 hover:bg-slate-900`}
+          disabled={!filtres.classeId || !filtres.anneeScolaireId || !filtres.periode}
+          className={`${STYLES.button.primary} bg-[#C89B3C] shadow-sm hover:bg-[#B68931]`}
         >
-          <Download size={16} />
-          Bulletins
+          <Download size={17} />
+          Télécharger les bulletins
         </button>
       </div>
 
       {/* =====================================================
           TABLEAU DES NOTES
       ===================================================== */}
-
       {filtres.classeId && filtres.coefficientMatiereId && filtres.periode && (
-        <Card
-          title="Notes des élèves"
-          description={
-            sousGroupeIdEffectif
-              ? `Élèves du sous-groupe « ${sousGroupeNomEffectif} » uniquement.`
-              : "Une ligne par élève, triée par ordre alphabétique."
-          }
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-3 py-3 font-medium">#</th>
-                  <th className="px-3 py-3 font-medium">Élève</th>
-                  <th className="px-3 py-3 text-center font-medium">Note classe /20</th>
-                  <th className="px-3 py-3 text-center font-medium">Note examen /20</th>
-                  <th className="px-3 py-3 text-center font-medium">Moyenne</th>
-                </tr>
-              </thead>
+        <section className={`${STYLES.card} overflow-hidden`}>
+          <div className="border-b border-[#DEDCD0] bg-[#FCFBF8] px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#101B33] text-[#E4B655]">
+                    <Users size={17} />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-bold text-[#101B33] sm:text-lg">
+                      Notes des élèves
+                    </h2>
+                    <p className="mt-0.5 text-xs text-[#7A8190]">
+                      {sousGroupeIdEffectif
+                        ? `Sous-groupe « ${sousGroupeNomEffectif} »`
+                        : "Toute la classe"}{" "}
+                      · {donnees.eleves.length} élève
+                      {donnees.eleves.length > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-              <tbody className="divide-y divide-slate-50">
-                {(etats.loadingEleves || etats.loadingNotes) && (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-slate-400">
-                      Chargement des notes...
-                    </td>
-                  </tr>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-[#DCEDEA] px-3 py-1.5 text-xs font-bold text-[#236F68]">
+                  {notesCompletes}/{donnees.eleves.length} complètes
+                </span>
+                {nbNotesModifiees > 0 && (
+                  <span className="rounded-full bg-[#F7E2DB] px-3 py-1.5 text-xs font-bold text-[#9D3929]">
+                    {nbNotesModifiees} modif.
+                  </span>
                 )}
+              </div>
+            </div>
+          </div>
 
-                {!etats.loadingEleves && !etats.loadingNotes && donnees.eleves.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-10 text-center text-slate-400">
+          <div className="p-3 sm:p-5">
+            {/* MOBILE : cartes élèves */}
+            <div className="space-y-3 lg:hidden">
+              {(etats.loadingEleves || etats.loadingNotes) && (
+                <div className="rounded-2xl border border-[#DEDCD0] bg-[#F8F7F2] px-4 py-10 text-center">
+                  <div className="mx-auto mb-3 h-7 w-7 animate-spin rounded-full border-2 border-[#C89B3C] border-t-transparent" />
+                  <p className="text-sm font-medium text-[#7A8190]">
+                    Chargement des notes...
+                  </p>
+                </div>
+              )}
+
+              {!etats.loadingEleves &&
+                !etats.loadingNotes &&
+                donnees.eleves.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-[#DEDCD0] bg-[#F8F7F2] px-4 py-10 text-center">
+                    <Users className="mx-auto mb-3 text-[#9BA2B1]" size={28} />
+                    <p className="text-sm font-semibold text-[#5B6478]">
                       {sousGroupeIdEffectif
                         ? `Aucun élève dans le sous-groupe « ${sousGroupeNomEffectif} ».`
                         : "Aucun élève dans cette classe."}
-                    </td>
-                  </tr>
+                    </p>
+                  </div>
                 )}
 
-                {!etats.loadingEleves && !etats.loadingNotes && donnees.eleves.map((eleve, index) => {
+              {!etats.loadingEleves &&
+                !etats.loadingNotes &&
+                donnees.eleves.map((eleve, index) => {
                   const note = notes.saisies[String(eleve.id)] || {};
                   const moyenne = calculerMoyenne(note);
 
                   return (
-                    <tr key={eleve.id} className="transition hover:bg-slate-50/70">
-                      <td className="px-3 py-3 text-xs text-slate-400">{index + 1}</td>
-                      <td className="px-3 py-3">
-                        <div className="font-semibold text-slate-800">
-                          {eleve.nom} {eleve.prenom}
+                    <div
+                      key={eleve.id}
+                      className="rounded-2xl border border-[#DEDCD0] bg-white p-3.5 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#101B33] font-mono text-xs font-bold text-[#E4B655]">
+                            {String(index + 1).padStart(2, "0")}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-[#101B33]">
+                              {eleve.nom} {eleve.prenom}
+                            </p>
+                            {eleve.matricule && (
+                              <p className="mt-0.5 truncate font-mono text-[10px] text-[#8A91A2]">
+                                {eleve.matricule}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        {eleve.matricule && (
-                          <div className="mt-0.5 text-xs text-slate-400">{eleve.matricule}</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="20"
-                          value={note.nClass ?? ""}
-                          onChange={(e) => handleNoteChange(eleve.id, "nClass", e.target.value)}
-                          className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                        />
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="20"
-                          value={note.nExem ?? ""}
-                          onChange={(e) => handleNoteChange(eleve.id, "nExem", e.target.value)}
-                          className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                        />
-                      </td>
-                      <td className={`px-3 py-3 text-center font-semibold ${getMoyenneColor(moyenne)}`}>
-                        {moyenne !== null ? moyenne.toFixed(2) : "—"}
-                      </td>
-                    </tr>
+
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8A91A2]">
+                            Moyenne
+                          </p>
+                          <p
+                            className={`font-mono text-lg font-bold ${getMoyenneColor(
+                              moyenne
+                            )}`}
+                          >
+                            {moyenne !== null ? moyenne.toFixed(2) : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <label className="rounded-xl bg-[#F8F7F2] p-2.5">
+                          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-[#7A8190]">
+                            Note classe /20
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            max="20"
+                            value={note.nClass ?? ""}
+                            onChange={(e) =>
+                              handleNoteChange(
+                                eleve.id,
+                                "nClass",
+                                e.target.value
+                              )
+                            }
+                            className="w-full rounded-lg border border-[#DEDCD0] bg-white px-2.5 py-2.5 text-center font-mono text-sm font-bold text-[#101B33] outline-none transition focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
+                          />
+                        </label>
+
+                        <label className="rounded-xl bg-[#F8F7F2] p-2.5">
+                          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide text-[#7A8190]">
+                            Note examen /20
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            max="20"
+                            value={note.nExem ?? ""}
+                            onChange={(e) =>
+                              handleNoteChange(
+                                eleve.id,
+                                "nExem",
+                                e.target.value
+                              )
+                            }
+                            className="w-full rounded-lg border border-[#DEDCD0] bg-white px-2.5 py-2.5 text-center font-mono text-sm font-bold text-[#101B33] outline-none transition focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
+                          />
+                        </label>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500">
-                {getTexteNotesModifiees()}
-              </span>
-              {nbNotesModifiees > 0 && (
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-600">
-                  {nbNotesModifiees}
-                </span>
-              )}
             </div>
 
-            <button
-              onClick={enregistrerTout}
-              disabled={etats.submitting || nbNotesModifiees === 0 || etats.loadingNotes}
-              className={`${STYLES.button.primary} bg-indigo-600 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50`}
-            >
-              <Save size={16} />
-              {etats.submitting ? "Enregistrement..." : "Enregistrer toutes les notes"}
-            </button>
+            {/* DESKTOP : tableau */}
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[#DEDCD0] bg-[#F8F7F2] text-[10px] uppercase tracking-[0.12em] text-[#7A8190]">
+                    <th className="rounded-l-xl px-4 py-3.5 font-bold">#</th>
+                    <th className="px-4 py-3.5 font-bold">Élève</th>
+                    <th className="px-4 py-3.5 text-center font-bold">
+                      Note classe /20
+                    </th>
+                    <th className="px-4 py-3.5 text-center font-bold">
+                      Note examen /20
+                    </th>
+                    <th className="rounded-r-xl px-4 py-3.5 text-center font-bold">
+                      Moyenne
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {(etats.loadingEleves || etats.loadingNotes) && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-14 text-center">
+                        <div className="mx-auto mb-3 h-7 w-7 animate-spin rounded-full border-2 border-[#C89B3C] border-t-transparent" />
+                        <span className="text-sm font-medium text-[#7A8190]">
+                          Chargement des notes...
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+
+                  {!etats.loadingEleves &&
+                    !etats.loadingNotes &&
+                    donnees.eleves.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-14 text-center">
+                          <Users
+                            className="mx-auto mb-3 text-[#9BA2B1]"
+                            size={28}
+                          />
+                          <p className="text-sm font-semibold text-[#5B6478]">
+                            {sousGroupeIdEffectif
+                              ? `Aucun élève dans le sous-groupe « ${sousGroupeNomEffectif} ».`
+                              : "Aucun élève dans cette classe."}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+
+                  {!etats.loadingEleves &&
+                    !etats.loadingNotes &&
+                    donnees.eleves.map((eleve, index) => {
+                      const note = notes.saisies[String(eleve.id)] || {};
+                      const moyenne = calculerMoyenne(note);
+
+                      return (
+                        <tr
+                          key={eleve.id}
+                          className="border-b border-[#F0EEE7] transition last:border-0 hover:bg-[#FCFBF8]"
+                        >
+                          <td className="px-4 py-4">
+                            <span className="font-mono text-xs font-bold text-[#9BA2B1]">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#101B33] text-xs font-bold text-[#E4B655]">
+                                {(eleve.nom || "?").charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-semibold text-[#101B33]">
+                                  {eleve.nom} {eleve.prenom}
+                                </div>
+                                {eleve.matricule && (
+                                  <div className="mt-0.5 font-mono text-[10px] text-[#8A91A2]">
+                                    {eleve.matricule}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              max="20"
+                              value={note.nClass ?? ""}
+                              onChange={(e) =>
+                                handleNoteChange(
+                                  eleve.id,
+                                  "nClass",
+                                  e.target.value
+                                )
+                              }
+                              className="w-24 rounded-xl border border-[#DEDCD0] bg-white px-2.5 py-2.5 text-center font-mono text-sm font-bold text-[#101B33] outline-none transition hover:border-[#C8C5B8] focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
+                            />
+                          </td>
+
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              max="20"
+                              value={note.nExem ?? ""}
+                              onChange={(e) =>
+                                handleNoteChange(
+                                  eleve.id,
+                                  "nExem",
+                                  e.target.value
+                                )
+                              }
+                              className="w-24 rounded-xl border border-[#DEDCD0] bg-white px-2.5 py-2.5 text-center font-mono text-sm font-bold text-[#101B33] outline-none transition hover:border-[#C8C5B8] focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
+                            />
+                          </td>
+
+                          <td
+                            className={`px-4 py-4 text-center font-mono text-base font-bold ${getMoyenneColor(
+                              moyenne
+                            )}`}
+                          >
+                            {moyenne !== null ? moyenne.toFixed(2) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* FOOTER ENREGISTREMENT */}
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#DEDCD0] bg-[#F8F7F2] p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                    nbNotesModifiees > 0
+                      ? "bg-[#F7E2DB] text-[#D2593F]"
+                      : "bg-[#DCEDEA] text-[#2C8C82]"
+                  }`}
+                >
+                  {nbNotesModifiees > 0 ? (
+                    <Clock size={17} />
+                  ) : (
+                    <CheckCircle size={17} />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#101B33]">
+                    {getTexteNotesModifiees()}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#7A8190]">
+                    {nbNotesModifiees > 0
+                      ? "Enregistrez pour appliquer les changements."
+                      : "Toutes les notes sont synchronisées."}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={enregistrerTout}
+                disabled={
+                  etats.submitting ||
+                  nbNotesModifiees === 0 ||
+                  etats.loadingNotes
+                }
+                className={`${STYLES.button.primary} w-full bg-[#101B33] hover:bg-[#182746] sm:w-auto`}
+              >
+                <Save size={17} />
+                {etats.submitting
+                  ? "Enregistrement..."
+                  : "Enregistrer les notes"}
+              </button>
+            </div>
           </div>
-        </Card>
+        </section>
       )}
 
       {/* =====================================================
           TOAST
       ===================================================== */}
-
       {etats.toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-          <CheckCircle size={16} />
-          {etats.toast}
+        <div className="fixed bottom-4 left-3 right-3 z-50 sm:left-auto sm:right-6 sm:max-w-md">
+          <div className="flex items-start gap-3 rounded-2xl border border-[#2C8C82]/20 bg-[#101B33] px-4 py-3.5 text-sm font-medium text-white shadow-[0_16px_40px_rgba(16,27,51,0.25)]">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#DCEDEA] text-[#2C8C82]">
+              <CheckCircle size={15} />
+            </span>
+            <span className="pt-1">{etats.toast}</span>
+          </div>
         </div>
       )}
     </div>
