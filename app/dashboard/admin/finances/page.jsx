@@ -93,51 +93,47 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false);
   const [erreur, setErreur] = useState("");
 
-  const estMensuel = ligne.typeFraisCode === "SCOLARITE";
+  const estMensuel = ligne.typeFraisFrequence === "MENSUEL";
 
   /* Chargement des mois */
 
   useEffect(() => {
-    if (!ligne.inscriptionId) return;
+  if (!estMensuel || !ligne.inscriptionId) {
+    setLignesMensuelles([]);
+    return;
+  }
 
-    api
-      .get(`/ligne-frais/inscription/${ligne.inscriptionId}`)
-      .then((res) => {
-        const data = Array.isArray(res.data) ? res.data : [];
+  api
+    .get(`/ligne-frais/inscription/${ligne.inscriptionId}`)
+    .then((res) => {
+      const data = Array.isArray(res.data) ? res.data : [];
 
-        const mois = data
-          .filter((l) => l.typeFraisCode === "SCOLARITE" && l.mois != null)
-          .sort((a, b) => {
-            if (a.annee !== b.annee) {
-              return (a.annee || 0) - (b.annee || 0);
-            }
+      const mois = data
+        .filter((l) => l.typeFraisCode === ligne.typeFraisCode && l.mois != null)
+        .sort((a, b) => {
+          if (a.annee !== b.annee) return (a.annee || 0) - (b.annee || 0);
+          return (a.mois || 0) - (b.mois || 0);
+        });
 
-            return (a.mois || 0) - (b.mois || 0);
-          });
+      setLignesMensuelles(mois);
 
-        setLignesMensuelles(mois);
-
-        if (mois.length > 0) {
-          const ligneAvecReste = mois.find((m) => m.resteAPayer > 0);
-
-          const premiere = ligneAvecReste || mois[0];
-
-          setMoisSelectionne(`${premiere.mois}-${premiere.annee}`);
-        }
-      })
-      .catch(console.error);
-  }, [ligne]);
-
+      if (mois.length > 0) {
+        const ligneAvecReste = mois.find((m) => m.resteAPayer > 0);
+        const premiere = ligneAvecReste || mois[0];
+        setMoisSelectionne(`${premiere.mois}-${premiere.annee}`);
+      }
+    })
+    .catch(console.error);
+}, [ligne, estMensuel]);
   /* Ligne réellement sélectionnée */
 
   const lignePaiement = useMemo(() => {
-    if (!moisSelectionne) return ligne;
+  if (!estMensuel || !moisSelectionne) return ligne;
 
-    const [moisNum, anneeNum] = moisSelectionne.split("-").map(Number);
+  const [moisNum, anneeNum] = moisSelectionne.split("-").map(Number);
 
-    return lignesMensuelles.find((l) => l.mois === moisNum && l.annee === anneeNum) || ligne;
-  }, [moisSelectionne, lignesMensuelles, ligne]);
-
+  return lignesMensuelles.find((l) => l.mois === moisNum && l.annee === anneeNum) || ligne;
+}, [estMensuel, moisSelectionne, lignesMensuelles, ligne]);
   /* Pré-remplissage */
 
   useEffect(() => {
