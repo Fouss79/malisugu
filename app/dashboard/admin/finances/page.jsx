@@ -192,19 +192,24 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
   const paiement = res.data;
 
   if (!paiement?.id) {
-    throw new Error("Le paiement a été enregistré mais son identifiant est introuvable.");
+    throw new Error("Paiement enregistré, mais identifiant introuvable.");
   }
 
   onSaved(paiement.id);
 
 } catch (err) {
+  console.error(err);
 
-      setErreur(
-        err.response?.data?.message || err.response?.data?.error || "Erreur lors de l'encaissement."
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  setErreur(
+    err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message ||
+      "Erreur lors de l'encaissement."
+  );
+} finally {
+  setSubmitting(false);
+}
+    
   };
 
   const boutonDesactive =
@@ -708,23 +713,53 @@ export default function PaiementForm() {
      PAIEMENT ENREGISTRÉ
   ===================================================== */
 
-  const handleSaved = (paiementId) => {
+  const handleSaved = async (paiementId) => {
   setLigneSelectionnee(null);
 
   setToast("Paiement encaissé avec succès");
 
+  loadLignesFrais();
+
+  try {
+    const response = await api.get(
+      `/paiements/${paiementId}/recus`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `recu-paiement-${paiementId}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("❌ Erreur génération reçu :", error);
+
+    setToast("Paiement enregistré, mais erreur lors du reçu");
+
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+
+    return;
+  }
+
   setTimeout(() => {
     setToast(null);
   }, 3000);
-
-  loadLignesFrais();
-
-  if (paiementId) {
-    const url = `${process.env.NEXT_PUBLIC_API_URL}/paiements/${paiementId}/recus`;
-    window.open(url, "_blank");
-  }
 };
-
   const resetFilters = () => {
     setSearch("");
     setClasseFilter("");
