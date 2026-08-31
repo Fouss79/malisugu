@@ -186,11 +186,18 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
 
     setSubmitting(true);
 
-    try {
-      await api.post("/paiements", payload);
-      onSaved();
-    } catch (err) {
-      console.error(err);
+   try {
+  const res = await api.post("/paiements", payload);
+
+  const paiement = res.data;
+
+  if (!paiement?.id) {
+    throw new Error("Le paiement a été enregistré mais son identifiant est introuvable.");
+  }
+
+  onSaved(paiement.id);
+
+} catch (err) {
 
       setErreur(
         err.response?.data?.message || err.response?.data?.error || "Erreur lors de l'encaissement."
@@ -701,17 +708,22 @@ export default function PaiementForm() {
      PAIEMENT ENREGISTRÉ
   ===================================================== */
 
-  const handleSaved = () => {
-    setLigneSelectionnee(null);
+  const handleSaved = (paiementId) => {
+  setLigneSelectionnee(null);
 
-    setToast("Paiement encaissé avec succès");
+  setToast("Paiement encaissé avec succès");
 
-    setTimeout(() => {
-      setToast(null);
-    }, 3000);
+  setTimeout(() => {
+    setToast(null);
+  }, 3000);
 
-    loadLignesFrais();
-  };
+  loadLignesFrais();
+
+  if (paiementId) {
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/paiements/${paiementId}/recus`;
+    window.open(url, "_blank");
+  }
+};
 
   const resetFilters = () => {
     setSearch("");
