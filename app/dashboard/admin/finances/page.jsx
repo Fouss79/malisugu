@@ -82,10 +82,9 @@ function StatutBadge({ statut }) {
 ========================================================= */
 
 function ModalEncaissement({ ligne, onClose, onSaved }) {
-  const [lignesMensuelles, setLignesMensuelles] = useState([]);
-  const [moisSelectionne, setMoisSelectionne] = useState(
-    ligne.mois && ligne.annee ? `${ligne.mois}-${ligne.annee}` : ""
-  );
+  const [moisDisponibles, setMoisDisponibles] = useState([]);
+  const [moisSelectionne, setMoisSelectionne] = useState("");
+  const [loadingMois, setLoadingMois] = useState(false);
 
   const [montant, setMontant] = useState("");
   const [modePaiement, setModePaiement] = useState("CASH");
@@ -93,52 +92,61 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false);
   const [erreur, setErreur] = useState("");
 
-  const estMensuel = ligne.typeFraisFrequence === "MENSUEL";
+  // Type ANNUEL = payable par tranches mensuelles.
+  // Type UNIQUE = payé en une seule fois.
+  const estAnnuel = ligne.typeFraisFrequence === "ANNUEL";
 
-  /* Chargement des mois */
-
-  useEffect(() => {
-  if (!estMensuel || !ligne.inscriptionId) {
-    setLignesMensuelles([]);
-    return;
-  }
-
-  api
-    .get(`/ligne-frais/inscription/${ligne.inscriptionId}`)
-    .then((res) => {
-      const data = Array.isArray(res.data) ? res.data : [];
-
-      const mois = data
-        .filter((l) => l.typeFraisCode === ligne.typeFraisCode && l.mois != null)
-        .sort((a, b) => {
-          if (a.annee !== b.annee) return (a.annee || 0) - (b.annee || 0);
-          return (a.mois || 0) - (b.mois || 0);
-        });
-
-      setLignesMensuelles(mois);
-
-      if (mois.length > 0) {
-        const ligneAvecReste = mois.find((m) => m.resteAPayer > 0);
-        const premiere = ligneAvecReste || mois[0];
-        setMoisSelectionne(`${premiere.mois}-${premiere.annee}`);
-      }
-    })
-    .catch(console.error);
-}, [ligne, estMensuel]);
-  /* Ligne réellement sélectionnée */
-
-  const lignePaiement = useMemo(() => {
-  if (!estMensuel || !moisSelectionne) return ligne;
-
-  const [moisNum, anneeNum] = moisSelectionne.split("-").map(Number);
-
-  return lignesMensuelles.find((l) => l.mois === moisNum && l.annee === anneeNum) || ligne;
-}, [estMensuel, moisSelectionne, lignesMensuelles, ligne]);
-  /* Pré-remplissage */
+  /* Chargement du suivi mensuel (uniquement pour un type ANNUEL) */
 
   useEffect(() => {
-    setMontant(lignePaiement.resteAPayer > 0 ? String(lignePaiement.resteAPayer) : "");
-  }, [lignePaiement.id]);
+    if (!estAnnuel || !ligne.id) {
+      setMoisDisponibles([]);
+      return;
+    }
+
+    setLoadingMois(true);
+
+    api
+      .get(`/ligne-frais/${ligne.id}/mois-paiement`)
+      .then((res) => {
+        const mois = Array.isArray(res.data) ? res.data : [];
+
+        setMoisDisponibles(mois);
+
+        const premierNonPaye = mois.find((m) => m.resteAPayer > 0);
+        const premier = premierNonPaye || mois[0];
+
+        if (premier) {
+          setMoisSelectionne(`${premier.mois}-${premier.annee}`);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoadingMois(false));
+  }, [ligne.id, estAnnuel]);
+
+  /* Mois sélectionné (détail montant dû / payé / reste pour ce mois) */
+
+  const moisChoisi = useMemo(() => {
+    if (!estAnnuel || !moisSelectionne) return null;
+
+    const [moisNum, anneeNum] = moisSelectionne.split("-").map(Number);
+
+    return moisDisponibles.find((m) => m.mois === moisNum && m.annee === anneeNum) || null;
+  }, [estAnnuel, moisSelectionne, moisDisponibles]);
+
+  /* Valeurs affichées dans le résumé */
+
+  const totalAffiche = estAnnuel ? moisChoisi?.montantDu : ligne.montantTotal;
+  const payeAffiche = estAnnuel ? moisChoisi?.montantPaye : ligne.montantPaye;
+  const resteAffiche = estAnnuel ? moisChoisi?.resteAPayer : ligne.resteAPayer;
+
+  /* Pré-remplissage du montant */
+
+  useEffect(() => {
+    const reste = estAnnuel ? moisChoisi?.resteAPayer : ligne.resteAPayer;
+
+    setMontant(reste > 0 ? String(reste) : "");
+  }, [estAnnuel, moisChoisi?.mois, moisChoisi?.annee, ligne.resteAPayer]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -151,8 +159,13 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
       return;
     }
 
-    if (montantNum > lignePaiement.resteAPayer) {
-      setErreur(`Le montant dépasse le reste à payer (${formatMontant(lignePaiement.resteAPayer)}).`);
+    if (estAnnuel && !moisChoisi) {
+      setErreur("Veuillez sélectionner un mois.");
+      return;
+    }
+
+    if (montantNum > ligne.resteAPayer) {
+      setErreur(`Le montant dépasse le reste à payer (${formatMontant(ligne.resteAPayer)}).`);
       return;
     }
 
@@ -162,9 +175,10 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
     }
 
     const payload = {
-      inscriptionId: lignePaiement.inscriptionId,
-      codeTypeFrais: lignePaiement.typeFraisCode,
-      mois: lignePaiement.mois ?? null,
+      inscriptionId: ligne.inscriptionId,
+      codeTypeFrais: ligne.typeFraisCode,
+      mois: estAnnuel ? moisChoisi.mois : null,
+      annee: estAnnuel ? moisChoisi.annee : null,
       montant: montantNum,
       modePaiement,
       reference: modePaiement === "CASH" ? null : reference.trim(),
@@ -185,6 +199,9 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
       setSubmitting(false);
     }
   };
+
+  const boutonDesactive =
+    submitting || ligne.resteAPayer <= 0 || (estAnnuel && !loadingMois && !moisChoisi);
 
   return (
     <div
@@ -229,32 +246,39 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
         </div>
 
         <div className="space-y-5 p-5 sm:p-6">
-          {/* MOIS */}
+          {/* MOIS (uniquement pour un type ANNUEL, payable par tranches) */}
 
-          {estMensuel && lignesMensuelles.length > 0 && (
+          {estAnnuel && (
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Mois à encaisser
               </label>
 
-              <div className="relative">
-                <select
-                  value={moisSelectionne}
-                  onChange={(e) => setMoisSelectionne(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
-                >
-                  {lignesMensuelles.map((l) => (
-                    <option key={l.id} value={`${l.mois}-${l.annee}`}>
-                      {NOMS_MOIS[l.mois]} {l.annee} — reste {formatMontant(l.resteAPayer)}
-                    </option>
-                  ))}
-                </select>
+              {loadingMois ? (
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
+                  <Loader2 size={15} className="animate-spin" />
+                  Chargement des mois...
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    value={moisSelectionne}
+                    onChange={(e) => setMoisSelectionne(e.target.value)}
+                    className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-[#C89B3C] focus:ring-4 focus:ring-[#C89B3C]/10"
+                  >
+                    {moisDisponibles.map((m) => (
+                      <option key={`${m.mois}-${m.annee}`} value={`${m.mois}-${m.annee}`}>
+                        {NOMS_MOIS[m.mois]} {m.annee} — reste {formatMontant(m.resteAPayer)}
+                      </option>
+                    ))}
+                  </select>
 
-                <ChevronDown
-                  size={17}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-              </div>
+                  <ChevronDown
+                    size={17}
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -263,14 +287,14 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
           <div className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
             <div className="border-b border-slate-100 px-4 py-3">
               <p className="text-sm font-bold text-slate-800">
-                {lignePaiement.typeFraisLibelle}
+                {ligne.typeFraisLibelle}
 
-                {lignePaiement.mois ? (
+                {estAnnuel && moisChoisi ? (
                   <span className="ml-1" style={{ color: TEAL }}>
-                    • {NOMS_MOIS[lignePaiement.mois]} {lignePaiement.annee}
+                    • {NOMS_MOIS[moisChoisi.mois]} {moisChoisi.annee}
                   </span>
                 ) : (
-                  <span className="ml-1 text-slate-400">• Annuel</span>
+                  <span className="ml-1 text-slate-400">• Paiement unique</span>
                 )}
               </p>
             </div>
@@ -279,24 +303,33 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
               <div className="p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Total</p>
                 <p className="mt-1 text-xs font-bold text-slate-700 sm:text-sm">
-                  {formatMontant(lignePaiement.montantTotal)}
+                  {formatMontant(totalAffiche)}
                 </p>
               </div>
 
               <div className="p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Payé</p>
                 <p className="mt-1 text-xs font-bold sm:text-sm" style={{ color: TEAL }}>
-                  {formatMontant(lignePaiement.montantPaye)}
+                  {formatMontant(payeAffiche)}
                 </p>
               </div>
 
               <div className="p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reste</p>
                 <p className="mt-1 text-xs font-bold sm:text-sm" style={{ color: CORAL }}>
-                  {formatMontant(lignePaiement.resteAPayer)}
+                  {formatMontant(resteAffiche)}
                 </p>
               </div>
             </div>
+
+            {estAnnuel && (
+              <div className="border-t border-slate-100 px-4 py-2">
+                <p className="text-[11px] text-slate-400">
+                  Total ligne : {formatMontant(ligne.montantTotal)} • Reste global :{" "}
+                  <span style={{ color: CORAL }}>{formatMontant(ligne.resteAPayer)}</span>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ERREUR */}
@@ -404,7 +437,7 @@ function ModalEncaissement({ ligne, onClose, onSaved }) {
 
               <button
                 type="submit"
-                disabled={submitting || lignePaiement.resteAPayer <= 0}
+                disabled={boutonDesactive}
                 className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
                 style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
               >
@@ -460,13 +493,8 @@ function StatCard({ label, value, icon: Icon, iconBg, iconColor, valueColor }) {
 ========================================================= */
 
 function PaiementCard({ ligne, onEncaisser }) {
-  const total = ligne._nbMois ? ligne._totalTous : ligne.montantTotal;
-
-  const paye = ligne._nbMois ? ligne._payeTous : ligne.montantPaye;
-
-  const reste = ligne._nbMois ? ligne._resteTous : ligne.resteAPayer;
-
-  const disabled = reste <= 0;
+  const disabled = ligne.resteAPayer <= 0;
+  const estAnnuel = ligne.typeFraisFrequence === "ANNUEL";
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -500,10 +528,12 @@ function PaiementCard({ ligne, onEncaisser }) {
         <div>
           <p className="text-xs font-semibold text-slate-700">{ligne.typeFraisLibelle}</p>
 
-          {ligne._nbMois && <p className="mt-0.5 text-[11px] text-slate-400">{ligne._nbMois} mois</p>}
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            {estAnnuel ? "Payable par mois" : "Paiement unique"}
+          </p>
         </div>
 
-        <p className="text-xs font-bold text-slate-700">{formatMontant(total)}</p>
+        <p className="text-xs font-bold text-slate-700">{formatMontant(ligne.montantTotal)}</p>
       </div>
 
       {/* MONTANTS */}
@@ -513,7 +543,7 @@ function PaiementCard({ ligne, onEncaisser }) {
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Déjà payé</p>
 
           <p className="mt-1 text-sm font-bold" style={{ color: TEAL }}>
-            {formatMontant(paye)}
+            {formatMontant(ligne.montantPaye)}
           </p>
         </div>
 
@@ -521,7 +551,7 @@ function PaiementCard({ ligne, onEncaisser }) {
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Reste</p>
 
           <p className="mt-1 text-sm font-bold" style={{ color: CORAL }}>
-            {formatMontant(reste)}
+            {formatMontant(ligne.resteAPayer)}
           </p>
         </div>
       </div>
@@ -570,6 +600,9 @@ export default function PaiementForm() {
 
   /* =====================================================
      CHARGEMENT
+     Avec le nouveau modèle, l'API renvoie déjà UNE seule
+     ligne par (inscription, typeFrais) — plus besoin de
+     regroupement côté client.
   ===================================================== */
 
   const loadLignesFrais = () => {
@@ -618,10 +651,10 @@ export default function PaiementForm() {
   }, [lignesFrais]);
 
   /* =====================================================
-     FILTRAGE
+     FILTRAGE + TRI
   ===================================================== */
 
-  const lignesFiltrees = useMemo(() => {
+  const lignesAffichees = useMemo(() => {
     const q = search.trim().toLowerCase();
 
     return lignesFrais
@@ -650,58 +683,18 @@ export default function PaiementForm() {
   }, [lignesFrais, search, classeFilter, typeFraisFilter, statutFilter]);
 
   /* =====================================================
-     REGROUPEMENT
-  ===================================================== */
-
-  const lignesAffichees = useMemo(() => {
-    const map = new Map();
-
-    lignesFiltrees.forEach((l) => {
-      const cleGroupe = l.mois != null ? `${l.inscriptionId}-${l.typeFraisCode}` : `${l.id}`;
-
-      if (!map.has(cleGroupe)) {
-        map.set(cleGroupe, {
-          ...l,
-          _nbMois: l.mois != null ? 1 : null,
-          _totalTous: l.montantTotal || 0,
-          _payeTous: l.montantPaye || 0,
-          _resteTous: l.resteAPayer || 0,
-        });
-      } else if (l.mois != null) {
-        const existant = map.get(cleGroupe);
-
-        existant._nbMois += 1;
-        existant._totalTous += l.montantTotal || 0;
-        existant._payeTous += l.montantPaye || 0;
-        existant._resteTous += l.resteAPayer || 0;
-
-        if (l.resteAPayer > 0 && existant.resteAPayer <= 0) {
-          Object.assign(existant, l, {
-            _nbMois: existant._nbMois,
-            _totalTous: existant._totalTous,
-            _payeTous: existant._payeTous,
-            _resteTous: existant._resteTous,
-          });
-        }
-      }
-    });
-
-    return Array.from(map.values());
-  }, [lignesFiltrees]);
-
-  /* =====================================================
      TOTAUX
   ===================================================== */
 
   const totaux = useMemo(
     () => ({
-      total: lignesFiltrees.reduce((s, l) => s + (l.montantTotal || 0), 0),
+      total: lignesAffichees.reduce((s, l) => s + (l.montantTotal || 0), 0),
 
-      paye: lignesFiltrees.reduce((s, l) => s + (l.montantPaye || 0), 0),
+      paye: lignesAffichees.reduce((s, l) => s + (l.montantPaye || 0), 0),
 
-      reste: lignesFiltrees.reduce((s, l) => s + (l.resteAPayer || 0), 0),
+      reste: lignesAffichees.reduce((s, l) => s + (l.resteAPayer || 0), 0),
     }),
-    [lignesFiltrees]
+    [lignesAffichees]
   );
 
   /* =====================================================
@@ -993,11 +986,7 @@ export default function PaiementForm() {
 
               {!loading &&
                 lignesAffichees.map((l) => {
-                  const total = l._nbMois ? l._totalTous : l.montantTotal;
-
-                  const paye = l._nbMois ? l._payeTous : l.montantPaye;
-
-                  const reste = l._nbMois ? l._resteTous : l.resteAPayer;
+                  const estAnnuel = l.typeFraisFrequence === "ANNUEL";
 
                   return (
                     <tr key={l.id} className="group transition hover:bg-slate-50/70">
@@ -1030,13 +1019,17 @@ export default function PaiementForm() {
                       <td className="px-5 py-4">
                         <p className="font-medium text-slate-700">{l.typeFraisLibelle}</p>
 
-                        {l._nbMois && <p className="mt-0.5 text-[11px] text-slate-400">{l._nbMois} mois</p>}
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          {estAnnuel ? "Payable par mois" : "Paiement unique"}
+                        </p>
                       </td>
 
-                      <td className="px-5 py-4 font-semibold text-slate-700">{formatMontant(total)}</td>
+                      <td className="px-5 py-4 font-semibold text-slate-700">
+                        {formatMontant(l.montantTotal)}
+                      </td>
 
                       <td className="px-5 py-4 font-semibold" style={{ color: TEAL }}>
-                        {formatMontant(paye)}
+                        {formatMontant(l.montantPaye)}
                       </td>
 
                       <td className="px-5 py-4">
@@ -1046,12 +1039,16 @@ export default function PaiementForm() {
                       <td className="px-5 py-4 text-right">
                         <button
                           onClick={() => setLigneSelectionnee(l)}
-                          disabled={reste <= 0}
+                          disabled={l.resteAPayer <= 0}
                           className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
-                          style={reste > 0 ? { background: `linear-gradient(135deg, ${INK}, #182746)` } : undefined}
+                          style={
+                            l.resteAPayer > 0
+                              ? { background: `linear-gradient(135deg, ${INK}, #182746)` }
+                              : undefined
+                          }
                         >
                           <Wallet size={14} />
-                          {reste <= 0 ? "Payé" : "Encaisser"}
+                          {l.resteAPayer <= 0 ? "Payé" : "Encaisser"}
                         </button>
                       </td>
                     </tr>
