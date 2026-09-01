@@ -11,6 +11,9 @@ import {
   Pencil,
   Check,
   XCircle,
+  FileText,
+  Download,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import EleveForm from "../Component/ElevePage";
@@ -170,13 +173,79 @@ function ModalEdition({ eleveId, onClose, onSaved }) {
 
 // --- Modal détail élève ---
 function EleveDetailModal({ eleve, onClose }) {
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
   useEffect(() => {
     const onEsc = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onEsc);
+
     return () => window.removeEventListener("keydown", onEsc);
   }, [onClose]);
 
   if (!eleve) return null;
+
+  const genererRapportPaiement = async () => {
+    if (!eleve.id) {
+      alert("Impossible de générer le rapport : inscription introuvable.");
+      return;
+    }
+
+    setGeneratingPdf(true);
+
+    try {
+      const response = await api.get(
+        `/rapports/paiements/inscription/${eleve.id}/pdf`,
+        {
+          responseType: "blob",
+        }
+      );
+
+      const blob = new Blob([response.data], {
+        type: "application/pdf",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+
+      link.download = `rapport-paiement-${eleve.prenom || "eleve"}-${
+        eleve.nom || ""
+      }.pdf`;
+
+      document.body.appendChild(link);
+      link.click();
+
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("❌ ERREUR GÉNÉRATION RAPPORT PAIEMENT", error);
+
+      // Si Spring renvoie une erreur alors que responseType = blob
+      if (error?.response?.data instanceof Blob) {
+        try {
+          const texte = await error.response.data.text();
+          const json = JSON.parse(texte);
+
+          alert(
+            json?.message ||
+              json?.error ||
+              "Erreur lors de la génération du rapport."
+          );
+        } catch {
+          alert("Erreur lors de la génération du rapport PDF.");
+        }
+      } else {
+        alert(
+          error?.response?.data?.message ||
+            error?.response?.data?.error ||
+            "Erreur lors de la génération du rapport PDF."
+        );
+      }
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   return (
     <div
@@ -187,17 +256,29 @@ function EleveDetailModal({ eleve, onClose }) {
         className="h-full w-full overflow-y-auto bg-white shadow-xl sm:h-auto sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
           <div className="flex items-center gap-3">
-            <Avatar nom={eleve.nom} prenom={eleve.prenom} sexe={eleve.sexe} size="h-11 w-11 text-sm" />
+            <Avatar
+              nom={eleve.nom}
+              prenom={eleve.prenom}
+              sexe={eleve.sexe}
+              size="h-11 w-11 text-sm"
+            />
+
             <div>
               <h2 className="font-semibold text-slate-900">
                 {eleve.prenom} {eleve.nom}
               </h2>
-              <p className="text-xs text-slate-400">Matricule {eleve.matricule || "—"}</p>
+
+              <p className="text-xs text-slate-400">
+                Matricule {eleve.matricule || "—"}
+              </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
@@ -206,63 +287,147 @@ function EleveDetailModal({ eleve, onClose }) {
           </button>
         </div>
 
-        {/* Contenu */}
+        {/* =====================================================
+            CONTENU
+        ====================================================== */}
         <div className="space-y-6 p-5">
+
+          {/* IDENTITÉ */}
           <div>
             <SectionTitle>Identité</SectionTitle>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InfoRow label="Nom" value={eleve.nom} />
               <InfoRow label="Prénom" value={eleve.prenom} />
-              <InfoRow label="Date de naissance" value={eleve.dateNaissance} />
-              <InfoRow label="Lieu de naissance" value={eleve.lieuNaissance} />
-              <InfoRow label="Sexe" value={eleve.sexe === "F" ? "Fille" : "Garçon"} />
-              <InfoRow label="Nationalité" value={eleve.nationalite} />
-              <InfoRow label="Matricule" value={eleve.matricule} />
-              <InfoRow label="Groupe sanguin" value={eleve.groupeSanguin} />
+
+              <InfoRow
+                label="Date de naissance"
+                value={eleve.dateNaissance}
+              />
+
+              <InfoRow
+                label="Lieu de naissance"
+                value={eleve.lieuNaissance}
+              />
+
+              <InfoRow
+                label="Sexe"
+                value={eleve.sexe === "F" ? "Fille" : "Garçon"}
+              />
+
+              <InfoRow
+                label="Nationalité"
+                value={eleve.nationalite}
+              />
+
+              <InfoRow
+                label="Matricule"
+                value={eleve.matricule}
+              />
+
+              <InfoRow
+                label="Groupe sanguin"
+                value={eleve.groupeSanguin}
+              />
             </div>
+
             {eleve.allergiesMaladies && (
               <div
                 className="mt-3 rounded-lg p-3 text-sm"
-                style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
+                style={{
+                  background: `${GOLD}1A`,
+                  color: "#8A6A21",
+                }}
               >
-                <span className="font-medium">Allergies / maladies : </span>
+                <span className="font-medium">
+                  Allergies / maladies :{" "}
+                </span>
+
                 {eleve.allergiesMaladies}
               </div>
             )}
           </div>
 
+          {/* CONTACT */}
           <div>
             <SectionTitle>Contact élève</SectionTitle>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow label="Adresse" value={eleve.adresse} />
-              <InfoRow label="Téléphone" value={eleve.telephone} />
-              <InfoRow label="Email" value={eleve.email} />
+              <InfoRow
+                label="Adresse"
+                value={eleve.adresse}
+              />
+
+              <InfoRow
+                label="Téléphone"
+                value={eleve.telephone}
+              />
+
+              <InfoRow
+                label="Email"
+                value={eleve.email}
+              />
             </div>
           </div>
 
+          {/* TUTEUR */}
           {(eleve.nomTuteur || eleve.telephoneTuteur) && (
             <div>
               <SectionTitle>Parent / Tuteur</SectionTitle>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <InfoRow
                   label="Nom"
-                  value={`${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim() || "—"}
+                  value={`${eleve.prenomTuteur ?? ""} ${
+                    eleve.nomTuteur ?? ""
+                  }`.trim() || "—"}
                 />
-                <InfoRow label="Lien de parenté" value={eleve.lienParente} />
-                <InfoRow label="Téléphone" value={eleve.telephoneTuteur} />
-                <InfoRow label="Email" value={eleve.emailTuteur} />
+
+                <InfoRow
+                  label="Lien de parenté"
+                  value={eleve.lienParente}
+                />
+
+                <InfoRow
+                  label="Téléphone"
+                  value={eleve.telephoneTuteur}
+                />
+
+                <InfoRow
+                  label="Email"
+                  value={eleve.emailTuteur}
+                />
               </div>
             </div>
           )}
 
+          {/* SCOLARITÉ */}
           <div>
             <SectionTitle>Scolarité</SectionTitle>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow label="Classe" value={eleve.classeNom} />
-              <InfoRow label="Année scolaire" value={eleve.annee} />
-              <InfoRow label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
+              <InfoRow
+                label="Classe"
+                value={eleve.classeNom}
+              />
+
+              <InfoRow
+                label="Année scolaire"
+                value={eleve.annee}
+              />
+
+              <InfoRow
+                label="Date d'inscription"
+                value={
+                  eleve.dateInscription?.substring(0, 10)
+                }
+              />
+
               <div>
-                <p className="text-xs font-medium text-slate-400">Statut</p>
+                <p className="text-xs font-medium text-slate-400">
+                  Statut
+                </p>
+
                 <div className="mt-1">
                   <StatutBadge statut={eleve.statut} />
                 </div>
@@ -270,13 +435,73 @@ function EleveDetailModal({ eleve, onClose }) {
             </div>
           </div>
 
+          {/* =================================================
+              PAIEMENT
+          ================================================== */}
           <div>
             <SectionTitle>Paiement</SectionTitle>
+
             <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:grid-cols-3">
-              <InfoRow label="Montant total" value={formatMontant(eleve.montantTotal)} />
-              <InfoRow label="Payé" value={formatMontant(eleve.montantPaye)} />
-              <InfoRow label="Reste à payer" value={formatMontant(eleve.resteAPayer)} />
+              <InfoRow
+                label="Montant total"
+                value={formatMontant(eleve.montantTotal)}
+              />
+
+              <InfoRow
+                label="Payé"
+                value={formatMontant(eleve.montantPaye)}
+              />
+
+              <InfoRow
+                label="Reste à payer"
+                value={formatMontant(eleve.resteAPayer)}
+              />
             </div>
+
+            {/* BOUTON RAPPORT */}
+            <button
+              onClick={genererRapportPaiement}
+              disabled={generatingPdf}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                background: `linear-gradient(135deg, ${INK}, #182746)`,
+              }}
+            >
+              {generatingPdf ? (
+                <>
+                  <div
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                  />
+
+                  Génération du rapport...
+                </>
+              ) : (
+                <>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                    <path d="M14 2v6h6" />
+                    <path d="M8 13h8" />
+                    <path d="M8 17h5" />
+                  </svg>
+
+                  Rapport des paiements
+                </>
+              )}
+            </button>
+
+            <p className="mt-2 text-center text-xs text-slate-400">
+              Télécharger l'historique complet des paiements de cet élève
+            </p>
           </div>
         </div>
       </div>
