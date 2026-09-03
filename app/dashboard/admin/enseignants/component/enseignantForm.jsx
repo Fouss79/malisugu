@@ -24,10 +24,10 @@ const initialForm = {
   dateEmbauche: "",
   dateFinContrat: "",
   salaireBase: "",
+  tauxHoraire: "",
   nombreHeuresParSemaine: "",
   matiereIds: []
 };
-
 function Field({ label, required, children, hint }) {
   return (
     <div className="space-y-1">
@@ -125,38 +125,39 @@ export default function EnseignantForm({
     console.log("Enseignant reçu :", data);
 
     setForm({
-      ...initialForm,
-      ...data,
+  ...initialForm,
+  ...data,
 
-      sexe: data.sexe ?? "M",
+  sexe: data.sexe ?? "M",
 
-      dateNaissance: data.dateNaissance ?? "",
-      lieuNaissance: data.lieuNaissance ?? "",
-      nationalite: data.nationalite ?? "Malienne",
+  dateNaissance: data.dateNaissance ?? "",
+  lieuNaissance: data.lieuNaissance ?? "",
+  nationalite: data.nationalite ?? "Malienne",
 
-      telephone: data.telephone ?? "",
-      telephoneSecondaire: data.telephoneSecondaire ?? "",
-      email: data.email ?? "",
-      adresse: data.adresse ?? "",
+  telephone: data.telephone ?? "",
+  telephoneSecondaire: data.telephoneSecondaire ?? "",
+  email: data.email ?? "",
+  adresse: data.adresse ?? "",
 
-      contactUrgenceNom: data.contactUrgenceNom ?? "",
-      contactUrgenceTelephone: data.contactUrgenceTelephone ?? "",
+  contactUrgenceNom: data.contactUrgenceNom ?? "",
+  contactUrgenceTelephone: data.contactUrgenceTelephone ?? "",
 
-      specialite: data.specialite ?? "",
-      diplomeObtenu: data.diplomeObtenu ?? "",
+  specialite: data.specialite ?? "",
+  diplomeObtenu: data.diplomeObtenu ?? "",
 
-      typeContrat: data.typeContrat ?? "CDI",
-      niveauDiplome: data.niveauDiplome ?? "LICENCE",
+  typeContrat: data.typeContrat ?? "CDI",
+  niveauDiplome: data.niveauDiplome ?? "LICENCE",
 
-      dateEmbauche: data.dateEmbauche ?? "",
-      dateFinContrat: data.dateFinContrat ?? "",
+  dateEmbauche: data.dateEmbauche ?? "",
+  dateFinContrat: data.dateFinContrat ?? "",
 
-      salaireBase: data.salaireBase ?? "",
-      nombreHeuresParSemaine:
-        data.nombreHeuresParSemaine ?? "",
+  salaireBase: data.salaireBase ?? "",
+  tauxHoraire: data.tauxHoraire ?? "",
+  nombreHeuresParSemaine:
+    data.nombreHeuresParSemaine ?? "",
 
-      matiereIds: data.matiereIds ?? []
-    });
+  matiereIds: data.matiereIds ?? []
+});
 
   } catch (error) {
     console.error("Erreur chargement enseignant :", error);
@@ -221,16 +222,19 @@ chargerEnseignant();
 
   try {
     const payload = {
-      ...form,
-      salaireBase: form.salaireBase
-        ? Number(form.salaireBase)
-        : null,
-      nombreHeuresParSemaine:
-        form.nombreHeuresParSemaine
-          ? Number(form.nombreHeuresParSemaine)
-          : null,
-      ecoleId: Number(ecoleId)
-    };
+  ...form,
+  salaireBase: form.salaireBase
+    ? Number(form.salaireBase)
+    : null,
+  tauxHoraire: form.tauxHoraire
+    ? Number(form.tauxHoraire)
+    : null,
+  nombreHeuresParSemaine:
+    form.nombreHeuresParSemaine
+      ? Number(form.nombreHeuresParSemaine)
+      : null,
+  ecoleId: Number(ecoleId)
+};
 
     if (isEdition) {
       await api.put(
@@ -383,30 +387,32 @@ chargerEnseignant();
         </Section>
 
         <Section number="4" title="Contrat" description="Conditions d'emploi">
-          <Field label="Type de contrat">
-            <select name="typeContrat" value={form.typeContrat} onChange={handleChange} className={inputClass}>
-              <option value="CDI">CDI</option>
-              <option value="CDD">CDD</option>
-              <option value="VACATAIRE">Vacataire</option>
-              <option value="STAGIAIRE">Stagiaire</option>
-            </select>
-          </Field>
-          <Field label="Nombre d'heures / semaine">
-            <input type="number" name="nombreHeuresParSemaine" value={form.nombreHeuresParSemaine} onChange={handleChange} className={inputClass} />
-          </Field>
-          <Field label="Date d'embauche">
-            <input type="date" name="dateEmbauche" value={form.dateEmbauche} onChange={handleChange} className={inputClass} />
-          </Field>
-          {form.typeContrat !== "CDI" && (
-            <Field label="Date de fin de contrat" hint="Pour CDD, vacataire ou stagiaire">
-              <input type="date" name="dateFinContrat" value={form.dateFinContrat} onChange={handleChange} className={inputClass} />
-            </Field>
-          )}
-          <Field label="Salaire de base" hint="Optionnel">
-            <input type="number" name="salaireBase" value={form.salaireBase} onChange={handleChange} className={inputClass} />
-          </Field>
-        </Section>
-
+  <Field label="Type de contrat">
+    <select name="typeContrat" value={form.typeContrat} onChange={handleChange} className={inputClass}>
+      <option value="CDI">CDI</option>
+      <option value="CDD">CDD</option>
+      <option value="VACATAIRE">Vacataire</option>
+      <option value="STAGIAIRE">Stagiaire</option>
+    </select>
+  </Field>
+  <Field label="Nombre d'heures / semaine">
+    <input type="number" name="nombreHeuresParSemaine" value={form.nombreHeuresParSemaine} onChange={handleChange} className={inputClass} />
+  </Field>
+  <Field label="Date d'embauche">
+    <input type="date" name="dateEmbauche" value={form.dateEmbauche} onChange={handleChange} className={inputClass} />
+  </Field>
+  {form.typeContrat !== "CDI" && (
+    <Field label="Date de fin de contrat" hint="Pour CDD, vacataire ou stagiaire">
+      <input type="date" name="dateFinContrat" value={form.dateFinContrat} onChange={handleChange} className={inputClass} />
+    </Field>
+  )}
+  <Field label="Salaire de base" hint="Optionnel">
+    <input type="number" name="salaireBase" value={form.salaireBase} onChange={handleChange} className={inputClass} />
+  </Field>
+  <Field label="Taux horaire" hint="Montant payé par heure émargée (FCFA)">
+    <input type="number" name="tauxHoraire" value={form.tauxHoraire} onChange={handleChange} className={inputClass} />
+  </Field>
+</Section>
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
           {!isEdition && (
             <button

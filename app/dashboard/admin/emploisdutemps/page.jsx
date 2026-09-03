@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../../../../lib/api";
 import { useAuth } from "../../../context/AuthContext";
-import { Plus, X, Pencil, Trash2, Printer, Users, MapPin, CalendarDays } from "lucide-react";
+import { Plus, X, Pencil, Trash2, Printer, Users, MapPin, CalendarDays, AlertTriangle, Loader2 } from "lucide-react";
 
 /* =========================================================
    PALETTE (identique au reste de l'application)
@@ -21,6 +21,57 @@ const CORAL_SOFT = "#F7E2DB";
 // Constantes
 const JOURS_SEMAINE = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI"];
 const PLAGE_HORAIRES = Array.from({ length: 10 }, (_, i) => 8 + i);
+
+/* =========================================================
+   🛠️ EXTRACTION ROBUSTE DU MESSAGE D'ERREUR
+   =========================================================
+   Le backend peut renvoyer :
+   - une string brute (ex: throw new RuntimeException("..."))
+   - un objet Spring par défaut { timestamp, status, error, message, path }
+   - un objet de validation { errors: [...] }
+   - rien du tout (erreur réseau, timeout, CORS...)
+*/
+function extraireMessageErreur(error, messageParDefaut) {
+  // Pas de réponse du tout → problème réseau / serveur injoignable
+  if (!error.response) {
+    if (error.code === "ECONNABORTED") {
+      return "Le serveur met trop de temps à répondre. Réessayez.";
+    }
+    return "Impossible de contacter le serveur. Vérifiez votre connexion.";
+  }
+
+  const { status, data } = error.response;
+
+  // Cas string brute
+  if (typeof data === "string" && data.trim().length > 0) {
+    return data;
+  }
+
+  // Cas objet avec message explicite
+  if (data && typeof data === "object") {
+    if (typeof data.message === "string" && data.message.trim().length > 0) {
+      return data.message;
+    }
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      // Erreurs de validation Spring (@Valid)
+      return data.errors
+        .map((e) => e.defaultMessage || e.message || String(e))
+        .join(" · ");
+    }
+    if (typeof data.error === "string") {
+      return data.error;
+    }
+  }
+
+  // Codes HTTP génériques
+  if (status === 401) return "Session expirée, veuillez vous reconnecter.";
+  if (status === 403) return "Vous n'avez pas les droits pour effectuer cette action.";
+  if (status === 404) return "Élément introuvable (déjà supprimé ?).";
+  if (status === 409) return messageParDefaut || "Conflit détecté sur ce créneau.";
+  if (status >= 500) return "Erreur serveur. Réessayez dans un instant.";
+
+  return messageParDefaut || "Une erreur est survenue.";
+}
 
 export default function EmploiDuTempsForm() {
   const { user } = useAuth();
@@ -41,7 +92,13 @@ export default function EmploiDuTempsForm() {
 
   const [editingId, setEditingId] = useState(null);
   const [erreur, setErreur] = useState("");
+  const [erreurChargement, setErreurChargement] = useState("");
   const [showForm, setShowForm] = useState(false);
+
+  // 🔒 Protections anti double-action
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [isLoadingClasse, setIsLoadingClasse] = useState(false);
 
   // États des données
   const [donnees, setDonnees] = useState({
@@ -61,6 +118,7 @@ export default function EmploiDuTempsForm() {
     if (!ecoleId) return;
 
     const chargerDonneesInitiales = async () => {
+      setErreurChargement("");
       try {
         const [anneesRes, classesRes, sallesRes] = await Promise.all([
           api.get(`/annees/ecole/${ecoleId}`),
@@ -81,6 +139,9 @@ export default function EmploiDuTempsForm() {
         }
       } catch (error) {
         console.error("Erreur chargement données initiales:", error);
+        setErreurChargement(
+          extraireMessageErreur(error, "Impossible de charger les données initiales.")
+        );
       }
     };
 
@@ -103,6 +164,8 @@ export default function EmploiDuTempsForm() {
     }
 
     const chargerDonneesClasse = async () => {
+      setIsLoadingClasse(true);
+      setErreurChargement("");
       try {
         const [affectationsRes, sousGroupesRes, emploiRes] = await Promise.all([
           api.get(`/affectations-enseignants/classe/${form.classeId}`, {
@@ -122,12 +185,17 @@ export default function EmploiDuTempsForm() {
         }));
       } catch (error) {
         console.error("Erreur chargement données classe:", error);
+        setErreurChargement(
+          extraireMessageErreur(error, "Impossible de charger l'emploi du temps de cette classe.")
+        );
         setDonnees((prev) => ({
           ...prev,
           affectations: [],
           sousGroupes: [],
           emploi: [],
         }));
+      } finally {
+        setIsLoadingClasse(false);
       }
     };
 
@@ -241,7 +309,24 @@ export default function EmploiDuTempsForm() {
     } catch (error) {
       console.error("Erreur rechargement EDT:", error);
       setDonnees((prev) => ({ ...prev, emploi: [] }));
+      setErreurChargement(
+        extraireMessageErreur(error, "L'emploi du temps affiché peut être obsolète.")
+      );
     }
+  };
+
+  // =========================================================
+  // VALIDATION CÔTÉ CLIENT (avant même d'appeler l'API)
+  // =========================================================
+
+  const validerFormulaire = () => {
+    if (!form.heureDebut || !form.heureFin) {
+      return "Veuillez renseigner l'heure de début et de fin.";
+    }
+    if (Number(form.heureFin) <= Number(form.heureDebut)) {
+      return "L'heure de fin doit être après l'heure de début.";
+    }
+    return null;
   };
 
   // =========================================================
@@ -252,19 +337,29 @@ export default function EmploiDuTempsForm() {
     e.preventDefault();
     setErreur("");
 
-    try {
-      const payload = {
-        classeId: Number(form.classeId),
-        matiereId: Number(form.matiereId),
-        enseignantId: Number(form.enseignantId),
-        anneeId: Number(form.anneeId),
-        salleId: form.salleId ? Number(form.salleId) : null,
-        sousGroupeId: form.sousGroupeId ? Number(form.sousGroupeId) : null,
-        jour: form.jour,
-        heureDebut: Number(form.heureDebut),
-        heureFin: Number(form.heureFin),
-      };
+    // 🔒 Empêche tout double-clic pendant qu'une requête est déjà en cours
+    if (isSubmitting) return;
 
+    const erreurValidation = validerFormulaire();
+    if (erreurValidation) {
+      setErreur(erreurValidation);
+      return;
+    }
+
+    const payload = {
+      classeId: Number(form.classeId),
+      matiereId: Number(form.matiereId),
+      enseignantId: Number(form.enseignantId),
+      anneeId: Number(form.anneeId),
+      salleId: form.salleId ? Number(form.salleId) : null,
+      sousGroupeId: form.sousGroupeId ? Number(form.sousGroupeId) : null,
+      jour: form.jour,
+      heureDebut: Number(form.heureDebut),
+      heureFin: Number(form.heureFin),
+    };
+
+    setIsSubmitting(true);
+    try {
       if (editingId) {
         await api.put(`/emploi/${editingId}`, payload);
       } else {
@@ -274,9 +369,17 @@ export default function EmploiDuTempsForm() {
       resetForm();
       setShowForm(false);
       await rechargerEmploi();
-    } catch (error) {
-      console.error("Erreur enregistrement:", error);
-      setErreur(error.response?.data?.message || error.response?.data || "Erreur lors de l'enregistrement");
+    }catch (error) {
+  console.error("Erreur enregistrement:", error);
+  setErreur(       extraireMessageErreur(
+          error,
+          editingId
+            ? "Impossible de mettre à jour ce créneau."
+            : "Impossible d'enregistrer ce créneau."
+        )
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -287,11 +390,19 @@ export default function EmploiDuTempsForm() {
   const handleDelete = async (id) => {
     if (!confirm("Voulez-vous vraiment supprimer ce créneau ?")) return;
 
+    // 🔒 Empêche un double-clic sur le même créneau
+    if (deletingId === id) return;
+
+    setDeletingId(id);
+    setErreur("");
     try {
       await api.delete(`/emploi/${id}`);
       await rechargerEmploi();
     } catch (error) {
-      setErreur(error.response?.data || "Impossible de supprimer ce créneau");
+      console.error("Erreur suppression:", error);
+      setErreur(extraireMessageErreur(error, "Impossible de supprimer ce créneau."));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -340,13 +451,14 @@ export default function EmploiDuTempsForm() {
     }
 
     const rowSpan = cours.heureFin - cours.heureDebut;
+    const enSuppression = deletingId === cours.id;
 
     return (
       <td
         key={jour}
         rowSpan={rowSpan}
         className="border border-slate-100 p-1 text-center align-middle"
-        style={{ background: TEAL_SOFT }}
+        style={{ background: TEAL_SOFT, opacity: enSuppression ? 0.5 : 1 }}
       >
         <div className="text-[11px] font-bold leading-tight text-slate-800">{cours.matiere?.nom}</div>
         <div className="text-[10px] leading-tight text-slate-600">
@@ -374,18 +486,20 @@ export default function EmploiDuTempsForm() {
           <button
             type="button"
             onClick={() => handleEdit(cours)}
-            className="transition hover:scale-110"
+            className="transition hover:scale-110 disabled:opacity-40"
             style={{ color: GOLD }}
+            disabled={enSuppression}
           >
             <Pencil size={12} />
           </button>
           <button
             type="button"
             onClick={() => handleDelete(cours.id)}
-            className="transition hover:scale-110"
+            className="transition hover:scale-110 disabled:opacity-40"
             style={{ color: CORAL }}
+            disabled={enSuppression}
           >
-            <Trash2 size={12} />
+            {enSuppression ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
           </button>
         </div>
       </td>
@@ -398,13 +512,25 @@ export default function EmploiDuTempsForm() {
 
   return (
     <div className="space-y-6">
-      {/* Message d'erreur */}
-      {erreur && (
+      {/* Erreur de chargement (données initiales / rechargement) */}
+      {erreurChargement && (
         <div
-          className="rounded-lg px-4 py-3 text-sm"
+          className="flex items-start gap-2 rounded-lg px-4 py-3 text-sm"
           style={{ background: CORAL_SOFT, color: CORAL }}
         >
-          {typeof erreur === "object" ? erreur.message : erreur}
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>{erreurChargement}</span>
+        </div>
+      )}
+
+      {/* Message d'erreur (formulaire / action) */}
+      {erreur && (
+        <div
+          className="flex items-start gap-2 rounded-lg px-4 py-3 text-sm"
+          style={{ background: CORAL_SOFT, color: CORAL }}
+        >
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>{erreur}</span>
         </div>
       )}
 
@@ -439,6 +565,13 @@ export default function EmploiDuTempsForm() {
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 md:grid-cols-3"
         >
+          {isLoadingClasse && (
+            <div className="col-span-1 flex items-center gap-2 text-xs text-slate-500 sm:col-span-2 md:col-span-3">
+              <Loader2 size={12} className="animate-spin" />
+              Chargement des données de la classe...
+            </div>
+          )}
+
           {/* Année */}
           <select
             name="anneeId"
@@ -581,16 +714,23 @@ export default function EmploiDuTempsForm() {
           <div className="col-span-1 flex flex-col gap-2 sm:col-span-2 sm:flex-row sm:items-center md:col-span-3">
             <button
               type="submit"
-              className="w-full rounded-lg px-6 py-2.5 font-medium text-white transition hover:brightness-110 sm:w-auto"
+              disabled={isSubmitting}
+              className="flex w-full items-center justify-center gap-2 rounded-lg px-6 py-2.5 font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
             >
-              {editingId ? "Mettre à jour" : "Enregistrer"}
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+              {isSubmitting
+                ? "Enregistrement..."
+                : editingId
+                ? "Mettre à jour"
+                : "Enregistrer"}
             </button>
 
             <button
               type="button"
               onClick={editingId ? resetForm : toggleForm}
-              className="w-full rounded-lg bg-slate-100 px-4 py-2.5 text-slate-700 transition hover:bg-slate-200 sm:w-auto"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-slate-100 px-4 py-2.5 text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               Annuler
             </button>
@@ -624,43 +764,56 @@ export default function EmploiDuTempsForm() {
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  {coursDuJour.map((cours) => (
-                    <div key={cours.id} className="rounded-lg px-2.5 py-1.5" style={{ background: TEAL_SOFT }}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="shrink-0 text-[10px] font-medium text-slate-500">
-                              {cours.heureDebut}h-{cours.heureFin}h
-                            </span>
-                            <span className="truncate text-xs font-bold text-slate-800">{cours.matiere?.nom}</span>
+                  {coursDuJour.map((cours) => {
+                    const enSuppression = deletingId === cours.id;
+                    return (
+                      <div
+                        key={cours.id}
+                        className="rounded-lg px-2.5 py-1.5"
+                        style={{ background: TEAL_SOFT, opacity: enSuppression ? 0.5 : 1 }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="shrink-0 text-[10px] font-medium text-slate-500">
+                                {cours.heureDebut}h-{cours.heureFin}h
+                              </span>
+                              <span className="truncate text-xs font-bold text-slate-800">{cours.matiere?.nom}</span>
+                            </div>
+                            <p className="truncate text-[10px] text-slate-600">
+                              {cours.enseignant?.prenom} {cours.enseignant?.nom}
+                              {cours.sousGroupe && ` · ${cours.sousGroupe.nom}`}
+                              {cours.salle && ` · ${cours.salle.nom}`}
+                            </p>
                           </div>
-                          <p className="truncate text-[10px] text-slate-600">
-                            {cours.enseignant?.prenom} {cours.enseignant?.nom}
-                            {cours.sousGroupe && ` · ${cours.sousGroupe.nom}`}
-                            {cours.salle && ` · ${cours.salle.nom}`}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(cours)}
-                            className="transition hover:scale-110"
-                            style={{ color: GOLD }}
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(cours.id)}
-                            className="transition hover:scale-110"
-                            style={{ color: CORAL }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          <div className="flex shrink-0 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(cours)}
+                              className="transition hover:scale-110 disabled:opacity-40"
+                              style={{ color: GOLD }}
+                              disabled={enSuppression}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(cours.id)}
+                              className="transition hover:scale-110 disabled:opacity-40"
+                              style={{ color: CORAL }}
+                              disabled={enSuppression}
+                            >
+                              {enSuppression ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <Trash2 size={13} />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
