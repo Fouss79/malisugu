@@ -44,13 +44,13 @@ export default function Sidebar({ collapsed }) {
     logo.startsWith("/") ? logo : `/${logo}`
   }`;
 };
-  const menuList = [
-    {
-      nom: "Tableau de bord",
-      link: "/dashboard/admin",
-      icon: <LayoutDashboard size={18} />,
-    },
 
+const menuList = [
+  (user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && {
+    nom: "Tableau de bord",
+    link: "/dashboard/admin",
+    icon: <LayoutDashboard size={18} />,
+  },
     hasPermission("GESTION_MATIERES") && {
       nom: "Matières",
       link: "/dashboard/admin/matieres",
