@@ -30,62 +30,92 @@ export default function LoginPage() {
   };
 
   // =====================================================
-  // Mapping rôle -> route de destination
-  // Adapte les clés exactement aux valeurs renvoyées par ton backend
+  // REDIRECTION SELON LE RÔLE
   // =====================================================
-  const redirectByRole = {
-    SUPER_ADMIN: "/dashboard/superadmin",
-    ADMIN: "/dashboard/admin",
-    ENSEIGNANT: "/dashboard/admin/enseignant",
-    ELEVE: "/dashboard/admin/eleve",
+  const getDashboardRoute = (role) => {
+
+    const normalizedRole = role?.trim().toUpperCase();
+
+    // Exception SUPER_ADMIN
+    if (normalizedRole === "SUPER_ADMIN") {
+      return "/dashboard/superadmin";
+    }
+
+    // Exception ADMIN
+    if (normalizedRole === "ADMIN") {
+      return "/dashboard/admin";
+    }
+
+    // Tous les autres rôles sont dynamiques
+    if (normalizedRole) {
+      return `/dashboard/admin/${normalizedRole.toLowerCase()}`;
+    }
+
+    // Aucun rôle
+    return "/dashboard";
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  setLoading(true);
-  setError("");
+    setLoading(true);
+    setError("");
 
-  try {
-    const res = await api.post("/auth/login", form);
+    try {
 
-    const data = res.data;
+      // =====================================================
+      // CONNEXION
+      // =====================================================
+      const res = await api.post("/auth/login", form);
 
-    console.log("✅ Connexion réussie :", data);
+      const data = res.data;
 
-    // Enregistrer l'utilisateur
-    login(data);
+      console.log("✅ Connexion réussie :", data);
+      console.log("👤 Rôle :", data.role);
 
-    // Redirection dynamique selon user.role
-    const role = data.role?.toLowerCase();
+      // =====================================================
+      // ENREGISTREMENT DE L'UTILISATEUR
+      // =====================================================
+      login(data);
 
-    if (role) {
-      router.push(`/dashboard/admin/${role}`);
-    } else {
-      router.push("/dashboard/admin");
+      // =====================================================
+      // REDIRECTION
+      // =====================================================
+      const destination = getDashboardRoute(data.role);
+
+      console.log("🚀 Redirection vers :", destination);
+
+      router.push(destination);
+
+    } catch (err) {
+
+      console.error("❌ Erreur connexion :", err);
+
+      if (err.response) {
+
+        setError(
+          err.response.data?.message ||
+          "Email ou mot de passe incorrect"
+        );
+
+      } else if (err.request) {
+
+        setError(
+          "Impossible de contacter le serveur. Vérifiez votre connexion."
+        );
+
+      } else {
+
+        setError("Une erreur est survenue.");
+
+      }
+
+    } finally {
+
+      setLoading(false);
+
     }
-
-  } catch (err) {
-
-    console.error("❌ Erreur connexion :", err);
-
-    if (err.response) {
-      setError(
-        err.response.data?.message ||
-        "Email ou mot de passe incorrect"
-      );
-    } else if (err.request) {
-      setError(
-        "Impossible de contacter le serveur. Vérifiez votre connexion."
-      );
-    } else {
-      setError("Une erreur est survenue.");
-    }
-
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
