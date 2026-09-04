@@ -29,100 +29,58 @@ const routesPermissions = {
 
 
 export function middleware(request) {
-
-
   const token = request.cookies.get("token")?.value;
   const role = request.cookies.get("role")?.value;
-
-
   const url = request.nextUrl;
 
-
-  // Pas connecté
   if (!token) {
-
-    return NextResponse.redirect(
-      new URL("/login", request.url)
-    );
-
+    return NextResponse.redirect(new URL("/login", request.url));
   }
-
-
-
-  // Récupération permissions
 
   let permissions = [];
+  const permissionsCookie = request.cookies.get("permissions")?.value;
 
-  const permissionsCookie =
-      request.cookies.get("permissions")?.value;
-
-
-  if(permissionsCookie){
-
+  if (permissionsCookie) {
     try {
-
-      permissions = JSON.parse(
-        decodeURIComponent(permissionsCookie)
-      );
-
-    } catch(e){
-
-      permissions=[];
-
+      permissions = JSON.parse(decodeURIComponent(permissionsCookie));
+    } catch (e) {
+      permissions = [];
     }
-
   }
-
-
 
   // SUPER ADMIN
-
-  if(
-    url.pathname.startsWith("/dashboard/superadmin")
-  ){
-
-    if(role !== "SUPER_ADMIN"){
-
-      return NextResponse.redirect(
-        new URL("/dashboard/admin", request.url)
-      );
-
+  if (url.pathname.startsWith("/dashboard/superadmin")) {
+    if (role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/login", request.url));
     }
-
+    return NextResponse.next();
   }
 
+  // Seul l'admin (ou super admin) accède à /dashboard/admin
+  if (url.pathname === "/dashboard/admin") {
+    if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/unauthorized", request.url));
+    }
+    return NextResponse.next(); // page racine ok, pas de permission spécifique requise
+  }
 
+  // Vérification permissions par page précise (sous-pages)
+  const sortedPaths = Object.keys(routesPermissions).sort(
+    (a, b) => b.length - a.length
+  );
 
-  // Vérification permissions
+  for (const path of sortedPaths) {
+    if (url.pathname.startsWith(path)) {
+      const permissionRequired = routesPermissions[path];
 
-  for(const path in routesPermissions){
-
-
-    if(url.pathname.startsWith(path)){
-
-
-      const permissionRequired =
-          routesPermissions[path];
-
-
-      if(!permissions.includes(permissionRequired)){
-
-
-        return NextResponse.redirect(
-          new URL("/dashboard/admin", request.url)
-        );
-
-
+      if (!permissions.includes(permissionRequired)) {
+        return NextResponse.redirect(new URL("/unauthorized", request.url));
       }
-
+      break;
     }
-
   }
-
-
 
   return NextResponse.next();
-
 }
 
 
