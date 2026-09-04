@@ -29,6 +29,17 @@ export default function LoginPage() {
     });
   };
 
+  // =====================================================
+  // Mapping rôle -> route de destination
+  // Adapte les clés exactement aux valeurs renvoyées par ton backend
+  // =====================================================
+  const redirectByRole = {
+    SUPER_ADMIN: "/dashboard/superadmin",
+    ADMIN: "/dashboard/admin",
+    ENSEIGNANT: "/dashboard/enseignant",
+    ELEVE: "/dashboard/eleve",
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -46,19 +57,16 @@ export default function LoginPage() {
       console.log("✅ Connexion réussie :", data);
 
       // =====================================================
-      // STOCKER LE TOKEN
-      // =====================================================
-      localStorage.setItem("token", data.token);
-
-      // =====================================================
-      // LOGIN CONTEXT
+      // LOGIN CONTEXT (pose les cookies token / role / permissions)
       // =====================================================
       login(data);
 
       // =====================================================
-      // REDIRECTION
+      // REDIRECTION SELON LE RÔLE RÉEL DE L'UTILISATEUR
       // =====================================================
-      router.push("/dashboard/superadmin");
+      const destination = redirectByRole[data.role] || "/dashboard";
+
+      router.push(destination);
 
     } catch (err) {
 
