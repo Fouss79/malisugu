@@ -36,8 +36,8 @@ export default function LoginPage() {
   const redirectByRole = {
     SUPER_ADMIN: "/dashboard/superadmin",
     ADMIN: "/dashboard/admin",
-    ENSEIGNANT: "/dashboard/enseignant",
-    ELEVE: "/dashboard/eleve",
+    ENSEIGNANT: "/dashboard/admin/enseignant",
+    ELEVE: "/dashboard/admin/eleve",
   };
 
   const handleSubmit = async (e) => {
