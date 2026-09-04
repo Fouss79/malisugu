@@ -1840,6 +1840,217 @@ export default function ComptabilitePage() {
           onSaved={handleVersementSaved}
         />
       )}
+      {/* =====================================================
+    MODAL NOUVELLE RECETTE
+====================================================== */}
+
+{afficherFormulaireRecette && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+    onClick={() => setAfficherFormulaireRecette(false)}
+  >
+    <div
+      className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="text-lg font-semibold text-slate-900">Nouvelle recette</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Pour un revenu qui n'est pas un paiement d'élève : don, subvention, location, etc.
+      </p>
+
+      {erreur && (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {erreur}
+        </div>
+      )}
+
+      <form onSubmit={creerRecette} className="mt-5 space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Libellé *</label>
+          <input
+            type="text"
+            value={libelleRecette}
+            onChange={(e) => setLibelleRecette(e.target.value)}
+            placeholder="Ex : Subvention mairie"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Montant (FCFA) *</label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={montantRecette}
+            onChange={(e) => setMontantRecette(e.target.value)}
+            placeholder="Ex : 150000"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Mode de paiement</label>
+            <select
+              value={modePaiementRecette}
+              onChange={(e) => setModePaiementRecette(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            >
+              <option value="CASH">Espèces</option>
+              <option value="ORANGE_MONEY">Orange Money</option>
+              <option value="MOOV_MONEY">Moov Money</option>
+              <option value="WAVE">Wave</option>
+              <option value="VIREMENT">Virement</option>
+              <option value="CHEQUE">Chèque</option>
+            </select>
+          </div>
+
+          {modePaiementRecette !== "CASH" && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">Référence</label>
+              <input
+                type="text"
+                value={referenceRecette}
+                onChange={(e) => setReferenceRecette(e.target.value)}
+                placeholder="Ex : VIR-2026-000123"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                required
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setAfficherFormulaireRecette(false)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:flex-1"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={savingRecette}
+            className="w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-1"
+          >
+            {savingRecette ? "Enregistrement..." : "Enregistrer la recette"}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* =====================================================
+    MODAL NOUVELLE DÉPENSE
+====================================================== */}
+
+{afficherFormulaire && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+    onClick={() => setAfficherFormulaire(false)}
+  >
+    <div
+      className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h2 className="text-lg font-semibold text-slate-900">Nouvelle dépense</h2>
+      <p className="mt-1 text-sm text-slate-500">
+        Le montant saisi est le montant total dû. Vous pourrez l'encaisser en une ou plusieurs fois ensuite.
+      </p>
+
+      {erreur && (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {erreur}
+        </div>
+      )}
+
+      <form onSubmit={creerDepense} className="mt-5 space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Libellé *</label>
+          <input
+            type="text"
+            value={libelle}
+            onChange={(e) => setLibelle(e.target.value)}
+            placeholder="Ex : Achat de fournitures"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Montant total (FCFA) *</label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={montantTotal}
+              onChange={(e) => setMontantTotal(e.target.value)}
+              placeholder="Ex : 75000"
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700">Date de la dépense *</label>
+            <input
+              type="date"
+              value={dateDepense}
+              onChange={(e) => setDateDepense(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Catégorie</label>
+          <select
+            value={categorieId}
+            onChange={(e) => setCategorieId(e.target.value)}
+            disabled={loadingCategories}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+          >
+            <option value="">{loadingCategories ? "Chargement..." : "Aucune catégorie"}</option>
+            {categories.map((categorie) => (
+              <option key={categorie.id} value={categorie.id}>
+                {categorie.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Description</label>
+          <textarea
+            rows="3"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Informations complémentaires..."
+            className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+          />
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setAfficherFormulaire(false)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:flex-1"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={savingDepense}
+            className="w-full rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-1"
+          >
+            {savingDepense ? "Enregistrement..." : "Enregistrer la dépense"}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* =====================================================
           MODAL REMBOURSEMENT
