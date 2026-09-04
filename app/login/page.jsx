@@ -41,56 +41,51 @@ export default function LoginPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
-    try {
-      // =====================================================
-      // CONNEXION
-      // =====================================================
-      const res = await api.post("/auth/login", form);
+  try {
+    const res = await api.post("/auth/login", form);
 
-      const data = res.data;
+    const data = res.data;
 
-      console.log("✅ Connexion réussie :", data);
+    console.log("✅ Connexion réussie :", data);
 
-      // =====================================================
-      // LOGIN CONTEXT (pose les cookies token / role / permissions)
-      // =====================================================
-      login(data);
+    // Enregistrer l'utilisateur
+    login(data);
 
-      // =====================================================
-      // REDIRECTION SELON LE RÔLE RÉEL DE L'UTILISATEUR
-      // =====================================================
-      const destination = redirectByRole[data.role] || "/dashboard";
+    // Redirection dynamique selon user.role
+    const role = data.role?.toLowerCase();
 
-      router.push(destination);
-
-    } catch (err) {
-
-      console.error("❌ Erreur connexion :", err);
-
-      if (err.response) {
-        // Erreur venant du backend
-        setError(
-          err.response.data?.message ||
-          "Email ou mot de passe incorrect"
-        );
-      } else if (err.request) {
-        // Backend inaccessible
-        setError(
-          "Impossible de contacter le serveur. Vérifiez votre connexion."
-        );
-      } else {
-        setError("Une erreur est survenue.");
-      }
-
-    } finally {
-      setLoading(false);
+    if (role) {
+      router.push(`/dashboard/admin/${role}`);
+    } else {
+      router.push("/dashboard/admin");
     }
-  };
+
+  } catch (err) {
+
+    console.error("❌ Erreur connexion :", err);
+
+    if (err.response) {
+      setError(
+        err.response.data?.message ||
+        "Email ou mot de passe incorrect"
+      );
+    } else if (err.request) {
+      setError(
+        "Impossible de contacter le serveur. Vérifiez votre connexion."
+      );
+    } else {
+      setError("Une erreur est survenue.");
+    }
+
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
