@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ClipboardCheck, Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ClipboardCheck, Check, X, BarChart3 } from "lucide-react";
 
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../../lib/api";
@@ -19,6 +20,7 @@ const CORAL_SOFT = "#F7E2DB";
 
 export default function EmargementPage() {
   const { user } = useAuth();
+  const router = useRouter();
 
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -108,19 +110,29 @@ export default function EmargementPage() {
   return (
     <div className="space-y-5 p-4">
       {/* HEADER */}
-      <div className="flex items-center gap-3">
-        <span
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
-        >
-          <ClipboardCheck size={20} />
-        </span>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Émargement</h1>
-          <p className="text-sm text-slate-500">
-            Suivi de présence des enseignants par cours et par jour.
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+          >
+            <ClipboardCheck size={20} />
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Émargement</h1>
+            <p className="text-sm text-slate-500">
+              Suivi de présence des enseignants par cours et par jour.
+            </p>
+          </div>
         </div>
+
+        <button
+          onClick={() => router.push("emargement/resume")}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+        >
+          <BarChart3 size={16} />
+          Voir le résumé
+        </button>
       </div>
 
       {/* FILTRES */}

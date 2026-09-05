@@ -13,10 +13,13 @@ import {
   BookOpen,
   FileText,
   ClipboardList,
+  ClipboardCheck,
   UserCheck,
-  Printer,
+  School,
+  Wallet,
+  Calculator,
+  CalendarClock,
 } from "lucide-react";
-
 export default function Sidebar({ collapsed }) {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -51,58 +54,62 @@ const menuList = [
     link: "/dashboard/admin",
     icon: <LayoutDashboard size={18} />,
   },
-    hasPermission("GESTION_MATIERES") && {
-      nom: "Matières",
-      link: "/dashboard/admin/matieres",
-      icon: <BookOpen size={18} />,
-    },
-      hasPermission("GESTION_ELEVES") && {
-      link:"/dashboard/admin/eleves/listeinscrit",
-      nom: "Élèves",
-      icon: <Users size={18} />,},
-     
-    hasPermission("GESTION_CLASSES") && {
-      nom: "Classes",
-      link: "/dashboard/admin/afficheclasse",
-      icon: <GraduationCap size={18} />,
-    },
-    hasPermission("GESTION_ENSEIGNANTS") && {
-      nom: "Enseignants",
-      link: "/dashboard/admin/enseignants",
-       icon: <UserCheck size={18} />,
-    },
-    hasPermission("GESTION_NOTES") && {
-      nom: "Notes",
-      link: "/dashboard/admin/notes",
-      icon: <Printer size={18} />,
-    },
-
-    hasPermission("GESTION_PRESENCES") && {
-      nom: "Présences",
-      link: "/dashboard/admin/presences",
-      icon: <ClipboardList size={18} />,
-    },
-
-    hasPermission("GESTION_PAIEMENTS") && {
-      nom: "Finances",
-      link: "/dashboard/admin/finances",
-      icon: <ClipboardList size={18} />,
-    },
-    hasPermission("GESTION_EMPLOIS_DU_TEMPS") && {
-      nom: "Emplois du temps",
-      link: "/dashboard/admin/emploisdutemps",
-      icon: <GraduationCap size={18} />,
-    },
-    hasPermission("GESTION_EMARGEMENTS") && {
-      nom: "Emargements",
-      link: "/dashboard/admin/emargement",
-      icon: <GraduationCap size={18} />,
-    },
-
-
-
-  ].filter(Boolean); // supprime les menus non autorisés
-
+  hasPermission("GESTION_MATIERES") && {
+    nom: "Matières",
+    link: "/dashboard/admin/matieres",
+    icon: <BookOpen size={18} />,
+  },
+  hasPermission("GESTION_ELEVES") && {
+    link: "/dashboard/admin/eleves/listeinscrit",
+    nom: "Élèves",
+    icon: <Users size={18} />,
+  },
+  hasPermission("GESTION_CLASSES") && {
+    nom: "Classes",
+    link: "/dashboard/admin/afficheclasse",
+    icon: <School size={18} />,
+  },
+  hasPermission("GESTION_ENSEIGNANTS") && {
+    nom: "Enseignants",
+    link: "/dashboard/admin/enseignants",
+    icon: <UserCheck size={18} />,
+  },
+  hasPermission("GESTION_NOTES") && {
+    nom: "Notes",
+    link: "/dashboard/admin/notes",
+    icon: <FileText size={18} />,
+  },
+  hasPermission("GESTION_PRESENCES") && {
+    nom: "Présences",
+    link: "/dashboard/admin/presences",
+    icon: <ClipboardList size={18} />,
+  },
+  hasPermission("GESTION_PAIEMENTS") && {
+    nom: "Finances",
+    link: "/dashboard/admin/finances",
+    icon: <Wallet size={18} />,
+  },
+  hasPermission("GESTION_SCOLARITES") && {
+    link: "/dashboard/admin/scolarites",
+    nom: "Scolarités",
+    icon: <GraduationCap size={18} />,
+  },
+  hasPermission("GESTION_COMPTABILITES") && {
+    link: "/dashboard/admin/comptabilite",
+    nom: "Comptabilités",
+    icon: <Calculator size={18} />,
+  },
+  hasPermission("GESTION_EMPLOIS_DU_TEMPS") && {
+    nom: "Emplois du temps",
+    link: "/dashboard/admin/emploisdutemps",
+    icon: <CalendarClock size={18} />,
+  },
+  hasPermission("GESTION_EMARGEMENTS") && {
+    nom: "Emargements",
+    link: "/dashboard/admin/emargement",
+    icon: <ClipboardCheck size={18} />,
+  },
+].filter(Boolean);
   return (
    <aside
   className={`flex flex-col justify-between  bg-[#101B33] text-white h-screen p-2 transition-all duration-300 ${
