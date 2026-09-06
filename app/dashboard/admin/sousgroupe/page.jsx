@@ -346,19 +346,22 @@ export default function SousGroupesPage() {
     };
   }
 
-  // Élèves appartenant au sous-groupe sélectionné
-  const dedans = elevesClasse.filter((eleve) =>
-    Array.isArray(eleve.sousGroupeIds) &&
-    eleve.sousGroupeIds.includes(sousGroupeSelectionne.id)
-  );
+  const dedans = elevesClasse.filter((eleve) => {
+    const sousGroupeIds = Array.isArray(eleve.sousGroupeIds)
+      ? eleve.sousGroupeIds
+      : [];
 
-  // Élèves n'appartenant à AUCUN sous-groupe
+    return sousGroupeIds.includes(sousGroupeSelectionne.id);
+  });
+
   const dehors = elevesClasse.filter((eleve) => {
     const sousGroupeIds = Array.isArray(eleve.sousGroupeIds)
       ? eleve.sousGroupeIds
       : [];
 
-    return sousGroupeIds.length === 0;
+    // L'élève est disponible s'il n'est PAS
+    // dans le sous-groupe actuellement sélectionné.
+    return !sousGroupeIds.includes(sousGroupeSelectionne.id);
   });
 
   return {
