@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useState, useEffect, useContext } from "react";
@@ -11,13 +12,20 @@ export const AuthProvider = ({ children }) => {
   // 🔥 Chargement initial
   useEffect(() => {
     const userInStorage = localStorage.getItem("user");
+    const tokenInStorage = localStorage.getItem("token");
 
-    if (userInStorage && userInStorage !== "undefined") {
+    if (
+      userInStorage &&
+      userInStorage !== "undefined" &&
+      tokenInStorage
+    ) {
       try {
         setUser(JSON.parse(userInStorage));
       } catch (error) {
         console.error("Erreur parsing user:", error);
+
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
       }
     }
 
@@ -25,40 +33,40 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // 🔐 Connexion
- 
-const login = (data) => {
-  setUser(data);
+  const login = (data) => {
+    console.log("✅ Connexion réussie :", data);
 
-  localStorage.setItem("user", JSON.stringify(data));
+    setUser(data);
 
-  document.cookie = `token=${data.token}; path=/`;
-  document.cookie = `role=${data.role}; path=/`;
+    // Utilisateur
+    localStorage.setItem("user", JSON.stringify(data));
 
-  document.cookie = `permissions=${encodeURIComponent(
-    JSON.stringify(data.permissions)
-  )}; path=/`;
-};
+    // 🔑 JWT
+    localStorage.setItem("token", data.token);
 
+    // 🍪 Cookies
+    document.cookie = `token=${data.token}; path=/`;
+    document.cookie = `role=${data.role}; path=/`;
 
+    document.cookie = `permissions=${encodeURIComponent(
+      JSON.stringify(data.permissions || [])
+    )}; path=/`;
+  };
 
   // 🚪 Déconnexion
   const logout = () => {
+    setUser(null);
 
-  setUser(null);
+    // LocalStorage
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("cart");
 
-  localStorage.removeItem("user");
-  localStorage.removeItem("cart");
-
-
-  document.cookie =
-    "token=; path=/; max-age=0";
-
-  document.cookie =
-    "role=; path=/; max-age=0";
-
-  document.cookie =
-    "permissions=; path=/; max-age=0";
-};
+    // Cookies
+    document.cookie = "token=; path=/; max-age=0";
+    document.cookie = "role=; path=/; max-age=0";
+    document.cookie = "permissions=; path=/; max-age=0";
+  };
 
   const isAuthenticated = !!user;
 
@@ -69,7 +77,7 @@ const login = (data) => {
         login,
         logout,
         isAuthenticated,
-        loading
+        loading,
       }}
     >
       {children}
