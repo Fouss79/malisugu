@@ -13,20 +13,19 @@ const TEAL = "#2C8C82";
 const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
-
-const MOIS = [
-  { value: "09", label: "Septembre" },
-  { value: "10", label: "Octobre" },
-  { value: "11", label: "Novembre" },
-  { value: "12", label: "Décembre" },
-  { value: "01", label: "Janvier" },
-  { value: "02", label: "Février" },
-  { value: "03", label: "Mars" },
-  { value: "04", label: "Avril" },
-  { value: "05", label: "Mai" },
-  { value: "06", label: "Juin" },
-  { value: "07", label: "Juillet" },
-  { value: "08", label: "Août" },
+const NOMS_MOIS = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
 ];
 
 function getAnneeCivile(anneeScolaire, mois) {
@@ -86,6 +85,7 @@ export default function EmargementEnseignantPage({
 
   const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
+  const [moisDisponibles, setMoisDisponibles] = useState([]);
 
   const [emargements, setEmargements] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -96,11 +96,61 @@ export default function EmargementEnseignantPage({
   }, [annees, anneeId]);
 
   // ================= CALCUL PERIODE =================
-  const { debut, fin } = useMemo(() => {
-    return getPeriodeMois(anneeSelectionnee, mois);
-  }, [anneeSelectionnee, mois]);
+const { debut, fin } = useMemo(() => {
+  if (!anneeSelectionnee || !mois) {
+    return { debut: "", fin: "" };
+  }
 
-  // ================= LOAD ANNEES =================
+  const [annee, moisNumber] = mois.split("-").map(Number);
+
+  if (!annee || !moisNumber) {
+    return { debut: "", fin: "" };
+  }
+
+  const premierJour = new Date(
+    annee,
+    moisNumber - 1,
+    1
+  );
+
+  const dernierJour = new Date(
+    annee,
+    moisNumber,
+    0
+  );
+
+  const formatDate = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+
+    return `${y}-${m}-${d}`;
+  };
+
+  let dateDebutMois = formatDate(premierJour);
+  let dateFinMois = formatDate(dernierJour);
+
+  // Ne jamais dépasser les limites de l'année scolaire
+  if (
+    anneeSelectionnee.dateDebut &&
+    dateDebutMois < anneeSelectionnee.dateDebut
+  ) {
+    dateDebutMois = anneeSelectionnee.dateDebut;
+  }
+
+  if (
+    anneeSelectionnee.dateFin &&
+    dateFinMois > anneeSelectionnee.dateFin
+  ) {
+    dateFinMois = anneeSelectionnee.dateFin;
+  }
+
+  return {
+    debut: dateDebutMois,
+    fin: dateFinMois,
+  };
+}, [anneeSelectionnee, mois]);
+// ================= LOAD ANNEES =================
   useEffect(() => {
     const loadAnnees = async () => {
       if (!user?.ecole?.id) return;
@@ -128,7 +178,77 @@ export default function EmargementEnseignantPage({
 
     loadAnnees();
   }, [user]);
+useEffect(() => {
+  if (!anneeSelectionnee) {
+    setMoisDisponibles([]);
+    setMois("");
+    return;
+  }
 
+  const { dateDebut, dateFin } = anneeSelectionnee;
+
+  if (!dateDebut || !dateFin) {
+    setMoisDisponibles([]);
+    setMois("");
+    return;
+  }
+
+  const debutDate = new Date(`${dateDebut}T00:00:00`);
+  const finDate = new Date(`${dateFin}T00:00:00`);
+
+  if (
+    Number.isNaN(debutDate.getTime()) ||
+    Number.isNaN(finDate.getTime())
+  ) {
+    setMoisDisponibles([]);
+    setMois("");
+    return;
+  }
+
+  const liste = [];
+
+  let courant = new Date(
+    debutDate.getFullYear(),
+    debutDate.getMonth(),
+    1
+  );
+
+  const limite = new Date(
+    finDate.getFullYear(),
+    finDate.getMonth(),
+    1
+  );
+
+  while (courant <= limite) {
+    const annee = courant.getFullYear();
+    const moisNumber = courant.getMonth() + 1;
+
+    liste.push({
+      value: `${annee}-${String(moisNumber).padStart(2, "0")}`,
+      label: `${NOMS_MOIS[moisNumber - 1]} ${annee}`,
+      annee,
+      mois: moisNumber,
+    });
+
+    courant = new Date(
+      annee,
+      courant.getMonth() + 1,
+      1
+    );
+  }
+
+  setMoisDisponibles(liste);
+
+  // Garder le mois actuel s'il existe encore
+  const moisExiste = liste.some(
+    (m) => m.value === mois
+  );
+
+  // Sinon prendre le premier mois de l'année scolaire
+  if (!moisExiste) {
+    setMois(liste[0]?.value || "");
+  }
+}, [anneeSelectionnee]);
   // ================= LOAD EMARGEMENTS =================
   const load = useCallback(async () => {
     if (!enseignantId || !anneeId || !debut || !fin) {
@@ -208,17 +328,24 @@ export default function EmargementEnseignantPage({
         </select>
 
         {/* MOIS */}
-        <select
-          value={mois}
-          onChange={(e) => setMois(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
-        >
-          {MOIS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+       <select
+  value={mois}
+  onChange={(e) => setMois(e.target.value)}
+  disabled={moisDisponibles.length === 0}
+  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-slate-100"
+>
+  {moisDisponibles.length === 0 && (
+    <option value="">
+      Aucun mois disponible
+    </option>
+  )}
+
+  {moisDisponibles.map((m) => (
+    <option key={m.value} value={m.value}>
+      {m.label}
+    </option>
+  ))}
+</select>
 
         {/* PERIODE CALCULEE */}
         <span className="text-sm text-slate-400">
