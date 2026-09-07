@@ -26,7 +26,8 @@ export default function EmargementPage() {
 
   const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
-
+const [dateDebutAnnee, setDateDebutAnnee] = useState("");
+const [dateFinAnnee, setDateFinAnnee] = useState("");
   const [emploi, setEmploi] = useState([]);
   const [emargements, setEmargements] = useState([]);
 
@@ -58,6 +59,40 @@ export default function EmargementPage() {
 
     load();
   }, [user]);
+  // ================= DATES ANNÉE SCOLAIRE =================
+useEffect(() => {
+  if (!anneeId || annees.length === 0) {
+    setDateDebutAnnee("");
+    setDateFinAnnee("");
+    return;
+  }
+
+  const annee = annees.find(
+    (a) => String(a.id) === String(anneeId)
+  );
+
+  if (!annee) {
+    setDateDebutAnnee("");
+    setDateFinAnnee("");
+    return;
+  }
+
+  setDateDebutAnnee(annee.dateDebut || "");
+  setDateFinAnnee(annee.dateFin || "");
+}, [anneeId, annees]);
+// ================= DATE CONFORME À L'ANNÉE SCOLAIRE =================
+useEffect(() => {
+  if (!dateDebutAnnee || !dateFinAnnee) return;
+
+  if (date < dateDebutAnnee) {
+    setDate(dateDebutAnnee);
+    return;
+  }
+
+  if (date > dateFinAnnee) {
+    setDate(dateFinAnnee);
+  }
+}, [date, dateDebutAnnee, dateFinAnnee]);
 
   // ================= LOAD DATA =================
   const loadAll = useCallback(async () => {
@@ -149,12 +184,34 @@ export default function EmargementPage() {
           ))}
         </select>
 
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
-        />
+       <input
+  type="date"
+  value={date}
+  min={dateDebutAnnee || undefined}
+  max={dateFinAnnee || undefined}
+  onChange={(e) => {
+    const nouvelleDate = e.target.value;
+
+    if (
+      dateDebutAnnee &&
+      nouvelleDate < dateDebutAnnee
+    ) {
+      setDate(dateDebutAnnee);
+      return;
+    }
+
+    if (
+      dateFinAnnee &&
+      nouvelleDate > dateFinAnnee
+    ) {
+      setDate(dateFinAnnee);
+      return;
+    }
+
+    setDate(nouvelleDate);
+  }}
+  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
+/>
       </div>
 
       {/* TABLE */}
