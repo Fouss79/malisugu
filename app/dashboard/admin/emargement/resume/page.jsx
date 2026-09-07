@@ -15,10 +15,29 @@ const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
 
+const NOMS_MOIS = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
+];
+
 function tauxColor(taux) {
   if (taux >= 90) return { bg: TEAL_SOFT, text: TEAL };
   if (taux >= 70) return { bg: "#FDF3DC", text: "#A9791F" };
   return { bg: CORAL_SOFT, text: CORAL };
+}
+
+function formatDateLocal(date) {
+  return date.toISOString().split("T")[0];
 }
 
 export default function EmargementResumePage() {
@@ -28,14 +47,40 @@ export default function EmargementResumePage() {
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const [debut, setDebut] = useState(firstOfMonth.toISOString().split("T")[0]);
-  const [fin, setFin] = useState(today.toISOString().split("T")[0]);
+  const [debut, setDebut] = useState(formatDateLocal(firstOfMonth));
+  const [fin, setFin] = useState(formatDateLocal(today));
+
+  // ===== Sélecteur rapide Mois / Année =====
+  // Reste synchronisé avec debut/fin : le mois sélectionné correspond
+  // au mois du champ "debut" tant que l'utilisateur n'a pas choisi une
+  // plage personnalisée qui déborde d'un seul mois.
+  const [moisSelectionne, setMoisSelectionne] = useState(today.getMonth() + 1);
+  const [anneeSelectionnee, setAnneeSelectionnee] = useState(today.getFullYear());
 
   const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
 
   const [resume, setResume] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const anneesDisponibles = (() => {
+    const anneeCourante = today.getFullYear();
+    const liste = [];
+    for (let a = anneeCourante + 1; a >= anneeCourante - 4; a--) {
+      liste.push(a);
+    }
+    return liste;
+  })();
+
+  const appliquerMois = (mois, annee) => {
+    const debutMois = new Date(annee, mois - 1, 1);
+    const finMois = new Date(annee, mois, 0); // jour 0 du mois suivant = dernier jour du mois choisi
+
+    setMoisSelectionne(mois);
+    setAnneeSelectionnee(annee);
+    setDebut(formatDateLocal(debutMois));
+    setFin(formatDateLocal(finMois));
+  };
 
   useEffect(() => {
     const loadAnnees = async () => {
@@ -117,6 +162,35 @@ export default function EmargementResumePage() {
             </option>
           ))}
         </select>
+
+        {/* Sélecteur rapide Mois / Année */}
+        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+          <select
+            value={moisSelectionne}
+            onChange={(e) => appliquerMois(Number(e.target.value), anneeSelectionnee)}
+            className="rounded-md border-none bg-transparent px-1 py-1 text-sm outline-none focus:ring-0"
+          >
+            {NOMS_MOIS.map((nom, index) => (
+              <option key={nom} value={index + 1}>
+                {nom}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={anneeSelectionnee}
+            onChange={(e) => appliquerMois(moisSelectionne, Number(e.target.value))}
+            className="rounded-md border-none bg-transparent px-1 py-1 text-sm outline-none focus:ring-0"
+          >
+            {anneesDisponibles.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <span className="text-xs text-slate-300">ou plage personnalisée</span>
 
         <input
           type="date"
