@@ -29,10 +29,26 @@ const NOMS_MOIS = [
   "Novembre",
   "Décembre",
 ];
+
 function tauxColor(taux) {
-  if (taux >= 90) return { bg: TEAL_SOFT, text: TEAL };
-  if (taux >= 70) return { bg: "#FDF3DC", text: "#A9791F" };
-  return { bg: CORAL_SOFT, text: CORAL };
+  if (taux >= 90) {
+    return {
+      bg: TEAL_SOFT,
+      text: TEAL,
+    };
+  }
+
+  if (taux >= 70) {
+    return {
+      bg: "#FDF3DC",
+      text: "#A9791F",
+    };
+  }
+
+  return {
+    bg: CORAL_SOFT,
+    text: CORAL,
+  };
 }
 
 export default function EmargementResumePage() {
@@ -44,10 +60,11 @@ export default function EmargementResumePage() {
   // ============================================================
 
   const [mois, setMois] = useState("");
-const [moisDisponibles, setMoisDisponibles] = useState([]);
+  const [moisDisponibles, setMoisDisponibles] = useState([]);
 
-const [debut, setDebut] = useState("");
-const [fin, setFin] = useState("");
+  const [debut, setDebut] = useState("");
+  const [fin, setFin] = useState("");
+
   const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
 
@@ -74,7 +91,9 @@ const [fin, setFin] = useState("");
         setAnnees(anneesData);
 
         const anneeActive = anneesData.find(
-          (a) => a.active === true || a.active === "true"
+          (a) =>
+            a.active === true ||
+            a.active === "true"
         );
 
         if (anneeActive) {
@@ -87,182 +106,263 @@ const [fin, setFin] = useState("");
           "Erreur chargement années scolaires :",
           err
         );
+
+        setAnnees([]);
       }
     };
 
     loadAnnees();
   }, [user]);
-// ============================================================
-// MOIS DE L'ANNÉE SCOLAIRE
-// ============================================================
 
-useEffect(() => {
-  if (!anneeId || annees.length === 0) {
-    setMoisDisponibles([]);
-    setMois("");
-    setDebut("");
-    setFin("");
-    return;
-  }
+  // ============================================================
+  // MOIS DE L'ANNÉE SCOLAIRE
+  // ============================================================
 
-  const anneeScolaire = annees.find(
-    (a) => String(a.id) === String(anneeId)
-  );
+  useEffect(() => {
+    if (!anneeId || annees.length === 0) {
+      setMoisDisponibles([]);
+      setMois("");
+      setDebut("");
+      setFin("");
+      return;
+    }
 
-  if (!anneeScolaire) {
-    setMoisDisponibles([]);
-    setMois("");
-    setDebut("");
-    setFin("");
-    return;
-  }
+    const anneeScolaire = annees.find(
+      (a) =>
+        String(a.id) === String(anneeId)
+    );
 
-  /*
-   * IMPORTANT :
-   * Le backend doit retourner :
-   *
-   * dateDebut : "2025-10-01"
-   * dateFin   : "2026-07-31"
-   */
+    if (!anneeScolaire) {
+      setMoisDisponibles([]);
+      setMois("");
+      setDebut("");
+      setFin("");
+      return;
+    }
 
-  const dateDebut = anneeScolaire.dateDebut;
-  const dateFin = anneeScolaire.dateFin;
+    /*
+     * L'année scolaire doit retourner :
+     *
+     * dateDebut : "2025-10-01"
+     * dateFin   : "2026-07-31"
+     */
 
-  if (!dateDebut || !dateFin) {
-    setMoisDisponibles([]);
-    setMois("");
-    setDebut("");
-    setFin("");
-    return;
-  }
+    const dateDebut = anneeScolaire.dateDebut;
+    const dateFin = anneeScolaire.dateFin;
 
-  const debutDate = new Date(`${dateDebut}T00:00:00`);
-  const finDate = new Date(`${dateFin}T00:00:00`);
+    if (!dateDebut || !dateFin) {
+      setMoisDisponibles([]);
+      setMois("");
+      setDebut("");
+      setFin("");
+      return;
+    }
 
-  if (
-    Number.isNaN(debutDate.getTime()) ||
-    Number.isNaN(finDate.getTime())
-  ) {
-    setMoisDisponibles([]);
-    setMois("");
-    setDebut("");
-    setFin("");
-    return;
-  }
+    const debutDate = new Date(
+      `${dateDebut}T00:00:00`
+    );
 
-  const moisListe = [];
+    const finDate = new Date(
+      `${dateFin}T00:00:00`
+    );
 
-  let courant = new Date(
-    debutDate.getFullYear(),
-    debutDate.getMonth(),
-    1
-  );
+    if (
+      Number.isNaN(debutDate.getTime()) ||
+      Number.isNaN(finDate.getTime())
+    ) {
+      setMoisDisponibles([]);
+      setMois("");
+      setDebut("");
+      setFin("");
+      return;
+    }
 
-  const limite = new Date(
-    finDate.getFullYear(),
-    finDate.getMonth(),
-    1
-  );
+    const moisListe = [];
 
-  while (courant <= limite) {
-    const annee = courant.getFullYear();
-    const moisNumber = courant.getMonth() + 1;
+    /*
+     * On commence au mois de dateDebut
+     * et on termine au mois de dateFin.
+     */
 
-    moisListe.push({
-      value: `${annee}-${String(moisNumber).padStart(2, "0")}`,
-      label: `${NOMS_MOIS[moisNumber - 1]} ${annee}`,
-      annee,
-      mois: moisNumber,
-    });
-
-    courant = new Date(
-      annee,
-      courant.getMonth() + 1,
+    let courant = new Date(
+      debutDate.getFullYear(),
+      debutDate.getMonth(),
       1
     );
-  }
 
-  setMoisDisponibles(moisListe);
+    const limite = new Date(
+      finDate.getFullYear(),
+      finDate.getMonth(),
+      1
+    );
 
-  // Garder le mois sélectionné s'il existe encore
-  const moisExiste = moisListe.some(
-    (m) => m.value === mois
-  );
+    while (courant <= limite) {
+      const annee = courant.getFullYear();
+      const moisNumber =
+        courant.getMonth() + 1;
 
-  // Sinon prendre le premier mois de l'année scolaire
-  if (!moisExiste) {
-    setMois(moisListe[0]?.value || "");
-  }
-}, [anneeId, annees]);
-  // ============================================================
-  // DÉTERMINER L'ANNÉE CIVILE DU MOIS
-  // ============================================================
+      moisListe.push({
+        value: `${annee}-${String(
+          moisNumber
+        ).padStart(2, "0")}`,
 
- 
+        label: `${NOMS_MOIS[
+          moisNumber - 1
+        ]} ${annee}`,
+
+        annee,
+
+        mois: moisNumber,
+      });
+
+      courant = new Date(
+        annee,
+        courant.getMonth() + 1,
+        1
+      );
+    }
+
+    setMoisDisponibles(moisListe);
+
+    /*
+     * Si le mois actuellement sélectionné
+     * existe encore, on le conserve.
+     *
+     * Sinon on sélectionne le premier mois.
+     */
+
+    const moisExiste = moisListe.some(
+      (m) => m.value === mois
+    );
+
+    if (!moisExiste) {
+      setMois(
+        moisListe[0]?.value || ""
+      );
+    }
+  }, [anneeId, annees]);
+
   // ============================================================
   // CALCUL DÉBUT / FIN DU MOIS
   // ============================================================
 
-  // ============================================================
-// CALCUL DÉBUT / FIN DU MOIS
-// ============================================================
+  useEffect(() => {
+    if (
+      !mois ||
+      moisDisponibles.length === 0
+    ) {
+      setDebut("");
+      setFin("");
+      return;
+    }
 
-useEffect(() => {
-  if (!mois || moisDisponibles.length === 0) {
-    setDebut("");
-    setFin("");
-    return;
-  }
+    const moisSelectionne =
+      moisDisponibles.find(
+        (m) => m.value === mois
+      );
 
-  const moisSelectionne = moisDisponibles.find(
-    (m) => m.value === mois
-  );
+    if (!moisSelectionne) {
+      setDebut("");
+      setFin("");
+      return;
+    }
 
-  if (!moisSelectionne) {
-    setDebut("");
-    setFin("");
-    return;
-  }
+    const {
+      annee,
+      mois: moisNumber,
+    } = moisSelectionne;
 
-  const {
-    annee,
-    mois: moisNumber,
-  } = moisSelectionne;
+    /*
+     * Premier jour du mois
+     */
 
-  const premierJour = new Date(
-    annee,
-    moisNumber - 1,
-    1
-  );
+    const premierJour = new Date(
+      annee,
+      moisNumber - 1,
+      1
+    );
 
-  const dernierJour = new Date(
-    annee,
-    moisNumber,
-    0
-  );
+    /*
+     * Dernier jour du mois
+     */
 
-  const formatDate = (date) => {
-    const y = date.getFullYear();
-    const m = String(
-      date.getMonth() + 1
-    ).padStart(2, "0");
-    const d = String(
-      date.getDate()
-    ).padStart(2, "0");
+    const dernierJour = new Date(
+      annee,
+      moisNumber,
+      0
+    );
 
-    return `${y}-${m}-${d}`;
-  };
+    const formatDate = (date) => {
+      const y = date.getFullYear();
 
-  setDebut(formatDate(premierJour));
-  setFin(formatDate(dernierJour));
-}, [mois, moisDisponibles]);
+      const m = String(
+        date.getMonth() + 1
+      ).padStart(2, "0");
+
+      const d = String(
+        date.getDate()
+      ).padStart(2, "0");
+
+      return `${y}-${m}-${d}`;
+    };
+
+    /*
+     * Important :
+     * on ne doit pas dépasser les bornes
+     * de l'année scolaire.
+     */
+
+    const anneeScolaire = annees.find(
+      (a) =>
+        String(a.id) ===
+        String(anneeId)
+    );
+
+    let dateDebutMois =
+      formatDate(premierJour);
+
+    let dateFinMois =
+      formatDate(dernierJour);
+
+    if (
+      anneeScolaire?.dateDebut &&
+      dateDebutMois <
+        anneeScolaire.dateDebut
+    ) {
+      dateDebutMois =
+        anneeScolaire.dateDebut;
+    }
+
+    if (
+      anneeScolaire?.dateFin &&
+      dateFinMois >
+        anneeScolaire.dateFin
+    ) {
+      dateFinMois =
+        anneeScolaire.dateFin;
+    }
+
+    setDebut(dateDebutMois);
+    setFin(dateFinMois);
+  }, [
+    mois,
+    moisDisponibles,
+    annees,
+    anneeId,
+  ]);
 
   // ============================================================
   // CHARGEMENT DU RÉSUMÉ
   // ============================================================
 
   const load = useCallback(async () => {
-    if (!anneeId || !debut || !fin) return;
+    if (
+      !anneeId ||
+      !debut ||
+      !fin
+    ) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -293,7 +393,11 @@ useEffect(() => {
     } finally {
       setLoading(false);
     }
-  }, [debut, fin, anneeId]);
+  }, [
+    debut,
+    fin,
+    anneeId,
+  ]);
 
   useEffect(() => {
     load();
@@ -303,7 +407,9 @@ useEffect(() => {
   // NAVIGATION ENSEIGNANT
   // ============================================================
 
-  const goToEnseignant = (enseignantId) => {
+  const goToEnseignant = (
+    enseignantId
+  ) => {
     router.push(
       `enseignant/${enseignantId}`
     );
@@ -313,12 +419,13 @@ useEffect(() => {
   // LABEL DU MOIS
   // ============================================================
 
-  const moisSelectionne = moisDisponibles.find(
-  (m) => m.value === mois
-);
+  const moisSelectionne =
+    moisDisponibles.find(
+      (m) => m.value === mois
+    );
 
-const moisLabel = moisSelectionne?.label || "";
-  const anneeCivile = getAnneeCivile();
+  const moisLabel =
+    moisSelectionne?.label || "";
 
   // ============================================================
   // RENDU
@@ -328,6 +435,7 @@ const moisLabel = moisSelectionne?.label || "";
     <div className="space-y-5 p-4">
 
       {/* HEADER */}
+
       <div className="flex items-center gap-3">
 
         <span
@@ -341,6 +449,7 @@ const moisLabel = moisSelectionne?.label || "";
         </span>
 
         <div>
+
           <h1 className="text-2xl font-bold text-slate-900">
             Résumé des émargements
           </h1>
@@ -349,15 +458,19 @@ const moisLabel = moisSelectionne?.label || "";
             Taux de présence de tous les enseignants
             pour le mois sélectionné.
           </p>
+
         </div>
 
       </div>
 
       {/* FILTRES */}
+
       <div className="flex flex-wrap items-end gap-3">
 
         {/* ANNÉE SCOLAIRE */}
+
         <div>
+
           <label className="mb-1 block text-xs font-medium text-slate-500">
             Année scolaire
           </label>
@@ -369,7 +482,9 @@ const moisLabel = moisSelectionne?.label || "";
             }
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
           >
+
             {annees.map((a) => (
+
               <option
                 key={a.id}
                 value={a.id}
@@ -378,56 +493,77 @@ const moisLabel = moisSelectionne?.label || "";
                   a.libelle ||
                   a.annee}
               </option>
+
             ))}
+
           </select>
+
         </div>
 
         {/* MOIS */}
-<div>
-  <label className="mb-1 block text-xs font-medium text-slate-500">
-    Mois
-  </label>
 
-  <select
-    value={mois}
-    onChange={(e) => setMois(e.target.value)}
-    disabled={moisDisponibles.length === 0}
-    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-slate-100"
-  >
-    {moisDisponibles.length === 0 && (
-      <option value="">
-        Aucun mois disponible
-      </option>
-    )}
+        <div>
 
-    {moisDisponibles.map((m) => (
-      <option
-        key={m.value}
-        value={m.value}
-      >
-        {m.label}
-      </option>
-    ))}
-  </select>
-</div>
+          <label className="mb-1 block text-xs font-medium text-slate-500">
+            Mois
+          </label>
+
+          <select
+            value={mois}
+            onChange={(e) =>
+              setMois(e.target.value)
+            }
+            disabled={
+              moisDisponibles.length === 0
+            }
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-slate-100"
+          >
+
+            {moisDisponibles.length === 0 && (
+              <option value="">
+                Aucun mois disponible
+              </option>
+            )}
+
+            {moisDisponibles.map((m) => (
+
+              <option
+                key={m.value}
+                value={m.value}
+              >
+                {m.label}
+              </option>
+
+            ))}
+
+          </select>
+
+        </div>
 
         {/* PÉRIODE */}
-       {debut && fin && (
-  <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-    <span className="font-medium text-slate-700">
-      {moisLabel}
-    </span>
 
-    <span className="mx-2">
-      •
-    </span>
+        {debut && fin && (
 
-    {debut} → {fin}
-  </div>
-)}
+          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+
+            <span className="font-medium text-slate-700">
+              {moisLabel}
+            </span>
+
+            <span className="mx-2">
+              •
+            </span>
+
+            {debut} → {fin}
+
+          </div>
+
+        )}
+
       </div>
 
       {/* TABLE */}
+
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40">
 
         <div className="overflow-x-auto">
@@ -435,12 +571,14 @@ const moisLabel = moisSelectionne?.label || "";
           <table className="w-full text-left text-sm">
 
             <thead>
+
               <tr
                 className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400"
                 style={{
                   background: "#F8F7F2",
                 }}
               >
+
                 <th className="px-4 py-3 font-medium">
                   Enseignant
                 </th>
@@ -462,41 +600,56 @@ const moisLabel = moisSelectionne?.label || "";
                 </th>
 
                 <th className="px-4 py-3"></th>
+
               </tr>
+
             </thead>
 
             <tbody className="divide-y divide-slate-50">
 
               {/* VIDE */}
+
               {!loading &&
                 resume.length === 0 && (
+
                   <tr>
+
                     <td
                       colSpan={6}
                       className="px-4 py-10 text-center text-slate-400"
                     >
                       Aucune donnée pour{" "}
+
                       <span className="font-medium text-slate-600">
-                        {moisLabel} {anneeCivile}
+                        {moisLabel}
                       </span>
+
                       .
                     </td>
+
                   </tr>
+
                 )}
 
               {/* LOADING */}
+
               {loading && (
+
                 <tr>
+
                   <td
                     colSpan={6}
                     className="px-4 py-10 text-center text-slate-400"
                   >
                     Chargement...
                   </td>
+
                 </tr>
+
               )}
 
               {/* DONNÉES */}
+
               {!loading &&
                 resume.map((r) => {
 
@@ -509,6 +662,7 @@ const moisLabel = moisSelectionne?.label || "";
                     tauxColor(taux);
 
                   return (
+
                     <tr
                       key={r.enseignantId}
                       onClick={() =>
@@ -573,12 +727,15 @@ const moisLabel = moisSelectionne?.label || "";
                       </td>
 
                       <td className="px-4 py-3 text-right text-slate-300">
+
                         <ChevronRight
                           size={16}
                         />
+
                       </td>
 
                     </tr>
+
                   );
                 })}
 
