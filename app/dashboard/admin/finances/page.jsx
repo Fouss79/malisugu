@@ -13,19 +13,19 @@ const TEAL = "#2C8C82";
 const TEAL_SOFT = "#DCEDEA";
 const AMBER_SOFT = "#FDF3DC";
 const AMBER = "#A9791F";
-const MOIS = [
-  { value: "09", label: "Septembre" },
-  { value: "10", label: "Octobre" },
-  { value: "11", label: "Novembre" },
-  { value: "12", label: "Décembre" },
-  { value: "01", label: "Janvier" },
-  { value: "02", label: "Février" },
-  { value: "03", label: "Mars" },
-  { value: "04", label: "Avril" },
-  { value: "05", label: "Mai" },
-  { value: "06", label: "Juin" },
-  { value: "07", label: "Juillet" },
-  { value: "08", label: "Août" },
+const NOMS_MOIS = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre",
 ];
 export default function PaiementPage() {
   const { user } = useAuth();
@@ -43,6 +43,7 @@ export default function PaiementPage() {
 
   const [debut, setDebut] = useState("");
   const [fin, setFin] = useState("");
+  const [moisDisponibles, setMoisDisponibles] = useState([]);
 
   const [mode, setMode] = useState("previsualiser");
   const [paiements, setPaiements] = useState([]);
@@ -88,8 +89,14 @@ export default function PaiementPage() {
   // CALCUL DES DATES DU MOIS
   // ============================================================
 
-  useEffect(() => {
-  if (!anneeId || !mois) {
+  // ============================================================
+// CALCUL DES MOIS ET DES DATES SELON L'ANNÉE SCOLAIRE
+// ============================================================
+
+useEffect(() => {
+  if (!anneeId) {
+    setMoisDisponibles([]);
+    setMois("");
     setDebut("");
     setFin("");
     return;
@@ -99,48 +106,141 @@ export default function PaiementPage() {
     (a) => String(a.id) === String(anneeId)
   );
 
-  if (!anneeScolaire?.nom) {
+  if (!anneeScolaire) {
+    setMoisDisponibles([]);
+    setMois("");
     setDebut("");
     setFin("");
     return;
   }
 
-  const match = anneeScolaire.nom.match(
-    /(\d{4})\s*[-/]\s*(\d{4})/
+  /*
+   * On récupère les dates de l'année scolaire.
+   *
+   * Exemple :
+   * dateDebut = "2025-10-01"
+   * dateFin   = "2026-07-31"
+   */
+
+  const dateDebut = anneeScolaire.dateDebut;
+  const dateFin = anneeScolaire.dateFin;
+
+  if (!dateDebut || !dateFin) {
+    setMoisDisponibles([]);
+    setMois("");
+    setDebut("");
+    setFin("");
+    return;
+  }
+
+  const debutDate = new Date(`${dateDebut}T00:00:00`);
+  const finDate = new Date(`${dateFin}T00:00:00`);
+
+  if (isNaN(debutDate.getTime()) || isNaN(finDate.getTime())) {
+    setMoisDisponibles([]);
+    setMois("");
+    setDebut("");
+    setFin("");
+    return;
+  }
+
+  const moisListe = [];
+
+  let current = new Date(
+    debutDate.getFullYear(),
+    debutDate.getMonth(),
+    1
   );
 
-  if (!match) {
+  const limite = new Date(
+    finDate.getFullYear(),
+    finDate.getMonth(),
+    1
+  );
+
+  while (current <= limite) {
+    const annee = current.getFullYear();
+    const moisNumber = current.getMonth() + 1;
+
+    moisListe.push({
+      value: `${annee}-${String(moisNumber).padStart(2, "0")}`,
+      label: `${NOMS_MOIS[moisNumber - 1]} ${annee}`,
+      annee,
+      mois: moisNumber,
+    });
+
+    current = new Date(
+      annee,
+      current.getMonth() + 1,
+      1
+    );
+  }
+
+  setMoisDisponibles(moisListe);
+
+  /*
+   * Si le mois actuellement sélectionné n'existe plus
+   * dans la nouvelle année scolaire, on prend le premier.
+   */
+  const moisExiste = moisListe.some(
+    (m) => m.value === mois
+  );
+
+  if (!moisExiste) {
+    setMois(moisListe[0]?.value || "");
+  }
+
+}, [anneeId, annees]);
+// ============================================================
+// DATES DU MOIS SÉLECTIONNÉ
+// ============================================================
+
+useEffect(() => {
+  if (!anneeId || !mois) {
     setDebut("");
     setFin("");
     return;
   }
 
-  const anneeDebut = Number(match[1]);
-  const anneeFin = Number(match[2]);
-  const moisNumber = Number(mois);
+  const moisSelectionne = moisDisponibles.find(
+    (m) => m.value === mois
+  );
 
-  // Septembre → Décembre : première année
-  // Janvier → Août : deuxième année
-  const anneeCivile =
-    moisNumber >= 9
-      ? anneeDebut
-      : anneeFin;
+  if (!moisSelectionne) {
+    setDebut("");
+    setFin("");
+    return;
+  }
+
+  const {
+    annee,
+    mois: moisNumber,
+  } = moisSelectionne;
+
+  const premierJour = new Date(
+    annee,
+    moisNumber - 1,
+    1
+  );
 
   const dernierJour = new Date(
-    anneeCivile,
+    annee,
     moisNumber,
     0
-  ).getDate();
-
-  setDebut(
-    `${anneeCivile}-${mois}-01`
   );
 
-  setFin(
-    `${anneeCivile}-${mois}-${String(dernierJour).padStart(2, "0")}`
-  );
-}, [anneeId, mois, annees]);
+  const formatDate = (date) => {
+    return `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-${String(
+      date.getDate()
+    ).padStart(2, "0")}`;
+  };
 
+  setDebut(formatDate(premierJour));
+  setFin(formatDate(dernierJour));
+
+}, [mois, moisDisponibles, anneeId]);
   // ============================================================
   // CHARGEMENT DES PAIEMENTS
   // ============================================================
@@ -260,8 +360,9 @@ export default function PaiementPage() {
   );
 
   const moisLabel =
-    MOIS.find((m) => m.value === mois)?.label || "";
-
+  moisDisponibles.find(
+    (m) => m.value === mois
+  )?.label || "";
   // ============================================================
   // RENDU
   // ============================================================
@@ -334,14 +435,14 @@ export default function PaiementPage() {
             onChange={(e) => setMois(e.target.value)}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
           >
-            {MOIS.map((m) => (
-              <option
-                key={m.value}
-                value={m.value}
-              >
-                {m.label}
-              </option>
-            ))}
+            {moisDisponibles.map((m) => (
+  <option
+    key={m.value}
+    value={m.value}
+  >
+    {m.label}
+  </option>
+))}
           </select>
         </div>
 
