@@ -13,8 +13,11 @@ const TEAL = "#2C8C82";
 const TEAL_SOFT = "#DCEDEA";
 const AMBER_SOFT = "#FDF3DC";
 const AMBER = "#A9791F";
-
 const MOIS = [
+  { value: "09", label: "Septembre" },
+  { value: "10", label: "Octobre" },
+  { value: "11", label: "Novembre" },
+  { value: "12", label: "Décembre" },
   { value: "01", label: "Janvier" },
   { value: "02", label: "Février" },
   { value: "03", label: "Mars" },
@@ -23,12 +26,7 @@ const MOIS = [
   { value: "06", label: "Juin" },
   { value: "07", label: "Juillet" },
   { value: "08", label: "Août" },
-  { value: "09", label: "Septembre" },
-  { value: "10", label: "Octobre" },
-  { value: "11", label: "Novembre" },
-  { value: "12", label: "Décembre" },
 ];
-
 export default function PaiementPage() {
   const { user } = useAuth();
 
@@ -38,9 +36,7 @@ export default function PaiementPage() {
   // ÉTATS
   // ============================================================
 
-  const [mois, setMois] = useState(
-    String(today.getMonth() + 1).padStart(2, "0")
-  );
+  const [mois, setMois] = useState("09");
 
   const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
@@ -93,38 +89,57 @@ export default function PaiementPage() {
   // ============================================================
 
   useEffect(() => {
-    if (!mois) {
-      setDebut("");
-      setFin("");
-      return;
-    }
+  if (!anneeId || !mois) {
+    setDebut("");
+    setFin("");
+    return;
+  }
 
-    const annee = today.getFullYear();
-    const moisNumber = Number(mois);
+  const anneeScolaire = annees.find(
+    (a) => String(a.id) === String(anneeId)
+  );
 
-    const premierJour = new Date(
-      annee,
-      moisNumber - 1,
-      1
-    );
+  if (!anneeScolaire?.nom) {
+    setDebut("");
+    setFin("");
+    return;
+  }
 
-    const dernierJour = new Date(
-      annee,
-      moisNumber,
-      0
-    );
+  const match = anneeScolaire.nom.match(
+    /(\d{4})\s*[-/]\s*(\d{4})/
+  );
 
-    const formatDate = (date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
+  if (!match) {
+    setDebut("");
+    setFin("");
+    return;
+  }
 
-      return `${y}-${m}-${d}`;
-    };
+  const anneeDebut = Number(match[1]);
+  const anneeFin = Number(match[2]);
+  const moisNumber = Number(mois);
 
-    setDebut(formatDate(premierJour));
-    setFin(formatDate(dernierJour));
-  }, [mois]);
+  // Septembre → Décembre : première année
+  // Janvier → Août : deuxième année
+  const anneeCivile =
+    moisNumber >= 9
+      ? anneeDebut
+      : anneeFin;
+
+  const dernierJour = new Date(
+    anneeCivile,
+    moisNumber,
+    0
+  ).getDate();
+
+  setDebut(
+    `${anneeCivile}-${mois}-01`
+  );
+
+  setFin(
+    `${anneeCivile}-${mois}-${String(dernierJour).padStart(2, "0")}`
+  );
+}, [anneeId, mois, annees]);
 
   // ============================================================
   // CHARGEMENT DES PAIEMENTS
