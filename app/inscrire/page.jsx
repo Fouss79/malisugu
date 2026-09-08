@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "../../lib/api";
-export default function RegisterPage() {
 
+export default function RegisterPage() {
   const router = useRouter();
 
   const [form, setForm] = useState({
@@ -14,7 +14,11 @@ export default function RegisterPage() {
     pays: "",
     telephone: "",
     email: "",
-    password: ""
+    password: "",
+
+    // Année scolaire
+    dateDebutAnneeScolaire: "",
+    dateFinAnneeScolaire: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -24,48 +28,66 @@ export default function RegisterPage() {
   const handleChange = (e) => {
     setForm({
       ...form,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  setLoading(true);
-  setError("");
+    setLoading(true);
+    setError("");
 
-  try {
-    const res = await api.post("/auth/register", form);
+    // Vérification des dates
+    if (
+      form.dateDebutAnneeScolaire &&
+      form.dateFinAnneeScolaire &&
+      form.dateFinAnneeScolaire <= form.dateDebutAnneeScolaire
+    ) {
+      setError(
+        "La date de fin doit être postérieure à la date de début."
+      );
+      setLoading(false);
+      return;
+    }
 
-    console.log("✅ Inscription réussie :", res.data);
+    try {
+      const res = await api.post("/auth/register", form);
 
-    // Redirection vers la page de connexion
-    router.push("/login");
+      console.log("✅ Inscription réussie :", res.data);
 
-  } catch (err) {
-    console.error("❌ Erreur inscription :", err);
+      // Redirection vers la page de connexion
+      router.push("/login");
+    } catch (err) {
+      console.error("❌ Erreur inscription :", err);
 
-    setError(
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      "Erreur lors de l'inscription"
-    );
+      setError(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Erreur lors de l'inscription"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  } finally {
-    setLoading(false);
-  }
-};
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <form
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-xl shadow-md w-full max-w-md space-y-4"
       >
-        <h2 className="text-2xl font-bold text-center">Créer une école</h2>
+        <h2 className="text-2xl font-bold text-center">
+          Créer une école
+        </h2>
 
-        {error && <p className="text-red-500">{error}</p>}
+        {error && (
+          <p className="text-red-500 text-sm bg-red-50 p-2 rounded">
+            {error}
+          </p>
+        )}
 
+        {/* NOM ECOLE */}
         <input
           type="text"
           name="nomEcole"
@@ -76,6 +98,7 @@ export default function RegisterPage() {
           required
         />
 
+        {/* ADRESSE */}
         <input
           type="text"
           name="adresse"
@@ -85,6 +108,7 @@ export default function RegisterPage() {
           className="w-full border p-2 rounded"
         />
 
+        {/* VILLE */}
         <input
           type="text"
           name="ville"
@@ -94,6 +118,7 @@ export default function RegisterPage() {
           className="w-full border p-2 rounded"
         />
 
+        {/* PAYS */}
         <input
           type="text"
           name="pays"
@@ -103,6 +128,7 @@ export default function RegisterPage() {
           className="w-full border p-2 rounded"
         />
 
+        {/* TELEPHONE */}
         <input
           type="text"
           name="telephone"
@@ -112,6 +138,7 @@ export default function RegisterPage() {
           className="w-full border p-2 rounded"
         />
 
+        {/* EMAIL */}
         <input
           type="email"
           name="email"
@@ -122,6 +149,7 @@ export default function RegisterPage() {
           required
         />
 
+        {/* MOT DE PASSE */}
         <input
           type="password"
           name="password"
@@ -132,14 +160,55 @@ export default function RegisterPage() {
           required
         />
 
+        {/* ANNEE SCOLAIRE */}
+        <div className="pt-2">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">
+            Année scolaire
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* DATE DEBUT */}
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Date de début
+              </label>
+
+              <input
+                type="date"
+                name="dateDebutAnneeScolaire"
+                value={form.dateDebutAnneeScolaire}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+                required
+              />
+            </div>
+
+            {/* DATE FIN */}
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Date de fin
+              </label>
+
+              <input
+                type="date"
+                name="dateFinAnneeScolaire"
+                value={form.dateFinAnneeScolaire}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* BOUTON */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
           {loading ? "Chargement..." : "S'inscrire"}
         </button>
-
       </form>
     </div>
   );
