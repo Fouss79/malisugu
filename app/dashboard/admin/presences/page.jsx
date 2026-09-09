@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../context/AuthContext";
-import { Check, X, CalendarCheck, CalendarX } from "lucide-react";
+import { Check, X, CalendarCheck, CalendarX, BarChart3 } from "lucide-react";
 import api from "../../../../lib/api";
 
 /* =========================================================
@@ -25,6 +26,7 @@ function nomJour(date) {
 
 export default function PresencePage() {
   const { user } = useAuth();
+  const router = useRouter();
   const ecoleId = user?.ecole?.id;
 
   const [classes, setClasses] = useState([]);
@@ -152,23 +154,41 @@ export default function PresencePage() {
     }
   };
 
+  const voirStatsClasse = () => {
+    if (!classeId) return;
+    router.push(`presences/stats?classeId=${classeId}`);
+    // ↑ adapte ce chemin selon la route réelle de PresenceStatsClassePage
+  };
+
   const edtSelectionne = edts.find((e) => String(e.id) === String(edtId));
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <span
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
-        >
-          <CalendarCheck size={20} />
-        </span>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Prise de présence</h1>
-          <p className="text-sm text-slate-500">
-            Émargement par classe (ou sous-groupe), par jour et par cours.
-          </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+          >
+            <CalendarCheck size={20} />
+          </span>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Prise de présence</h1>
+            <p className="text-sm text-slate-500">
+              Émargement par classe (ou sous-groupe), par jour et par cours.
+            </p>
+          </div>
         </div>
+
+        {classeId && (
+          <button
+            onClick={voirStatsClasse}
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <BarChart3 size={14} />
+            Stats de la classe
+          </button>
+        )}
       </div>
 
       {/* SÉLECTEURS */}
