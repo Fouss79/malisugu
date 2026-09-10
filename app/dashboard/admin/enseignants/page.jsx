@@ -14,8 +14,9 @@ import {
   GraduationCap,
   FileText,
   Users,
+  Eye,
+  Download,
 } from "lucide-react";
-
 /* =========================================================
    PALETTE (identique au reste de l'application)
 ========================================================= */
@@ -26,6 +27,204 @@ const TEAL = "#2C8C82";
 const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
+function ModalInfoEnseignant({ enseignant, onClose, anneeId }) {
+  if (!enseignant) return null;
+
+  const formatMontant = (montant) => {
+    if (montant === null || montant === undefined) return "—";
+
+    return new Intl.NumberFormat("fr-FR").format(montant) + " FCFA";
+  };
+
+  const handleRapportPDF = async () => {
+  try {
+    if (!anneeId) {
+      alert("Aucune année scolaire active trouvée.");
+      return;
+    }
+
+    const response = await api.get(
+      `/paiements/enseignant/${enseignant.id}/rapport-pdf`,
+      {
+        params: {
+          anneeId: anneeId,
+        },
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `rapport-paiements-${enseignant.nom}-${enseignant.prenom}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Erreur génération rapport PDF :", error);
+    alert("Impossible de générer le rapport PDF.");
+  }
+};
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div
+          className="flex items-center justify-between px-5 py-4"
+          style={{
+            background: `linear-gradient(135deg, ${INK}, #182746)`,
+          }}
+        >
+          <div>
+            <h2 className="text-lg font-bold text-white">
+              Informations de l'enseignant
+            </h2>
+
+            <p className="mt-0.5 text-sm text-white/70">
+              {enseignant.prenom} {enseignant.nom}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* CONTENU */}
+        <div className="max-h-[65vh] overflow-y-auto p-5">
+          {/* IDENTITÉ */}
+          <div className="mb-5 flex items-center gap-4 rounded-xl bg-slate-50 p-4">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-bold"
+              style={{
+                background: TEAL_SOFT,
+                color: TEAL,
+              }}
+            >
+              {enseignant.prenom?.charAt(0)}
+              {enseignant.nom?.charAt(0)}
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="truncate text-lg font-bold text-slate-800">
+                {enseignant.prenom} {enseignant.nom}
+              </h3>
+
+              <p className="text-sm text-slate-500">
+                {enseignant.specialite || "Enseignant"}
+              </p>
+            </div>
+
+            <div className="ml-auto">
+              <StatutBadge actif={enseignant.actif} />
+            </div>
+          </div>
+
+          {/* INFORMATIONS */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoItem
+              label="Nom"
+              value={enseignant.nom}
+            />
+
+            <InfoItem
+              label="Prénom"
+              value={enseignant.prenom}
+            />
+
+            <InfoItem
+              label="Téléphone"
+              value={enseignant.telephone}
+              icon={<Phone size={14} />}
+            />
+
+            <InfoItem
+              label="Spécialité"
+              value={enseignant.specialite}
+              icon={<GraduationCap size={14} />}
+            />
+
+            <InfoItem
+              label="Type de contrat"
+              value={enseignant.typeContrat}
+              icon={<FileText size={14} />}
+            />
+
+            <InfoItem
+              label="Matricule"
+              value={enseignant.matricule}
+            />
+
+            <InfoItem
+              label="Taux horaire"
+              value={
+                enseignant.tauxHoraire !== undefined &&
+                enseignant.tauxHoraire !== null
+                  ? formatMontant(enseignant.tauxHoraire)
+                  : "—"
+              }
+            />
+
+            <InfoItem
+              label="Salaire de base"
+              value={
+                enseignant.salaireBase !== undefined &&
+                enseignant.salaireBase !== null
+                  ? formatMontant(enseignant.salaireBase)
+                  : "—"
+              }
+            />
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="border-t border-slate-100 bg-slate-50 p-4">
+          <button
+            onClick={handleRapportPDF}
+            className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold text-white shadow-sm transition hover:brightness-110"
+            style={{
+              background: `linear-gradient(135deg, ${TEAL}, #236f68)`,
+            }}
+          >
+            <Download size={18} />
+            Rapport des paiements PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function InfoItem({ label, value, icon }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white p-3">
+      <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-400">
+        {icon}
+        {label}
+      </p>
+
+      <p className="truncate text-sm font-semibold text-slate-700">
+        {value || "—"}
+      </p>
+    </div>
+  );
+}
 
 function ModalEdition({ enseignantId, onClose, onSaved }) {
   return (
@@ -124,7 +323,22 @@ export default function EnseignantPage() {
 
   const [modalAjoutOuvert, setModalAjoutOuvert] = useState(false);
   const [enseignantEnEdition, setEnseignantEnEdition] = useState(null);
+  const [enseignantSelectionne, setEnseignantSelectionne] = useState(null);
+  const [anneeId, setAnneeId] = useState(null);
+ 
 
+  const loadAnneeActive = async () => {
+  if (!user?.ecole?.id) return;
+
+  try {
+    const res = await api.get(`/annees/active/${user.ecole.id}`);
+
+    setAnneeId(res.data?.id || null);
+  } catch (err) {
+    console.error("Erreur récupération année scolaire active :", err);
+    setAnneeId(null);
+  }
+};
   const loadEnseignants = async () => {
     if (!user?.ecole?.id) return;
     setLoading(true);
@@ -138,12 +352,13 @@ export default function EnseignantPage() {
       setLoading(false);
     }
   };
+useEffect(() => {
+  if (!user?.ecole?.id) return;
 
-  useEffect(() => {
-    loadEnseignants();
-  }, [user]);
-
-  const toggleStatut = async (id) => {
+  loadEnseignants();
+  loadAnneeActive();
+}, [user]);
+ const toggleStatut = async (id) => {
     try {
       const res = await api.put(`/enseignants/toggle/${id}`);
       setEnseignants((prev) => prev.map((e) => (e.id === id ? res.data : e)));
@@ -229,6 +444,17 @@ export default function EnseignantPage() {
 
               <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
                 <button
+  onClick={() => setEnseignantSelectionne(e)}
+  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-slate-100"
+  style={{
+    background: `${TEAL}12`,
+    color: TEAL,
+  }}
+>
+  <Eye size={14} />
+  Voir
+</button>
+                <button
                   onClick={() => setEnseignantEnEdition(e.id)}
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition hover:brightness-95"
                   style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
@@ -298,6 +524,17 @@ export default function EnseignantPage() {
                     </td>
                     <td className="flex gap-2 p-3">
                       <button
+  onClick={() => setEnseignantSelectionne(e)}
+  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition hover:bg-slate-100"
+  style={{
+    background: `${TEAL}12`,
+    color: TEAL,
+  }}
+>
+  <Eye size={14} />
+  Voir
+</button>
+                      <button
                         onClick={() => setEnseignantEnEdition(e.id)}
                         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition hover:brightness-95"
                         style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
@@ -339,6 +576,13 @@ export default function EnseignantPage() {
       {modalAjoutOuvert && (
         <ModalAjout onClose={() => setModalAjoutOuvert(false)} onSaved={loadEnseignants} />
       )}
+    {enseignantSelectionne && (
+  <ModalInfoEnseignant
+    enseignant={enseignantSelectionne}
+    anneeId={anneeId}
+    onClose={() => setEnseignantSelectionne(null)}
+  />
+)}
     </div>
   );
 }
