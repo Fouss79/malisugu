@@ -174,6 +174,7 @@ function ModalEdition({ eleveId, onClose, onSaved }) {
 // --- Modal détail élève ---
 function EleveDetailModal({ eleve, onClose }) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [generatingFiche, setGeneratingFiche] = useState(false);
 
   useEffect(() => {
     const onEsc = (e) => e.key === "Escape" && onClose();
@@ -184,6 +185,38 @@ function EleveDetailModal({ eleve, onClose }) {
 
   if (!eleve) return null;
 
+  const telechargerBlob = (response, nomFichier) => {
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomFichier;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  };
+
+  const gererErreurPdf = async (error, messageParDefaut) => {
+    console.error(messageParDefaut, error);
+
+    // Si Spring renvoie une erreur alors que responseType = blob
+    if (error?.response?.data instanceof Blob) {
+      try {
+        const texte = await error.response.data.text();
+        const json = JSON.parse(texte);
+        alert(json?.message || json?.error || messageParDefaut);
+      } catch {
+        alert(messageParDefaut);
+      }
+    } else {
+      alert(error?.response?.data?.message || error?.response?.data?.error || messageParDefaut);
+    }
+  };
+
   const genererRapportPaiement = async () => {
     if (!eleve.id) {
       alert("Impossible de générer le rapport : inscription introuvable.");
@@ -193,57 +226,39 @@ function EleveDetailModal({ eleve, onClose }) {
     setGeneratingPdf(true);
 
     try {
-      const response = await api.get(
-        `/rapports/paiements/inscription/${eleve.id}/pdf`,
-        {
-          responseType: "blob",
-        }
-      );
-
-      const blob = new Blob([response.data], {
-        type: "application/pdf",
+      const response = await api.get(`/rapports/paiements/inscription/${eleve.id}/pdf`, {
+        responseType: "blob",
       });
 
-      const url = window.URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = url;
-
-      link.download = `rapport-paiement-${eleve.prenom || "eleve"}-${
-        eleve.nom || ""
-      }.pdf`;
-
-      document.body.appendChild(link);
-      link.click();
-
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      telechargerBlob(response, `rapport-paiement-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`);
     } catch (error) {
-      console.error("❌ ERREUR GÉNÉRATION RAPPORT PAIEMENT", error);
-
-      // Si Spring renvoie une erreur alors que responseType = blob
-      if (error?.response?.data instanceof Blob) {
-        try {
-          const texte = await error.response.data.text();
-          const json = JSON.parse(texte);
-
-          alert(
-            json?.message ||
-              json?.error ||
-              "Erreur lors de la génération du rapport."
-          );
-        } catch {
-          alert("Erreur lors de la génération du rapport PDF.");
-        }
-      } else {
-        alert(
-          error?.response?.data?.message ||
-            error?.response?.data?.error ||
-            "Erreur lors de la génération du rapport PDF."
-        );
-      }
+      await gererErreurPdf(error, "Erreur lors de la génération du rapport PDF.");
     } finally {
       setGeneratingPdf(false);
+    }
+  };
+
+  const genererFicheRenseignement = async () => {
+    // "eleve.id" est ici l'id de l'INSCRIPTION (données issues de
+    // /inscriptions/ecole/{id}/active) — même id que celui utilisé par
+    // le rapport de paiement ci-dessus.
+    if (!eleve.id) {
+      alert("Impossible de générer la fiche : inscription introuvable.");
+      return;
+    }
+
+    setGeneratingFiche(true);
+
+    try {
+      const response = await api.get(`/inscriptions/${eleve.id}/fiche-renseignement`, {
+        responseType: "blob",
+      });
+
+      telechargerBlob(response, `fiche-renseignement-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`);
+    } catch (error) {
+      await gererErreurPdf(error, "Erreur lors de la génération de la fiche.");
+    } finally {
+      setGeneratingFiche(false);
     }
   };
 
@@ -433,6 +448,25 @@ function EleveDetailModal({ eleve, onClose }) {
                 </div>
               </div>
             </div>
+
+            {/* BOUTON FICHE DE RENSEIGNEMENT */}
+            <button
+              onClick={genererFicheRenseignement}
+              disabled={generatingFiche}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generatingFiche ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Génération de la fiche...
+                </>
+              ) : (
+                <>
+                  <FileText size={16} />
+                  Fiche de renseignement
+                </>
+              )}
+            </button>
           </div>
 
           {/* =================================================
@@ -477,23 +511,7 @@ function EleveDetailModal({ eleve, onClose }) {
                 </>
               ) : (
                 <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                    <path d="M14 2v6h6" />
-                    <path d="M8 13h8" />
-                    <path d="M8 17h5" />
-                  </svg>
-
+                  <Download size={18} />
                   Rapport des paiements
                 </>
               )}
