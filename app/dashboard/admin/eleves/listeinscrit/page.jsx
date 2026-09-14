@@ -540,6 +540,36 @@ export default function ElevesPage() {
   const [eleveDetail, setEleveDetail] = useState(null);
   const [modalAjoutOuvert, setModalAjoutOuvert] = useState(false);
   const [eleveEnEdition, setEleveEnEdition] = useState(null);
+  const [generatingFormulaire, setGeneratingFormulaire] = useState(false);
+
+  const telechargerFormulaireVierge = async () => {
+    setGeneratingFormulaire(true);
+
+    try {
+      const response = await api.get("/inscriptions/formulaire-vierge", {
+        params: user?.ecole?.id ? { ecoleId: user.ecole.id } : {},
+        responseType: "blob",
+      });
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "formulaire-inscription.pdf";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erreur génération formulaire vierge :", error);
+      alert("Impossible de générer le formulaire.");
+    } finally {
+      setGeneratingFormulaire(false);
+    }
+  };
 
   const loadEleves = async () => {
     if (!user?.ecole?.id) return;
@@ -664,6 +694,24 @@ export default function ElevesPage() {
           <Users size={18} />
           Réinscrire
         </Link>
+
+        <button
+          onClick={telechargerFormulaireVierge}
+          disabled={generatingFormulaire}
+          className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {generatingFormulaire ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              Génération...
+            </>
+          ) : (
+            <>
+              <FileText size={18} />
+              Formulaire vierge
+            </>
+          )}
+        </button>
       </div>
 
       {/* ===== VUE MOBILE : CARTES ===== */}

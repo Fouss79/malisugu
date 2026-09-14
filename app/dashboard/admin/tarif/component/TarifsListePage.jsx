@@ -92,22 +92,29 @@ export default function TarifsListePage({ anneeFilter }) {
     return [];
   };
 
-  const loadTarifs = async () => {
-    if (!ecoleId) return;
-    setLoading(true);
-    try {
-      const url = anneeFilter
-        ? `/tarifs/ecole/${ecoleId}/annee/${anneeFilter}`
-        : `/tarifs/ecole/${ecoleId}`;
-      const res = await api.get(url);
-      setTarifs(safeArray(res.data));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+ const loadTarifs = async () => {
+  if (!ecoleId) return;
 
+  console.log("anneeFilter =", anneeFilter);
+  console.log("ecoleId =", ecoleId);
+
+  setLoading(true);
+
+  try {
+    const url = anneeFilter
+      ? `/tarifs/ecole/${ecoleId}/annee/${anneeFilter}`
+      : `/tarifs/ecole/${ecoleId}`;
+
+    console.log("URL tarifs =", url);
+
+    const res = await api.get(url);
+    setTarifs(safeArray(res.data));
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
 
   useEffect(() => {

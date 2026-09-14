@@ -14,6 +14,7 @@ import {
   BookOpen,
   Clock,
   GraduationCap,
+  FileText,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -112,6 +113,65 @@ export default function NotesPage() {
   // ============================================================
   // FONCTIONS
   // ============================================================
+  const downloadReleveNotes = async () => {
+  setEtats(prev => ({ ...prev, erreur: "" }));
+
+  if (!filtres.classeId || !filtres.coefficientMatiereId || !filtres.anneeScolaireId) {
+    afficherErreur(
+      "Choisissez la classe, l'année scolaire et la matière avant de générer le relevé."
+    );
+    return;
+  }
+
+  // Recherche de l'affectation correspondant à la matière sélectionnée
+  const affectation = donnees.affectations.find(
+    (item) =>
+      String(item.classeId) === String(filtres.classeId) &&
+      String(item.coefficientMatiereId) ===
+        String(filtres.coefficientMatiereId)
+  );
+
+  if (!affectation?.id) {
+    afficherErreur(
+      "Aucune affectation enseignant trouvée pour cette matière."
+    );
+    return;
+  }
+
+  try {
+    const response = await api.get(
+      `/releves-notes/affectation/${affectation.id}/pdf`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `releve-notes-${matiereChoisie?.nom || "matiere"}-${filtres.classeId}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(url);
+
+    afficherToast("✓ Relevé de notes généré avec succès");
+  } catch (error) {
+    console.error("Erreur génération relevé :", error);
+
+    afficherErreur(
+      error.response?.data?.message ||
+      "Erreur lors de la génération du relevé de notes."
+    );
+  }
+};
 
   const afficherToast = (message) => {
     setEtats(prev => ({ ...prev, toast: message }));
@@ -231,8 +291,18 @@ export default function NotesPage() {
     );
   }, [matieresDisponibles, filtres.coefficientMatiereId]);
 
+
   const sousGroupeIdEffectif = matiereChoisie?.sousGroupeId ?? null;
   const sousGroupeNomEffectif = matiereChoisie?.sousGroupeNom ?? null;
+  const affectationChoisie = useMemo(() => {
+  if (!filtres.coefficientMatiereId) return null;
+
+  return donnees.affectations.find(
+    (affectation) =>
+      String(affectation.coefficientMatiereId) ===
+      String(filtres.coefficientMatiereId)
+  );
+}, [donnees.affectations, filtres.coefficientMatiereId]);
 
   // ============================================================
   // CHARGEMENT DES ÉLÈVES
@@ -802,26 +872,84 @@ export default function NotesPage() {
       {/* =====================================================
           ACTIONS
       ===================================================== */}
-      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard/admin/notes/resultats")}
-          className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
-        >
-          <BarChart3 size={17} />
-          Voir les résultats
-        </button>
+     <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+     {matiereChoisie && affectationChoisie && (
+  <div className="mb-3 rounded-2xl border border-[#DEDCD0] bg-white px-4 py-3 shadow-sm">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E7E3F8] text-[#6E5DC6]">
+          <GraduationCap size={18} />
+        </div>
 
-        <button
-          type="button"
-          onClick={downloadBulletinClasse}
-          disabled={!filtres.classeId || !filtres.anneeScolaireId || !filtres.periode}
-          className={`${STYLES.button.primary} bg-[#C89B3C] shadow-sm hover:bg-[#B68931]`}
-        >
-          <Download size={17} />
-          Télécharger les bulletins
-        </button>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A91A2]">
+            Relevé de notes
+          </p>
+
+          <p className="text-sm font-bold text-[#101B33]">
+            {matiereChoisie.nom}
+            {" · "}
+            {donnees.classes.find(
+              c => String(c.id) === String(filtres.classeId)
+            )?.nomComplet || "Classe"}
+          </p>
+
+          <p className="mt-0.5 text-xs text-[#7A8190]">
+            Enseignant :{" "}
+            <span className="font-semibold text-[#101B33]">
+              {affectationChoisie.enseignantNom ?? ""}
+              {" "}
+              {affectationChoisie.enseignantPrenom ?? ""}
+            </span>
+          </p>
+        </div>
       </div>
+
+      {sousGroupeNomEffectif && (
+        <span className="w-fit rounded-full bg-[#E7E3F8] px-3 py-1.5 text-xs font-bold text-[#5747A5]">
+          Sous-groupe : {sousGroupeNomEffectif}
+        </span>
+      )}
+    </div>
+  </div>
+)}
+  <button
+    type="button"
+    onClick={() => router.push("/dashboard/admin/notes/resultats")}
+    className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
+  >
+    <BarChart3 size={17} />
+    Voir les résultats
+  </button>
+
+  <button
+    type="button"
+    onClick={downloadReleveNotes}
+    disabled={
+      !filtres.classeId ||
+      !filtres.coefficientMatiereId ||
+      !filtres.anneeScolaireId
+    }
+    className={`${STYLES.button.primary} bg-[#2C8C82] shadow-sm hover:bg-[#236F68]`}
+  >
+    <FileText size={17} />
+    Relevé de notes
+  </button>
+
+  <button
+    type="button"
+    onClick={downloadBulletinClasse}
+    disabled={
+      !filtres.classeId ||
+      !filtres.anneeScolaireId ||
+      !filtres.periode
+    }
+    className={`${STYLES.button.primary} bg-[#C89B3C] shadow-sm hover:bg-[#B68931]`}
+  >
+    <Download size={17} />
+    Télécharger les bulletins
+  </button>
+</div>
 
       {/* =====================================================
           TABLEAU DES NOTES
