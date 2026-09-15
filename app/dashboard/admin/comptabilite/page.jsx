@@ -858,105 +858,52 @@ function ModalVersement({
   const [erreur, setErreur] =
     useState("");
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async () => {
+  if (!depense?.id) {
+    alert("Dépense introuvable.");
+    return;
+  }
 
-    setErreur("");
+  if (!anneeSelectionnee?.id) {
+    alert("Aucune année scolaire sélectionnée.");
+    return;
+  }
 
-    const montantNum = Number(montant);
+  if (!montant || Number(montant) <= 0) {
+    alert("Le montant doit être supérieur à zéro.");
+    return;
+  }
 
-    if (!montantNum || montantNum <= 0) {
-      setErreur(
-        "Le montant doit être supérieur à zéro."
-      );
-      return;
-    }
+  try {
+    await api.post(
+      "/paiements-depense",
+      {
+        depenseId: depense.id,
+        montant: Number(montant),
+        modePaiement,
+        reference:
+          modePaiement === "CASH"
+            ? null
+            : reference.trim(),
+        datePaiement,
+        anneeId: Number(anneeSelectionnee.id),
+      }
+    );
 
-    if (
-      montantNum >
-      Number(depense.resteAPayer || 0)
-    ) {
-      setErreur(
-        `Le montant dépasse le reste à payer (${formatMontant(
-          depense.resteAPayer
-        )}).`
-      );
-      return;
-    }
+    // suite de ton code...
+  } catch (error) {
+    console.error(
+      "Erreur paiement dépense :",
+      error.response?.data || error
+    );
 
-    if (!datePaiement) {
-      setErreur(
-        "La date du versement est obligatoire."
-      );
-      return;
-    }
-
-    if (
-      anneeSelectionnee?.dateDebut &&
-      anneeSelectionnee?.dateFin &&
-      (datePaiement < anneeSelectionnee.dateDebut ||
-        datePaiement > anneeSelectionnee.dateFin)
-    ) {
-      setErreur(
-        `La date du versement doit être comprise entre ${formatDate(
-          anneeSelectionnee.dateDebut
-        )} et ${formatDate(
-          anneeSelectionnee.dateFin
-        )}.`
-      );
-      return;
-    }
-
-    if (
-      modePaiement !== "CASH" &&
-      !reference.trim()
-    ) {
-      setErreur(
-        "La référence est obligatoire pour ce mode de paiement."
-      );
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      /*
-       * IMPORTANT :
-       * Ici on paie une DÉPENSE existante.
-       * Ce n'est pas une recette.
-       */
-      await api.post(
-        "/paiements-depense",
-        {
-          depenseId: depense.id,
-          montant: montantNum,
-          modePaiement,
-          reference:
-            modePaiement === "CASH"
-              ? null
-              : reference.trim(),
-          datePaiement,
-          anneeScolaireId:
-            Number(anneeSelectionnee?.id),
-        }
-      );
-      onSaved();
-    } catch (err) {
-      console.error(
-        "Erreur paiement dépense :",
-        err
-      );
-
-      setErreur(
-        extraireMessageErreur(
-          err,
-          "Erreur lors de l'enregistrement du versement."
-        )
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    alert(
+      error.response?.data?.message ||
+      error.response?.data ||
+      "Erreur lors du paiement de la dépense."
+    );
+  }
+};
 
   return (
     <div
