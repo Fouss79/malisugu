@@ -67,7 +67,7 @@ export default function DashboardPage() {
     setLoadingRapport(true);
 
     try {
-      const res = await api.get(`/operations-comptables/rapport/${user.ecole.id}`, {
+      const res = await api.get(`/operations-comptables/rapport/periode/${user.ecole.id}`, {
         params: { debut: dateDebut, fin: dateFin },
       });
 
