@@ -70,6 +70,28 @@ function getToday() {
   return new Date().toISOString().split("T")[0];
 }
 
+/* Aide pour transformer une réponse d'erreur backend en texte
+   affichable (jamais un objet brut, ce qui ferait planter React). */
+function extraireMessageErreur(err, messageParDefaut) {
+  const data = err?.response?.data;
+
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  if (data && typeof data === "object") {
+    if (typeof data.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+
+    if (typeof data.error === "string" && data.error.trim()) {
+      return data.error;
+    }
+  }
+
+  return err?.message || messageParDefaut;
+}
+
 /* =========================================================
    MODAL REMBOURSEMENT EMPRUNT
 ========================================================= */
@@ -172,6 +194,8 @@ function ModalRemboursement({
               ? null
               : reference.trim(),
           dateRemboursement,
+          anneeScolaireId:
+            Number(anneeSelectionnee?.id),
         }
       );
 
@@ -183,9 +207,10 @@ function ModalRemboursement({
       );
 
       setErreur(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
+        extraireMessageErreur(
+          err,
           "Erreur lors de l'enregistrement du remboursement."
+        )
       );
     } finally {
       setSubmitting(false);
@@ -210,6 +235,18 @@ function ModalRemboursement({
         <p className="mt-1 text-sm text-slate-500">
           {emprunt.libelle}
         </p>
+
+        {anneeSelectionnee && (
+          <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
+            Ce remboursement sera enregistré dans la période{" "}
+            <strong>
+              {anneeSelectionnee.nom ||
+                anneeSelectionnee.libelle ||
+                "-"}
+            </strong>
+            .
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-100 bg-slate-50">
           <div className="p-3">
@@ -526,6 +563,9 @@ function ModalEmprunt({
             dateEcheance
               ? `${dateEcheance}T23:59:59`
               : null,
+
+          anneeScolaireId:
+            Number(anneeSelectionnee?.id),
         }
       );
 
@@ -537,9 +577,10 @@ function ModalEmprunt({
       );
 
       setErreur(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
+        extraireMessageErreur(
+          err,
           "Impossible d'enregistrer l'emprunt."
+        )
       );
     } finally {
       setSubmitting(false);
@@ -895,9 +936,10 @@ function ModalVersement({
               ? null
               : reference.trim(),
           datePaiement,
+          anneeScolaireId:
+            Number(anneeSelectionnee?.id),
         }
       );
-
       onSaved();
     } catch (err) {
       console.error(
@@ -906,9 +948,10 @@ function ModalVersement({
       );
 
       setErreur(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
+        extraireMessageErreur(
+          err,
           "Erreur lors de l'enregistrement du versement."
+        )
       );
     } finally {
       setSubmitting(false);
@@ -1308,10 +1351,7 @@ export default function ComptabilitePage() {
   ========================================================= */
 
   const chargerRapport = async () => {
-    if (
-      !ecoleId ||
-      !anneeScolaireId
-    ) {
+    if (!ecoleId || !anneeScolaireId) {
       setLoadingRapport(false);
       return;
     }
@@ -1321,13 +1361,7 @@ export default function ComptabilitePage() {
 
     try {
       const res = await api.get(
-        `/operations-comptables/rapport/${ecoleId}`,
-        {
-          params: {
-            anneeId:
-              anneeScolaireId,
-          },
-        }
+        `/operations-comptables/rapport/${ecoleId}?anneeId=${anneeScolaireId}`
       );
 
       setRapport(res.data);
@@ -1338,9 +1372,10 @@ export default function ComptabilitePage() {
       );
 
       setErreur(
-        error.response?.data?.message ||
-          error.message ||
+        extraireMessageErreur(
+          error,
           "Impossible de charger le rapport comptable."
+        )
       );
     } finally {
       setLoadingRapport(false);
@@ -1352,10 +1387,7 @@ export default function ComptabilitePage() {
   ========================================================= */
 
   const chargerDepenses = async () => {
-    if (
-      !ecoleId ||
-      !anneeScolaireId
-    ) {
+    if (!ecoleId || !anneeScolaireId) {
       setLoadingDepenses(false);
       return;
     }
@@ -1364,12 +1396,7 @@ export default function ComptabilitePage() {
 
     try {
       const res = await api.get(
-        `/depenses/ecole/${ecoleId}`,
-        {
-          params: {
-            anneeId: anneeScolaireId,
-          },
-        }
+        `/depenses/ecole/${ecoleId}?anneeId=${anneeScolaireId}`
       );
 
       setDepenses(
@@ -1378,7 +1405,10 @@ export default function ComptabilitePage() {
           : []
       );
     } catch (error) {
-      console.error("Erreur chargement dépenses :", error);
+      console.error(
+        "Erreur chargement dépenses :",
+        error
+      );
     } finally {
       setLoadingDepenses(false);
     }
@@ -1421,10 +1451,7 @@ export default function ComptabilitePage() {
   ========================================================= */
 
   const chargerEmprunts = async () => {
-    if (
-      !ecoleId ||
-      !anneeScolaireId
-    ) {
+    if (!ecoleId || !anneeScolaireId) {
       setLoadingEmprunts(false);
       return;
     }
@@ -1433,13 +1460,7 @@ export default function ComptabilitePage() {
 
     try {
       const res = await api.get(
-        `/emprunts/ecole/${ecoleId}`,
-        {
-          params: {
-            anneeId:
-              anneeScolaireId,
-          },
-        }
+        `/emprunts/ecole/${ecoleId}?anneeId=${anneeScolaireId}`
       );
 
       setEmprunts(
@@ -1574,9 +1595,10 @@ export default function ComptabilitePage() {
       console.error("Erreur création dépense :", error);
 
       setErreur(
-        error.response?.data?.message ||
-        error.response?.data ||
-        "Erreur lors de la création de la dépense"
+        extraireMessageErreur(
+          error,
+          "Erreur lors de la création de la dépense"
+        )
       );
     } finally {
       setSavingDepense(false);
@@ -1669,22 +1691,21 @@ export default function ComptabilitePage() {
       await api.post(
         `/operations-comptables/recette/ecole/${ecoleId}`,
         {
-          libelle:
-            libelleRecette.trim(),
+          libelle: libelleRecette.trim(),
 
-          montant:
-            Number(montantRecette),
+          montant: Number(montantRecette),
 
-          modePaiement:
-            modePaiementRecette,
+          modePaiement: modePaiementRecette,
 
           reference:
-            modePaiementRecette ===
-            "CASH"
+            modePaiementRecette === "CASH"
               ? null
               : referenceRecette.trim(),
 
           dateRecette,
+
+          anneeScolaireId:
+            Number(anneeScolaireId),
         }
       );
 
@@ -1712,9 +1733,10 @@ export default function ComptabilitePage() {
       );
 
       setErreur(
-        error.response?.data?.message ||
-          error.message ||
+        extraireMessageErreur(
+          error,
           "Impossible d'enregistrer la recette."
+        )
       );
     } finally {
       setSavingRecette(false);
@@ -1763,27 +1785,31 @@ export default function ComptabilitePage() {
   /* =========================================================
      EFFECTS
   ========================================================= */
-  useEffect(() => {
-    if (!anneeSelectionnee) return;
 
-    const aujourdHui = getToday();
-
-    if (
-      aujourdHui >= anneeSelectionnee.dateDebut &&
-      aujourdHui <= anneeSelectionnee.dateFin
-    ) {
-      setDateDepense(aujourdHui);
-    } else {
-      setDateDepense(anneeSelectionnee.dateDebut);
-    }
-  }, [anneeScolaireId]);
-
+  // Chargement initial : périodes scolaires + catégories de dépenses.
+  // (Bug corrigé : ces fonctions étaient définies mais jamais appelées,
+  // ce qui bloquait la page en chargement permanent.)
   useEffect(() => {
     if (!ecoleId) return;
 
     chargerAnneesScolaires();
     chargerCategories();
   }, [ecoleId]);
+
+  useEffect(() => {
+    if (!anneeSelectionnee) return;
+
+    const aujourdHui = getToday();
+
+    const dateParDefaut =
+      aujourdHui >= anneeSelectionnee.dateDebut &&
+      aujourdHui <= anneeSelectionnee.dateFin
+        ? aujourdHui
+        : anneeSelectionnee.dateDebut;
+
+    setDateDepense(dateParDefaut);
+    setDateRecette(dateParDefaut);
+  }, [anneeScolaireId]);
 
   useEffect(() => {
     if (
@@ -1806,7 +1832,7 @@ export default function ComptabilitePage() {
   ========================================================= */
 
   if (
-    loadingRapport &&
+    (loadingAnnees || loadingRapport) &&
     !rapport
   ) {
     return (
