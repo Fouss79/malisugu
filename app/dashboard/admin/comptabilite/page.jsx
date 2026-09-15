@@ -194,8 +194,6 @@ function ModalRemboursement({
               ? null
               : reference.trim(),
           dateRemboursement,
-          anneeScolaireId:
-            Number(anneeSelectionnee?.id),
         }
       );
 
@@ -858,52 +856,105 @@ function ModalVersement({
   const [erreur, setErreur] =
     useState("");
 
-  const submit = async () => {
-  if (!depense?.id) {
-    alert("Dépense introuvable.");
-    return;
-  }
+  const submit = async (e) => {
+    e.preventDefault();
 
-  if (!anneeSelectionnee?.id) {
-    alert("Aucune année scolaire sélectionnée.");
-    return;
-  }
+    setErreur("");
 
-  if (!montant || Number(montant) <= 0) {
-    alert("Le montant doit être supérieur à zéro.");
-    return;
-  }
+    const montantNum = Number(montant);
 
-  try {
-    await api.post(
-      "/paiements-depense",
-      {
-        depenseId: depense.id,
-        montant: Number(montant),
-        modePaiement,
-        reference:
-          modePaiement === "CASH"
-            ? null
-            : reference.trim(),
-        datePaiement,
-        anneeId: Number(anneeSelectionnee.id),
-      }
-    );
+    if (!montantNum || montantNum <= 0) {
+      setErreur(
+        "Le montant doit être supérieur à zéro."
+      );
+      return;
+    }
 
-    // suite de ton code...
-  } catch (error) {
-    console.error(
-      "Erreur paiement dépense :",
-      error.response?.data || error
-    );
+    if (
+      montantNum >
+      Number(depense.resteAPayer || 0)
+    ) {
+      setErreur(
+        `Le montant dépasse le reste à payer (${formatMontant(
+          depense.resteAPayer
+        )}).`
+      );
+      return;
+    }
 
-    alert(
-      error.response?.data?.message ||
-      error.response?.data ||
-      "Erreur lors du paiement de la dépense."
-    );
-  }
-};
+    if (!datePaiement) {
+      setErreur(
+        "La date du versement est obligatoire."
+      );
+      return;
+    }
+
+    if (
+      anneeSelectionnee?.dateDebut &&
+      anneeSelectionnee?.dateFin &&
+      (datePaiement < anneeSelectionnee.dateDebut ||
+        datePaiement > anneeSelectionnee.dateFin)
+    ) {
+      setErreur(
+        `La date du versement doit être comprise entre ${formatDate(
+          anneeSelectionnee.dateDebut
+        )} et ${formatDate(
+          anneeSelectionnee.dateFin
+        )}.`
+      );
+      return;
+    }
+
+    if (
+      modePaiement !== "CASH" &&
+      !reference.trim()
+    ) {
+      setErreur(
+        "La référence est obligatoire pour ce mode de paiement."
+      );
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      /*
+       * IMPORTANT :
+       * Ici on paie une DÉPENSE existante.
+       * Ce n'est pas une recette.
+       */
+      await api.post(
+        "/paiements-depense",
+        {
+          depenseId: depense.id,
+          montant: montantNum,
+          modePaiement,
+          reference:
+            modePaiement === "CASH"
+              ? null
+              : reference.trim(),
+          datePaiement,
+          anneeScolaireId:
+            Number(anneeSelectionnee?.id),
+        }
+      );
+      onSaved();
+    } catch (err) {
+      console.error(
+        "Erreur paiement dépense :",
+        err
+      );
+
+      setErreur(
+        extraireMessageErreur(
+          err,
+          "Erreur lors de l'enregistrement du versement."
+        )
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -1171,6 +1222,16 @@ export default function ComptabilitePage() {
 
   const [afficherFormulaireEmprunt, setAfficherFormulaireEmprunt] =
     useState(false);
+
+  /* =========================================================
+     FILTRE PAR PÉRIODE (à l'intérieur de l'année scolaire)
+  ========================================================= */
+
+  const [filtrePeriodeDebut, setFiltrePeriodeDebut] =
+    useState("");
+
+  const [filtrePeriodeFin, setFiltrePeriodeFin] =
+    useState("");
 
   /* =========================================================
      DÉPENSE
@@ -1756,6 +1817,11 @@ export default function ComptabilitePage() {
 
     setDateDepense(dateParDefaut);
     setDateRecette(dateParDefaut);
+
+    // Le filtre de période est réinitialisé sur la période complète
+    // de l'année scolaire sélectionnée.
+    setFiltrePeriodeDebut("");
+    setFiltrePeriodeFin("");
   }, [anneeScolaireId]);
 
   useEffect(() => {
@@ -1773,6 +1839,80 @@ export default function ComptabilitePage() {
     ecoleId,
     anneeScolaireId,
   ]);
+
+  /* =========================================================
+     FILTRAGE PAR PÉRIODE
+  ========================================================= */
+
+  const dansLaPeriode = (dateStr) => {
+    if (!dateStr) return false;
+
+    const jour = String(dateStr).slice(0, 10);
+
+    if (filtrePeriodeDebut && jour < filtrePeriodeDebut) {
+      return false;
+    }
+
+    if (filtrePeriodeFin && jour > filtrePeriodeFin) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const periodeActive = Boolean(
+    filtrePeriodeDebut || filtrePeriodeFin
+  );
+
+  const operationsFiltrees = periodeActive
+    ? (rapport?.operations || []).filter((operation) =>
+        dansLaPeriode(operation.dateOperation)
+      )
+    : rapport?.operations || [];
+
+  const depensesFiltrees = periodeActive
+    ? depenses.filter((d) => dansLaPeriode(d.dateDepense))
+    : depenses;
+
+  const empruntsFiltres = periodeActive
+    ? emprunts.filter((e) => dansLaPeriode(e.dateEmprunt))
+    : emprunts;
+
+  /* =========================================================
+     TOTAUX RECALCULÉS SUR LA PÉRIODE FILTRÉE
+     (à partir des opérations déjà chargées pour l'année ;
+     ne remplace pas les cartes annuelles, vient en plus)
+  ========================================================= */
+
+  const totauxPeriode = operationsFiltrees.reduce(
+    (acc, operation) => {
+      const montant = Number(operation.montant) || 0;
+
+      if (operation.nature === "RECETTE") {
+        acc.totalRecettes += montant;
+      } else if (operation.nature === "EMPRUNT") {
+        acc.totalEmprunts += montant;
+      } else if (operation.nature === "REMBOURSEMENT_EMPRUNT") {
+        acc.totalRemboursements += montant;
+      } else {
+        acc.totalDepenses += montant;
+      }
+
+      return acc;
+    },
+    {
+      totalRecettes: 0,
+      totalDepenses: 0,
+      totalEmprunts: 0,
+      totalRemboursements: 0,
+    }
+  );
+
+  const soldePeriode =
+    totauxPeriode.totalRecettes +
+    totauxPeriode.totalEmprunts -
+    totauxPeriode.totalDepenses -
+    totauxPeriode.totalRemboursements;
 
   /* =========================================================
      LOADING
@@ -1992,10 +2132,85 @@ export default function ComptabilitePage() {
         )}
 
         {/* =====================================================
+            FILTRE PAR PÉRIODE
+        ====================================================== */}
+
+        <div className="mb-8 flex flex-col gap-3 rounded-xl border border-slate-100 bg-white p-4 shadow-sm sm:flex-row sm:items-end sm:flex-wrap">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-500">
+              Du
+            </label>
+
+            <input
+              type="date"
+              value={filtrePeriodeDebut}
+              min={
+                anneeSelectionnee?.dateDebut ||
+                undefined
+              }
+              max={
+                anneeSelectionnee?.dateFin ||
+                undefined
+              }
+              onChange={(e) =>
+                setFiltrePeriodeDebut(
+                  e.target.value
+                )
+              }
+              className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-500">
+              Au
+            </label>
+
+            <input
+              type="date"
+              value={filtrePeriodeFin}
+              min={
+                anneeSelectionnee?.dateDebut ||
+                undefined
+              }
+              max={
+                anneeSelectionnee?.dateFin ||
+                undefined
+              }
+              onChange={(e) =>
+                setFiltrePeriodeFin(
+                  e.target.value
+                )
+              }
+              className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+          </div>
+
+          {periodeActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltrePeriodeDebut("");
+                setFiltrePeriodeFin("");
+              }}
+              className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Réinitialiser la période
+            </button>
+          )}
+
+          {periodeActive && (
+            <p className="text-xs text-slate-400 sm:ml-auto">
+              Filtre appliqué au journal, aux dépenses et aux emprunts.
+            </p>
+          )}
+        </div>
+
+        {/* =====================================================
             CARTES RAPPORT
         ====================================================== */}
 
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
 
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-slate-500">
@@ -2063,6 +2278,23 @@ export default function ComptabilitePage() {
 
           <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <p className="text-sm font-medium text-slate-500">
+              Dépenses + remb.
+            </p>
+
+            <p className="mt-2 text-2xl font-bold text-orange-600">
+              {formatMontant(
+                (rapport?.totalDepenses || 0) +
+                  (rapport?.totalRemboursements || 0)
+              )}
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              Total des sorties de caisse
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">
               Trésorerie
             </p>
 
@@ -2084,6 +2316,104 @@ export default function ComptabilitePage() {
             </p>
           </div>
         </div>
+
+        {/* =====================================================
+            CARTES RAPPORT — PÉRIODE FILTRÉE
+        ====================================================== */}
+
+        {periodeActive && (
+          <div className="mb-8">
+            <p className="mb-3 text-xs font-medium uppercase text-slate-400">
+              Sur la période sélectionnée ({formatDate(filtrePeriodeDebut) !== "-" ? formatDate(filtrePeriodeDebut) : "début"}
+              {" → "}
+              {formatDate(filtrePeriodeFin) !== "-" ? formatDate(filtrePeriodeFin) : "fin"})
+            </p>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
+                <p className="text-sm font-medium text-slate-500">
+                  Recettes (période)
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-emerald-600">
+                  {formatMontant(
+                    totauxPeriode.totalRecettes
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-rose-100 bg-rose-50/40 p-5">
+                <p className="text-sm font-medium text-slate-500">
+                  Dépenses (période)
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-rose-600">
+                  {formatMontant(
+                    totauxPeriode.totalDepenses
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
+                <p className="text-sm font-medium text-slate-500">
+                  Emprunts (période)
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-indigo-600">
+                  {formatMontant(
+                    totauxPeriode.totalEmprunts
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-5">
+                <p className="text-sm font-medium text-slate-500">
+                  Remboursements (période)
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-amber-600">
+                  {formatMontant(
+                    totauxPeriode.totalRemboursements
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-5">
+                <p className="text-sm font-medium text-slate-500">
+                  Dépenses + remb. (période)
+                </p>
+
+                <p className="mt-2 text-xl font-bold text-orange-600">
+                  {formatMontant(
+                    totauxPeriode.totalDepenses +
+                      totauxPeriode.totalRemboursements
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-5">
+                <p className="text-sm font-medium text-slate-500">
+                  Solde (période)
+                </p>
+
+                <p
+                  className={`mt-2 text-xl font-bold ${
+                    soldePeriode >= 0
+                      ? "text-slate-900"
+                      : "text-rose-600"
+                  }`}
+                >
+                  {formatMontant(soldePeriode)}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-2 text-xs text-slate-400">
+              Recalculé à partir des opérations affichées dans le journal ci-dessous — pour référence, les cartes ci-dessus restent sur l'année scolaire complète.
+            </p>
+          </div>
+        )}
 
         {/* =====================================================
             EMPRUNTS
@@ -2172,20 +2502,22 @@ export default function ComptabilitePage() {
                 )}
 
                 {!loadingEmprunts &&
-                  emprunts.length ===
+                  empruntsFiltres.length ===
                     0 && (
                     <tr>
                       <td
                         colSpan="9"
                         className="px-5 py-10 text-center text-slate-400"
                       >
-                        Aucun emprunt enregistré.
+                        {periodeActive
+                          ? "Aucun emprunt sur cette période."
+                          : "Aucun emprunt enregistré."}
                       </td>
                     </tr>
                   )}
 
                 {!loadingEmprunts &&
-                  emprunts.map(
+                  empruntsFiltres.map(
                     (emprunt) => (
                       <tr
                         key={
@@ -2331,18 +2663,19 @@ export default function ComptabilitePage() {
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {(rapport?.operations || [])
-                  .length === 0 ? (
+                {operationsFiltrees.length === 0 ? (
                   <tr>
                     <td
                       colSpan="6"
                       className="px-5 py-10 text-center text-slate-400"
                     >
-                      Aucune opération comptable.
+                      {periodeActive
+                        ? "Aucune opération sur cette période."
+                        : "Aucune opération comptable."}
                     </td>
                   </tr>
                 ) : (
-                  rapport.operations.map(
+                  operationsFiltrees.map(
                     (operation) => {
                       const estRecette =
                         operation.nature ===
@@ -2540,20 +2873,22 @@ export default function ComptabilitePage() {
                 )}
 
                 {!loadingDepenses &&
-                  depenses.length ===
+                  depensesFiltrees.length ===
                     0 && (
                     <tr>
                       <td
                         colSpan="8"
                         className="px-5 py-10 text-center text-slate-400"
                       >
-                        Aucune dépense enregistrée.
+                        {periodeActive
+                          ? "Aucune dépense sur cette période."
+                          : "Aucune dépense enregistrée."}
                       </td>
                     </tr>
                   )}
 
                 {!loadingDepenses &&
-                  depenses.map((d) => (
+                  depensesFiltrees.map((d) => (
                     <tr
                       key={d.id}
                       className="transition hover:bg-slate-50"
@@ -2645,6 +2980,16 @@ export default function ComptabilitePage() {
                 {rapport?.nombreOperations ||
                   0}
               </p>
+
+              {periodeActive && (
+                <p className="mt-1 text-xs text-slate-400">
+                  dont{" "}
+                  <span className="font-semibold text-slate-600">
+                    {operationsFiltrees.length}
+                  </span>{" "}
+                  sur la période
+                </p>
+              )}
             </div>
 
             <div>
@@ -2666,6 +3011,36 @@ export default function ComptabilitePage() {
               <p className="mt-1 text-lg font-semibold text-indigo-600">
                 {emprunts.length}
               </p>
+
+              {periodeActive && (
+                <p className="mt-1 text-xs text-slate-400">
+                  dont{" "}
+                  <span className="font-semibold text-indigo-500">
+                    {empruntsFiltres.length}
+                  </span>{" "}
+                  sur la période
+                </p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs text-slate-400">
+                Nombre de dépenses
+              </p>
+
+              <p className="mt-1 text-lg font-semibold text-rose-600">
+                {depenses.length}
+              </p>
+
+              {periodeActive && (
+                <p className="mt-1 text-xs text-slate-400">
+                  dont{" "}
+                  <span className="font-semibold text-rose-500">
+                    {depensesFiltrees.length}
+                  </span>{" "}
+                  sur la période
+                </p>
+              )}
             </div>
           </div>
         </div>
