@@ -79,6 +79,14 @@ const menuList = [
     link: "/dashboard/admin/notes",
     icon: <FileText size={18} />,
   },
+  
+  hasPermission("GESTION_EXAMENS") && {
+    nom: "Examens",
+    link: "/dashboard/admin/examens",
+    icon: <ClipboardCheck size={18} />,
+  },
+
+
   hasPermission("GESTION_PRESENCES") && {
     nom: "Présences",
     link: "/dashboard/admin/presences",
