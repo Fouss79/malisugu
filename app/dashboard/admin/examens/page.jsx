@@ -2,1065 +2,869 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
+
+import {
+  getExamens,
+  createExamen,
+  updateExamen,
+  deleteExamen,
+} from "../../../../lib/examens-api";
+
 import api from "../../../../lib/api";
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function extraireMessageErreur(err, messageParDefaut) {
-  const data = err?.response?.data;
-
-  if (typeof data === "string" && data.trim()) {
-    return data;
-  }
-
-  if (data && typeof data === "object") {
-    if (typeof data.message === "string" && data.message.trim()) {
-      return data.message;
-    }
-
-    if (typeof data.error === "string" && data.error.trim()) {
-      return data.error;
-    }
-  }
-
-  return err?.message || messageParDefaut;
-}
-
-function formatDate(date) {
-  if (!date) return "-";
-
-  const value = new Date(date);
-
-  if (Number.isNaN(value.getTime())) {
-    return "-";
-  }
-
-  return value.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function formatHeure(heure) {
-  if (!heure) return "-";
-  // "08:00:00" -> "08:00"
-  return String(heure).slice(0, 5);
-}
-
-function getToday() {
-  return new Date().toISOString().split("T")[0];
-}
-
-// Doit rester identique à CAPACITE_PAR_DEFAUT côté backend
-// (RepartitionExamenService), sinon l'aperçu affiché ici ne
-// correspondra plus à ce que le backend calcule réellement.
-const CAPACITE_PAR_DEFAUT = 30;
-
-function capaciteEffective(salle) {
-  const valeur = Number(salle?.capacite);
-  return Number.isFinite(valeur) && valeur > 0
-    ? valeur
-    : CAPACITE_PAR_DEFAUT;
-}
-
-/* =========================================================
-   MODAL EXAMEN (création / édition)
-========================================================= */
-
-function ModalExamen({
-  examen,
-  ecoleId,
-  anneeScolaireId,
-  onClose,
-  onSaved,
-}) {
-  const estEdition = Boolean(examen?.id);
-
-  const [libelle, setLibelle] = useState(examen?.libelle || "");
-  const [dateExamen, setDateExamen] = useState(
-    examen?.dateExamen || getToday()
-  );
-  const [heureDebut, setHeureDebut] = useState(
-    formatHeure(examen?.heureDebut) !== "-"
-      ? formatHeure(examen?.heureDebut)
-      : ""
-  );
-  const [heureFin, setHeureFin] = useState(
-    formatHeure(examen?.heureFin) !== "-"
-      ? formatHeure(examen?.heureFin)
-      : ""
-  );
-  const [actif, setActif] = useState(
-    examen?.actif !== undefined ? examen.actif : true
-  );
-
-  const [submitting, setSubmitting] = useState(false);
-  const [erreur, setErreur] = useState("");
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErreur("");
-
-    if (!libelle.trim()) {
-      setErreur("Le libellé de l'examen est obligatoire.");
-      return;
-    }
-
-    if (!dateExamen) {
-      setErreur("La date de l'examen est obligatoire.");
-      return;
-    }
-
-    if (heureDebut && heureFin && heureFin < heureDebut) {
-      setErreur("L'heure de fin ne peut pas précéder l'heure de début.");
-      return;
-    }
-
-    const payload = {
-      libelle: libelle.trim(),
-      dateExamen,
-      heureDebut: heureDebut ? `${heureDebut}:00` : null,
-      heureFin: heureFin ? `${heureFin}:00` : null,
-      actif,
-      ecole: { id: ecoleId },
-      anneeScolaire: { id: Number(anneeScolaireId) },
-    };
-
-    setSubmitting(true);
-
-    try {
-      if (estEdition) {
-        await api.put(`/examens/${examen.id}`, payload);
-      } else {
-        await api.post("/examens", payload);
-      }
-
-      onSaved();
-    } catch (err) {
-      console.error("Erreur enregistrement examen :", err);
-
-      setErreur(
-        extraireMessageErreur(
-          err,
-          "Impossible d'enregistrer l'examen."
-        )
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-slate-900">
-          {estEdition ? "Modifier l'examen" : "Nouvel examen"}
-        </h2>
-
-        {erreur && (
-          <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {erreur}
-          </div>
-        )}
-
-        <form onSubmit={submit} className="mt-5 space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Libellé *
-            </label>
-
-            <input
-              type="text"
-              value={libelle}
-              onChange={(e) => setLibelle(e.target.value)}
-              placeholder="Ex : Composition du 1er trimestre"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Date de l'examen *
-            </label>
-
-            <input
-              type="date"
-              value={dateExamen}
-              onChange={(e) => setDateExamen(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Heure de début
-              </label>
-
-              <input
-                type="time"
-                value={heureDebut}
-                onChange={(e) => setHeureDebut(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Heure de fin
-              </label>
-
-              <input
-                type="time"
-                value={heureFin}
-                onChange={(e) => setHeureFin(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              />
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <input
-              type="checkbox"
-              checked={actif}
-              onChange={(e) => setActif(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            Examen actif
-          </label>
-
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 sm:flex-1"
-            >
-              Annuler
-            </button>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-1"
-            >
-              {submitting
-                ? "Enregistrement..."
-                : estEdition
-                ? "Enregistrer les modifications"
-                : "Créer l'examen"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   MODAL RÉPARTITION
-========================================================= */
-
-function ModalRepartition({ examen, classes, salles, onClose }) {
-  const [classeIds, setClasseIds] = useState([]);
-  const [salleIds, setSalleIds] = useState([]);
-  const [mode, setMode] = useState("ALPHABETIQUE");
-
-  const [repartition, setRepartition] = useState([]);
-  const [loadingRepartition, setLoadingRepartition] = useState(true);
-  const [lancement, setLancement] = useState(false);
-  const [suppression, setSuppression] = useState(false);
-
-  const [erreur, setErreur] = useState("");
-  const [message, setMessage] = useState("");
-
-  const chargerRepartitionExistante = async () => {
-    setLoadingRepartition(true);
-
-    try {
-      const res = await api.get(`/examens/${examen.id}/repartition`);
-      setRepartition(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Erreur chargement répartition :", err);
-      // Pas bloquant : l'examen peut simplement ne pas encore avoir de répartition.
-    } finally {
-      setLoadingRepartition(false);
-    }
-  };
-
-  useEffect(() => {
-    chargerRepartitionExistante();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examen.id]);
-
-  const toggleClasse = (id) => {
-    setClasseIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((c) => c !== id)
-        : [...prev, id]
-    );
-  };
-
-  const toggleSalle = (id) => {
-    setSalleIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((s) => s !== id)
-        : [...prev, id]
-    );
-  };
-
-  const capaciteSelectionnee = salles
-    .filter((s) => salleIds.includes(s.id))
-    .reduce((acc, s) => acc + capaciteEffective(s), 0);
-
-  const lancerRepartition = async () => {
-    setErreur("");
-    setMessage("");
-
-    if (classeIds.length === 0) {
-      setErreur("Sélectionnez au moins une classe.");
-      return;
-    }
-
-    if (salleIds.length === 0) {
-      setErreur("Sélectionnez au moins une salle.");
-      return;
-    }
-
-    setLancement(true);
-
-    try {
-      const res = await api.post(`/examens/${examen.id}/repartition`, {
-        classeIds,
-        salleIds,
-        mode,
-      });
-
-      setRepartition(Array.isArray(res.data) ? res.data : []);
-      setMessage("Répartition effectuée avec succès.");
-    } catch (err) {
-      console.error("Erreur répartition :", err);
-
-      setErreur(
-        extraireMessageErreur(
-          err,
-          "Impossible de répartir les élèves avec ces paramètres."
-        )
-      );
-    } finally {
-      setLancement(false);
-    }
-  };
-
-  const supprimerRepartition = async () => {
-    setErreur("");
-    setMessage("");
-    setSuppression(true);
-
-    try {
-      await api.delete(`/examens/${examen.id}/repartition`);
-      setRepartition([]);
-      setMessage("Répartition supprimée.");
-    } catch (err) {
-      console.error("Erreur suppression répartition :", err);
-
-      setErreur(
-        extraireMessageErreur(
-          err,
-          "Impossible de supprimer la répartition."
-        )
-      );
-    } finally {
-      setSuppression(false);
-    }
-  };
-
-  // Regroupement par salle pour l'affichage des résultats.
-  const parSalle = repartition.reduce((acc, r) => {
-    const cle = r.salleId;
-
-    if (!acc[cle]) {
-      acc[cle] = {
-        salleNom: r.salleNom,
-        eleves: [],
-      };
-    }
-
-    acc[cle].eleves.push(r);
-    return acc;
-  }, {});
-
-  Object.values(parSalle).forEach((groupe) =>
-    groupe.eleves.sort((a, b) => a.numeroPlace - b.numeroPlace)
-  );
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-slate-900">
-          Répartition — {examen.libelle}
-        </h2>
-
-        <p className="mt-1 text-sm text-slate-500">
-          {formatDate(examen.dateExamen)}
-          {formatHeure(examen.heureDebut) !== "-" &&
-            ` • ${formatHeure(examen.heureDebut)}${
-              formatHeure(examen.heureFin) !== "-"
-                ? ` - ${formatHeure(examen.heureFin)}`
-                : ""
-            }`}
-        </p>
-
-        {erreur && (
-          <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {erreur}
-          </div>
-        )}
-
-        {message && (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {message}
-          </div>
-        )}
-
-        {/* ===== FORMULAIRE DE RÉPARTITION ===== */}
-
-        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Classes à répartir *
-            </label>
-
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-3">
-              {classes.length === 0 && (
-                <p className="text-xs text-slate-400">
-                  Aucune classe disponible.
-                </p>
-              )}
-
-              {classes.map((c) => (
-                <label
-                  key={c.id}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={classeIds.includes(c.id)}
-                    onChange={() => toggleClasse(c.id)}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
-                  {c.nomComplet || c.nomNiveau || `Classe #${c.id}`}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              Salles disponibles *
-            </label>
-
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-3">
-              {salles.length === 0 && (
-                <p className="text-xs text-slate-400">
-                  Aucune salle disponible.
-                </p>
-              )}
-
-              {salles.map((s) => (
-                <label
-                  key={s.id}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={salleIds.includes(s.id)}
-                    onChange={() => toggleSalle(s.id)}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
-                  {s.nom}{" "}
-                  <span className="text-xs text-slate-400">
-                    {s.capacite
-                      ? `(${s.capacite} places)`
-                      : `(${CAPACITE_PAR_DEFAUT} places par défaut)`}
-                  </span>
-                </label>
-              ))}
-            </div>
-
-            {salleIds.length > 0 && (
-              <p className="mt-1 text-xs text-slate-400">
-                Capacité totale sélectionnée :{" "}
-                <span className="font-semibold text-slate-600">
-                  {capaciteSelectionnee}
-                </span>{" "}
-                places
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
-            Mode de répartition
-          </label>
-
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            className="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-          >
-            <option value="ALPHABETIQUE">Alphabétique</option>
-            <option value="ALEATOIRE">Aléatoire</option>
-          </select>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          <button
-            type="button"
-            onClick={lancerRepartition}
-            disabled={lancement}
-            className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {lancement
-              ? "Répartition en cours..."
-              : repartition.length > 0
-              ? "Relancer la répartition"
-              : "Lancer la répartition"}
-          </button>
-
-          {repartition.length > 0 && (
-            <button
-              type="button"
-              onClick={supprimerRepartition}
-              disabled={suppression}
-              className="rounded-xl border border-rose-200 bg-white px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {suppression ? "Suppression..." : "Supprimer la répartition"}
-            </button>
-          )}
-        </div>
-
-        {/* ===== RÉSULTATS ===== */}
-
-        <div className="mt-6 border-t border-slate-100 pt-5">
-          <h3 className="text-sm font-semibold text-slate-800">
-            Plan de salle
-          </h3>
-
-          {loadingRepartition ? (
-            <p className="mt-3 text-sm text-slate-400">Chargement...</p>
-          ) : repartition.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">
-              Aucune répartition enregistrée pour cet examen.
-            </p>
-          ) : (
-            <div className="mt-3 space-y-5">
-              {Object.entries(parSalle).map(([salleId, groupe]) => (
-                <div
-                  key={salleId}
-                  className="overflow-hidden rounded-xl border border-slate-100"
-                >
-                  <div className="bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                    {groupe.salleNom}{" "}
-                    <span className="font-normal text-slate-400">
-                      ({groupe.eleves.length} élève
-                      {groupe.eleves.length > 1 ? "s" : ""})
-                    </span>
-                  </div>
-
-                  <table className="w-full text-left text-sm">
-                    <thead className="text-xs uppercase text-slate-400">
-                      <tr>
-                        <th className="px-4 py-2">Place</th>
-                        <th className="px-4 py-2">Élève</th>
-                        <th className="px-4 py-2">Classe</th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-slate-100">
-                      {groupe.eleves.map((e) => (
-                        <tr key={e.id}>
-                          <td className="px-4 py-2 text-slate-500">
-                            {e.numeroPlace}
-                          </td>
-                          <td className="px-4 py-2 font-medium text-slate-800">
-                            {e.nom} {e.prenom}
-                          </td>
-                          <td className="px-4 py-2 text-slate-500">
-                            {e.classeNom}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================
-   PAGE PRINCIPALE
-========================================================= */
 
 export default function ExamensPage() {
   const { user } = useAuth();
+
+  // ============================================================
+  // CONTEXTE
+  // ============================================================
+
   const ecoleId = user?.ecole?.id;
 
-  const [anneesScolaires, setAnneesScolaires] = useState([]);
-  const [anneeScolaireId, setAnneeScolaireId] = useState("");
-  const [loadingAnnees, setLoadingAnnees] = useState(true);
+  const [anneeScolaire, setAnneeScolaire] = useState(null);
+  const [anneeScolaireId, setAnneeScolaireId] = useState(null);
+
+  // ============================================================
+  // ÉTAT
+  // ============================================================
 
   const [examens, setExamens] = useState([]);
-  const [loadingExamens, setLoadingExamens] = useState(true);
 
-  const [classes, setClasses] = useState([]);
-  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
-  const [salles, setSalles] = useState([]);
-  const [loadingSalles, setLoadingSalles] = useState(true);
+  const [error, setError] = useState("");
 
-  const [erreur, setErreur] = useState("");
-  const [message, setMessage] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState(null);
 
-  const [afficherFormulaireExamen, setAfficherFormulaireExamen] =
-    useState(false);
-  const [examenEnEdition, setExamenEnEdition] = useState(null);
-  const [examenPourRepartition, setExamenPourRepartition] = useState(null);
+  const [search, setSearch] = useState("");
 
-  const afficherMessage = (texte) => {
-    setMessage(texte);
-    setTimeout(() => setMessage(""), 4000);
-  };
+  const [form, setForm] = useState({
+    nom: "",
+    dateDebut: "",
+    dateFin: "",
+  });
 
-  /* --------------------------------------------------------
-     CHARGEMENTS
-  -------------------------------------------------------- */
-
-  const chargerAnneesScolaires = async () => {
-    if (!ecoleId) {
-      setLoadingAnnees(false);
-      return;
-    }
-
-    setLoadingAnnees(true);
-
-    try {
-      const res = await api.get(`/annees/ecole/${ecoleId}`);
-      const annees = Array.isArray(res.data) ? res.data : [];
-
-      setAnneesScolaires(annees);
-
-      const anneeActive = annees.find((a) => a.active === true);
-
-      if (anneeActive) {
-        setAnneeScolaireId(String(anneeActive.id));
-      } else if (annees.length > 0) {
-        setAnneeScolaireId(String(annees[0].id));
-      }
-    } catch (err) {
-      console.error("Erreur chargement années scolaires :", err);
-      setErreur(
-        extraireMessageErreur(
-          err,
-          "Impossible de charger les périodes scolaires."
-        )
-      );
-    } finally {
-      setLoadingAnnees(false);
-    }
-  };
-
-  const chargerExamens = async () => {
-    if (!ecoleId || !anneeScolaireId) {
-      setLoadingExamens(false);
-      return;
-    }
-
-    setLoadingExamens(true);
-
-    try {
-      const res = await api.get(
-        `/examens/ecole/${ecoleId}?anneeId=${anneeScolaireId}`
-      );
-      setExamens(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Erreur chargement examens :", err);
-      setErreur(
-        extraireMessageErreur(err, "Impossible de charger les examens.")
-      );
-    } finally {
-      setLoadingExamens(false);
-    }
-  };
-
-  const chargerClasses = async () => {
-    if (!ecoleId) {
-      setLoadingClasses(false);
-      return;
-    }
-
-    setLoadingClasses(true);
-
-    try {
-      const res = await api.get(`/classes/ecole/${ecoleId}`);
-      setClasses(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Erreur chargement classes :", err);
-    } finally {
-      setLoadingClasses(false);
-    }
-  };
-
-  const chargerSalles = async () => {
-    if (!ecoleId) {
-      setLoadingSalles(false);
-      return;
-    }
-
-    setLoadingSalles(true);
-
-    try {
-      // Hypothèse : endpoint non confirmé, suit la convention des autres
-      // ressources de l'école (/classes/ecole/{id}, /annees/ecole/{id}...).
-      // À corriger ici si le chemin réel diffère.
-      const res = await api.get(`/salles/ecole/${ecoleId}`);
-      setSalles(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Erreur chargement salles :", err);
-      setErreur(
-        extraireMessageErreur(
-          err,
-          "Impossible de charger les salles (vérifier l'URL de l'endpoint salles)."
-        )
-      );
-    } finally {
-      setLoadingSalles(false);
-    }
-  };
-
-  const rechargerExamens = async () => {
-    await chargerExamens();
-  };
+  // ============================================================
+  // CHARGEMENT INITIAL
+  // ============================================================
 
   useEffect(() => {
-    if (!ecoleId) return;
+    if (!ecoleId) {
+      setLoading(false);
+      return;
+    }
 
-    chargerAnneesScolaires();
-    chargerClasses();
-    chargerSalles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    chargerContexte();
   }, [ecoleId]);
 
-  useEffect(() => {
-    if (!ecoleId || !anneeScolaireId) return;
+  // ============================================================
+  // RÉCUPÉRER L'ANNÉE SCOLAIRE ACTIVE
+  // ============================================================
 
-    chargerExamens();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ecoleId, anneeScolaireId]);
+  async function chargerContexte() {
+    try {
+      setLoading(true);
+      setError("");
 
-  /* --------------------------------------------------------
-     ACTIONS
-  -------------------------------------------------------- */
+      const response = await api.get(
+        `/annees/active/${ecoleId}`
+      );
 
-  const ouvrirCreation = () => {
-    setExamenEnEdition(null);
-    setAfficherFormulaireExamen(true);
-  };
+      const annee = response.data;
 
-  const ouvrirEdition = (examen) => {
-    setExamenEnEdition(examen);
-    setAfficherFormulaireExamen(true);
-  };
+      if (!annee?.id) {
+        setAnneeScolaire(null);
+        setAnneeScolaireId(null);
+        setExamens([]);
 
-  const handleExamenSaved = async () => {
-    setAfficherFormulaireExamen(false);
-    setExamenEnEdition(null);
-    afficherMessage("Examen enregistré avec succès.");
-    await rechargerExamens();
-  };
+        setError(
+          "Aucune année scolaire active n'a été trouvée pour cette école."
+        );
 
-  const supprimerExamen = async (examen) => {
-    if (
-      !window.confirm(
-        `Supprimer l'examen "${examen.libelle}" ? Cette action supprimera aussi sa répartition éventuelle.`
-      )
-    ) {
+        return;
+      }
+
+      setAnneeScolaire(annee);
+      setAnneeScolaireId(annee.id);
+
+      await chargerExamens(ecoleId, annee.id);
+
+    } catch (err) {
+      console.error(
+        "Erreur récupération année scolaire active :",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+        "Impossible de récupérer l'année scolaire active."
+      );
+
+      setExamens([]);
+
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ============================================================
+  // CHARGER LES EXAMENS
+  // ============================================================
+
+  async function chargerExamens(ecole, annee) {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getExamens(ecole, annee);
+
+      setExamens(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+
+    } catch (err) {
+      console.error(
+        "Erreur chargement examens :",
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        "Impossible de charger les examens."
+      );
+
+      setExamens([]);
+
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ============================================================
+  // OUVRIR CRÉATION
+  // ============================================================
+
+  function ouvrirCreation() {
+    setEditing(null);
+
+    setForm({
+      nom: "",
+      dateDebut: "",
+      dateFin: "",
+    });
+
+    setShowModal(true);
+  }
+
+  // ============================================================
+  // OUVRIR MODIFICATION
+  // ============================================================
+
+  function ouvrirEdition(examen) {
+    setEditing(examen);
+
+    setForm({
+      nom: examen.nom || "",
+      dateDebut: examen.dateDebut
+        ? formatDateInput(examen.dateDebut)
+        : "",
+      dateFin: examen.dateFin
+        ? formatDateInput(examen.dateFin)
+        : "",
+    });
+
+    setShowModal(true);
+  }
+
+  // ============================================================
+  // FERMER MODAL
+  // ============================================================
+
+  function fermerModal() {
+    if (saving) return;
+
+    setShowModal(false);
+    setEditing(null);
+
+    setForm({
+      nom: "",
+      dateDebut: "",
+      dateFin: "",
+    });
+  }
+
+  // ============================================================
+  // ENREGISTRER
+  // ============================================================
+
+  async function enregistrer() {
+    const nom = form.nom.trim();
+
+    if (!nom) {
+      alert("Le nom de l'examen est obligatoire.");
       return;
     }
 
-    setErreur("");
+    if (!ecoleId) {
+      alert("École introuvable.");
+      return;
+    }
+
+    if (!anneeScolaireId) {
+      alert("Aucune année scolaire active.");
+      return;
+    }
+
+    if (!form.dateDebut) {
+      alert("La date de début est obligatoire.");
+      return;
+    }
+
+    if (!form.dateFin) {
+      alert("La date de fin est obligatoire.");
+      return;
+    }
+
+    if (form.dateFin < form.dateDebut) {
+      alert(
+        "La date de fin ne peut pas être antérieure à la date de début."
+      );
+      return;
+    }
 
     try {
-      await api.delete(`/examens/${examen.id}`);
-      afficherMessage("Examen supprimé.");
-      await rechargerExamens();
-    } catch (err) {
-      console.error("Erreur suppression examen :", err);
-      setErreur(
-        extraireMessageErreur(err, "Impossible de supprimer l'examen.")
-      );
-    }
-  };
+      setSaving(true);
 
-  const anneeSelectionnee = anneesScolaires.find(
-    (a) => String(a.id) === String(anneeScolaireId)
+      setError("");
+
+      const payload = {
+        nom,
+        dateDebut: form.dateDebut,
+        dateFin: form.dateFin,
+        ecoleId,
+        anneeScolaireId,
+      };
+
+      if (editing) {
+        await updateExamen(
+          editing.id,
+          payload
+        );
+      } else {
+        await createExamen(payload);
+      }
+
+      fermerModal();
+
+      await chargerExamens(
+        ecoleId,
+        anneeScolaireId
+      );
+
+    } catch (err) {
+      console.error(
+        "Erreur enregistrement examen :",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+        err.message ||
+        "Une erreur est survenue lors de l'enregistrement."
+      );
+
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ============================================================
+  // SUPPRIMER
+  // ============================================================
+
+  async function supprimer(examen) {
+    const ok = window.confirm(
+      `Voulez-vous vraiment supprimer "${examen.nom}" ?`
+    );
+
+    if (!ok) {
+      return;
+    }
+
+    try {
+      setDeletingId(examen.id);
+
+      await deleteExamen(examen.id);
+
+      await chargerExamens(
+        ecoleId,
+        anneeScolaireId
+      );
+
+    } catch (err) {
+      console.error(
+        "Erreur suppression examen :",
+        err
+      );
+
+      alert(
+        err.response?.data?.message ||
+        err.message ||
+        "Impossible de supprimer l'examen."
+      );
+
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // ============================================================
+  // RECHERCHE
+  // ============================================================
+
+  const examensFiltres = examens.filter((examen) =>
+    (examen.nom || "")
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
-  /* --------------------------------------------------------
-     RENDER
-  -------------------------------------------------------- */
+  // ============================================================
+  // CHARGEMENT
+  // ============================================================
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="mx-auto max-w-6xl">
-        {/* ===== HEADER ===== */}
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6">
 
-        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Examens
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Planification des examens et répartition des élèves en salle.
-            </p>
+        <div className="mx-auto max-w-7xl space-y-6">
+
+          <div className="animate-pulse space-y-4">
+
+            <div className="h-8 w-64 rounded bg-slate-200" />
+
+            <div className="h-20 rounded-2xl bg-slate-200" />
+
+            <div className="h-16 rounded-2xl bg-slate-200" />
+
+            <div className="h-72 rounded-2xl bg-slate-200" />
+
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
-                Période
-              </label>
-
-              <select
-                value={anneeScolaireId}
-                onChange={(e) => setAnneeScolaireId(e.target.value)}
-                disabled={loadingAnnees}
-                className="h-10 min-w-[190px] rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="">
-                  {loadingAnnees
-                    ? "Chargement..."
-                    : "Sélectionner une période"}
-                </option>
-
-                {anneesScolaires.map((annee) => (
-                  <option key={annee.id} value={annee.id}>
-                    {annee.nom ||
-                      annee.libelle ||
-                      `${annee.dateDebut} - ${annee.dateFin}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={ouvrirCreation}
-              disabled={!anneeScolaireId}
-              className="flex h-10 items-center justify-center whitespace-nowrap rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              + Nouvel examen
-            </button>
-          </div>
         </div>
 
-        {/* ===== MESSAGES ===== */}
+      </div>
+    );
+  }
 
-        {erreur && (
-          <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {erreur}
+  // ============================================================
+  // RENDER
+  // ============================================================
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
+
+      <div className="mx-auto max-w-7xl">
+
+        {/* =====================================================
+            HEADER
+        ====================================================== */}
+
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+          <div>
+
+            <div className="flex flex-wrap items-center gap-3">
+
+              <h1 className="text-2xl font-bold text-slate-900">
+                Examens
+              </h1>
+
+              {anneeScolaire && (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  {anneeScolaire.nom}
+                </span>
+              )}
+
+            </div>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Gérez les examens, épreuves, créneaux et répartitions.
+            </p>
+
+          </div>
+
+          <button
+            type="button"
+            onClick={ouvrirCreation}
+            disabled={!anneeScolaireId}
+            className="rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            + Nouvel examen
+          </button>
+
+        </div>
+
+        {/* =====================================================
+            ERREUR
+        ====================================================== */}
+
+        {error && (
+          <div className="mb-5 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+
+            <div>
+              {error}
+            </div>
+
+            {ecoleId && (
+              <button
+                type="button"
+                onClick={chargerContexte}
+                className="shrink-0 font-semibold underline hover:no-underline"
+              >
+                Réessayer
+              </button>
+            )}
+
           </div>
         )}
 
-        {message && (
-          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            {message}
-          </div>
-        )}
+        {/* =====================================================
+            INFORMATIONS CONTEXTE
+        ====================================================== */}
 
-        {anneeSelectionnee && (
-          <div className="mb-6 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-            Période :{" "}
-            <strong>
-              {anneeSelectionnee.nom || anneeSelectionnee.libelle || "-"}
-            </strong>
-          </div>
-        )}
+        {anneeScolaire && (
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 
-        {/* ===== TABLEAU EXAMENS ===== */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-800">
-              Liste des examens
-            </h2>
-          </div>
+              <div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Examen</th>
-                  <th className="px-5 py-3">Horaire</th>
-                  <th className="px-5 py-3">Statut</th>
-                  <th className="px-5 py-3 text-right">Action</th>
-                </tr>
-              </thead>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Année scolaire active
+                </p>
 
-              <tbody className="divide-y divide-slate-100">
-                {loadingExamens && (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="px-5 py-10 text-center text-slate-400"
-                    >
-                      Chargement...
-                    </td>
-                  </tr>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {anneeScolaire.nom}
+                </p>
+
+              </div>
+
+              <div className="text-sm text-slate-500">
+
+                {anneeScolaire.debut && (
+                  <span>
+                    Du {formatDate(anneeScolaire.debut)}
+                  </span>
                 )}
 
-                {!loadingExamens && examens.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="px-5 py-10 text-center text-slate-400"
-                    >
-                      Aucun examen enregistré pour cette période.
-                    </td>
-                  </tr>
+                {anneeScolaire.fin && (
+                  <span>
+                    {" "}au {formatDate(anneeScolaire.fin)}
+                  </span>
                 )}
 
-                {!loadingExamens &&
-                  examens.map((examen) => (
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* =====================================================
+            RECHERCHE
+        ====================================================== */}
+
+        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+
+          <div className="relative">
+
+            <input
+              type="text"
+              placeholder="Rechercher un examen..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-10 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            )}
+
+          </div>
+
+        </div>
+
+        {/* =====================================================
+            LISTE
+        ====================================================== */}
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+          {examensFiltres.length === 0 ? (
+
+            <div className="p-10 text-center">
+
+              <div className="mx-auto mb-3 text-4xl">
+                📝
+              </div>
+
+              <h3 className="font-semibold text-slate-800">
+                {search
+                  ? "Aucun examen trouvé"
+                  : "Aucun examen"}
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                {search
+                  ? "Aucun examen ne correspond à votre recherche."
+                  : "Créez votre premier examen."}
+              </p>
+
+              {!search && anneeScolaireId && (
+                <button
+                  type="button"
+                  onClick={ouvrirCreation}
+                  className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+                >
+                  + Créer un examen
+                </button>
+              )}
+
+            </div>
+
+          ) : (
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full min-w-[800px]">
+
+                <thead>
+
+                  <tr className="border-b border-slate-200 bg-slate-50">
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Examen
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Début
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Fin
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Statut
+                    </th>
+
+                    <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Actions
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {examensFiltres.map((examen) => (
+
                     <tr
                       key={examen.id}
-                      className="transition hover:bg-slate-50"
+                      className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                     >
-                      <td className="whitespace-nowrap px-5 py-4 text-slate-600">
-                        {formatDate(examen.dateExamen)}
+
+                      <td className="px-5 py-4">
+
+                        <div className="font-semibold text-slate-900">
+                          {examen.nom}
+                        </div>
+
                       </td>
 
-                      <td className="px-5 py-4 font-medium text-slate-800">
-                        {examen.libelle}
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {formatDate(examen.dateDebut)}
                       </td>
 
-                      <td className="px-5 py-4 text-slate-600">
-                        {formatHeure(examen.heureDebut) !== "-"
-                          ? `${formatHeure(examen.heureDebut)}${
-                              formatHeure(examen.heureFin) !== "-"
-                                ? ` - ${formatHeure(examen.heureFin)}`
-                                : ""
-                            }`
-                          : "-"}
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        {formatDate(examen.dateFin)}
                       </td>
 
                       <td className="px-5 py-4">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                            examen.actif
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
-                        >
-                          {examen.actif ? "Actif" : "Inactif"}
+
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                          PLANIFIÉ
                         </span>
+
                       </td>
 
                       <td className="px-5 py-4">
+
                         <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => setExamenPourRepartition(examen)}
-                            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+
+                          <a
+                            href={`/dashboard/admin/examens/${examen.id}`}
+                            className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
                           >
-                            Répartition
-                          </button>
+                            Ouvrir
+                          </a>
 
                           <button
-                            onClick={() => ouvrirEdition(examen)}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            type="button"
+                            onClick={() =>
+                              ouvrirEdition(examen)
+                            }
+                            disabled={deletingId === examen.id}
+                            className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
                           >
                             Modifier
                           </button>
 
                           <button
-                            onClick={() => supprimerExamen(examen)}
-                            className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                            type="button"
+                            onClick={() =>
+                              supprimer(examen)
+                            }
+                            disabled={
+                              deletingId === examen.id
+                            }
+                            className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            Supprimer
+                            {deletingId === examen.id
+                              ? "Suppression..."
+                              : "Supprimer"}
                           </button>
+
                         </div>
+
                       </td>
+
                     </tr>
+
                   ))}
-              </tbody>
-            </table>
-          </div>
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          )}
+
         </div>
 
-        {(loadingClasses || loadingSalles) && (
-          <p className="mt-4 text-xs text-slate-400">
-            Chargement des classes et des salles disponibles pour la
-            répartition...
-          </p>
-        )}
       </div>
 
-      {/* ===== MODALS ===== */}
+      {/* =======================================================
+          MODAL
+      ======================================================== */}
 
-      {afficherFormulaireExamen && (
-        <ModalExamen
-          examen={examenEnEdition}
-          ecoleId={ecoleId}
-          anneeScolaireId={anneeScolaireId}
-          onClose={() => {
-            setAfficherFormulaireExamen(false);
-            setExamenEnEdition(null);
-          }}
-          onSaved={handleExamenSaved}
-        />
+      {showModal && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+
+            {/* HEADER MODAL */}
+
+            <div className="flex items-center justify-between border-b border-slate-200 p-5">
+
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-900">
+                  {editing
+                    ? "Modifier l'examen"
+                    : "Nouvel examen"}
+                </h2>
+
+                {anneeScolaire && (
+                  <p className="mt-1 text-sm text-slate-500">
+                    Année scolaire :{" "}
+                    <span className="font-medium">
+                      {anneeScolaire.nom}
+                    </span>
+                  </p>
+                )}
+
+              </div>
+
+              <button
+                type="button"
+                onClick={fermerModal}
+                disabled={saving}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+              >
+                ✕
+              </button>
+
+            </div>
+
+            {/* FORMULAIRE */}
+
+            <div className="space-y-5 p-5">
+
+              {/* NOM */}
+
+              <div>
+
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Nom de l'examen
+                </label>
+
+                <input
+                  type="text"
+                  value={form.nom}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      nom: e.target.value,
+                    })
+                  }
+                  placeholder="Ex : Composition du 1er trimestre"
+                  disabled={saving}
+                  autoFocus
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
+                />
+
+              </div>
+
+              {/* DATES */}
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                <div>
+
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Date de début
+                  </label>
+
+                  <input
+                    type="date"
+                    value={form.dateDebut}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        dateDebut: e.target.value,
+                      })
+                    }
+                    disabled={saving}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Date de fin
+                  </label>
+
+                  <input
+                    type="date"
+                    value={form.dateFin}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        dateFin: e.target.value,
+                      })
+                    }
+                    disabled={saving}
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50"
+                  />
+
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* FOOTER */}
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 p-5">
+
+              <button
+                type="button"
+                onClick={fermerModal}
+                disabled={saving}
+                className="rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                onClick={enregistrer}
+                disabled={saving}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving
+                  ? "Enregistrement..."
+                  : editing
+                    ? "Enregistrer"
+                    : "Créer l'examen"}
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
       )}
 
-      {examenPourRepartition && (
-        <ModalRepartition
-          examen={examenPourRepartition}
-          classes={classes}
-          salles={salles}
-          onClose={() => setExamenPourRepartition(null)}
-        />
-      )}
     </div>
   );
+}
+
+// ============================================================
+// FORMATER UNE DATE POUR L'AFFICHAGE
+// ============================================================
+
+function formatDate(date) {
+  if (!date) return "—";
+
+  try {
+    return new Date(date).toLocaleDateString("fr-FR");
+  } catch {
+    return date;
+  }
+}
+
+// ============================================================
+// FORMATER UNE DATE POUR <input type="date">
+// ============================================================
+
+function formatDateInput(date) {
+  if (!date) return "";
+
+  // Si le backend renvoie déjà YYYY-MM-DD
+  if (
+    typeof date === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(date)
+  ) {
+    return date;
+  }
+
+  try {
+    return new Date(date)
+      .toISOString()
+      .split("T")[0];
+  } catch {
+    return "";
+  }
 }
