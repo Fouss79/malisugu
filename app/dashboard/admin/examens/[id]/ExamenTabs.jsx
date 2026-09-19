@@ -1051,16 +1051,26 @@ function Creneaux({ examenId }) {
   const [creneaux, setCreneaux] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [showModal, setShowModal] = useState(false);
+
+  const [date, setDate] = useState("");
+  const [heureDebut, setHeureDebut] = useState("");
+  const [heureFin, setHeureFin] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const charger = async () => {
     try {
       setLoading(true);
 
-      const data =
-        await creneauxApi.listByExamen(examenId);
+      const data = await creneauxApi.listByExamen(examenId);
 
       setCreneaux(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
+      setError("Impossible de charger les créneaux.");
     } finally {
       setLoading(false);
     }
@@ -1072,57 +1082,290 @@ function Creneaux({ examenId }) {
     }
   }, [examenId]);
 
+  const ouvrirAjout = () => {
+    setDate("");
+    setHeureDebut("");
+    setHeureFin("");
+    setError("");
+    setSuccess("");
+    setShowModal(true);
+  };
+
+  const fermerModal = () => {
+    if (saving) return;
+
+    setShowModal(false);
+    setError("");
+  };
+
+  const ajouterCreneau = async (e) => {
+    e.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    if (!date) {
+      setError("Veuillez sélectionner une date.");
+      return;
+    }
+
+    if (!heureDebut || !heureFin) {
+      setError("Veuillez renseigner les heures.");
+      return;
+    }
+
+    if (heureDebut >= heureFin) {
+      setError("L'heure de fin doit être supérieure à l'heure de début.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await creneauxApi.create({
+        examenId: Number(examenId),
+        date,
+        heureDebut,
+        heureFin,
+      });
+
+      setSuccess("Créneau ajouté avec succès.");
+
+      await charger();
+
+      setDate("");
+      setHeureDebut("");
+      setHeureFin("");
+
+      setTimeout(() => {
+        setShowModal(false);
+        setSuccess("");
+      }, 700);
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err?.response?.data?.message ||
+          "Impossible d'ajouter le créneau."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">
-          Créneaux
-        </h2>
 
-        <p className="text-sm text-gray-500 mt-1">
-          Les horaires disponibles pour les épreuves.
-        </p>
+      {/* EN-TÊTE */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">
+            Créneaux
+          </h2>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Créez les horaires disponibles pour les épreuves.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={ouvrirAjout}
+          className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
+        >
+          + Ajouter un créneau
+        </button>
       </div>
 
+      {/* LISTE */}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+
         {loading ? (
           <div className="p-10 text-center text-gray-500">
             Chargement...
           </div>
         ) : creneaux.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">
-            Aucun créneau enregistré.
+          <div className="p-10 text-center">
+
+            <div className="text-4xl mb-3">
+              🕐
+            </div>
+
+            <p className="font-medium text-gray-700">
+              Aucun créneau enregistré.
+            </p>
+
+            <p className="text-sm text-gray-500 mt-1">
+              Commencez par créer un créneau pour cet examen.
+            </p>
+
+            <button
+              type="button"
+              onClick={ouvrirAjout}
+              className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+            >
+              + Créer le premier créneau
+            </button>
+
           </div>
         ) : (
           <div className="divide-y">
+
             {creneaux.map((creneau) => (
               <div
                 key={creneau.id}
-                className="p-5 flex items-center justify-between"
+                className="p-5 flex items-center justify-between gap-4"
               >
+
                 <div>
                   <p className="font-semibold text-gray-900">
                     {creneau.date}
                   </p>
 
-                  <p className="text-sm text-gray-500">
-                    {creneau.heureDebut} —{" "}
-                    {creneau.heureFin}
+                  <p className="text-sm text-gray-500 mt-1">
+                    {creneau.heureDebut} — {creneau.heureFin}
                   </p>
                 </div>
 
                 <span className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700">
                   Créneau
                 </span>
+
               </div>
             ))}
+
           </div>
         )}
+
       </div>
+
+      {/* MODALE AJOUT */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl">
+
+            {/* HEADER MODALE */}
+            <div className="flex items-center justify-between px-6 py-5 border-b">
+
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Ajouter un créneau
+                </h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Définissez la date et les horaires.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={fermerModal}
+                className="text-gray-400 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+
+            </div>
+
+            {/* FORMULAIRE */}
+            <form
+              onSubmit={ajouterCreneau}
+              className="p-6 space-y-5"
+            >
+
+              {error && (
+                <div className="rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className="rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3">
+                  {success}
+                </div>
+              )}
+
+              {/* DATE */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date
+                </label>
+
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              {/* HEURES */}
+              <div className="grid grid-cols-2 gap-4">
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Heure de début
+                  </label>
+
+                  <input
+                    type="time"
+                    value={heureDebut}
+                    onChange={(e) => setHeureDebut(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Heure de fin
+                  </label>
+
+                  <input
+                    type="time"
+                    value={heureFin}
+                    onChange={(e) => setHeureFin(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex justify-end gap-3 pt-2">
+
+                <button
+                  type="button"
+                  onClick={fermerModal}
+                  disabled={saving}
+                  className="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? "Enregistrement..." : "Ajouter"}
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }
-
 /* ============================================================
    SALLES
 ============================================================ */
