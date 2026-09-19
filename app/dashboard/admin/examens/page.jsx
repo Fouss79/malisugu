@@ -30,6 +30,9 @@ export default function ExamensPage() {
 
   const [examens, setExamens] = useState([]);
 
+  const [classes, setClasses] = useState([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -45,6 +48,7 @@ export default function ExamensPage() {
     nom: "",
     dateDebut: "",
     dateFin: "",
+    classeIds: [],
   });
 
   // ============================================================
@@ -90,6 +94,7 @@ export default function ExamensPage() {
       setAnneeScolaire(annee);
       setAnneeScolaireId(annee.id);
 
+      await chargerClasses(ecoleId);
       await chargerExamens(ecoleId, annee.id);
 
     } catch (err) {
@@ -107,6 +112,29 @@ export default function ExamensPage() {
 
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ============================================================
+  // CHARGER LES CLASSES DE L'ÉCOLE
+  // ============================================================
+
+  async function chargerClasses(ecole) {
+    try {
+      setLoadingClasses(true);
+
+      const response = await api.get(`/classes/ecole/${ecole}`);
+
+      setClasses(
+        Array.isArray(response.data) ? response.data : []
+      );
+
+    } catch (err) {
+      console.error("Erreur chargement classes :", err);
+      setClasses([]);
+
+    } finally {
+      setLoadingClasses(false);
     }
   }
 
@@ -157,6 +185,7 @@ export default function ExamensPage() {
       nom: "",
       dateDebut: "",
       dateFin: "",
+      classeIds: [],
     });
 
     setShowModal(true);
@@ -177,6 +206,9 @@ export default function ExamensPage() {
       dateFin: examen.dateFin
         ? formatDateInput(examen.dateFin)
         : "",
+      classeIds: Array.isArray(examen.classes)
+        ? examen.classes.map((c) => c.id)
+        : [],
     });
 
     setShowModal(true);
@@ -196,6 +228,24 @@ export default function ExamensPage() {
       nom: "",
       dateDebut: "",
       dateFin: "",
+      classeIds: [],
+    });
+  }
+
+  // ============================================================
+  // COCHER / DÉCOCHER UNE CLASSE
+  // ============================================================
+
+  function toggleClasse(classeId) {
+    setForm((prev) => {
+      const dejaSelectionnee = prev.classeIds.includes(classeId);
+
+      return {
+        ...prev,
+        classeIds: dejaSelectionnee
+          ? prev.classeIds.filter((id) => id !== classeId)
+          : [...prev.classeIds, classeId],
+      };
     });
   }
 
@@ -238,6 +288,11 @@ export default function ExamensPage() {
       return;
     }
 
+    if (form.classeIds.length === 0) {
+      alert("Veuillez sélectionner au moins une classe.");
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -249,6 +304,7 @@ export default function ExamensPage() {
         dateFin: form.dateFin,
         ecoleId,
         anneeScolaireId,
+        classeIds: form.classeIds,
       };
 
       if (editing) {
@@ -678,7 +734,7 @@ export default function ExamensPage() {
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
 
             {/* HEADER MODAL */}
 
@@ -788,6 +844,68 @@ export default function ExamensPage() {
                   />
 
                 </div>
+
+              </div>
+
+              {/* CLASSES */}
+
+              <div>
+
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Classes concernées
+                </label>
+
+                {loadingClasses ? (
+                  <p className="text-sm text-slate-500">
+                    Chargement des classes...
+                  </p>
+                ) : classes.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Aucune classe disponible pour cette école.
+                  </p>
+                ) : (
+                  <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-3">
+                    {classes.map((classe) => {
+                      const checked = form.classeIds.includes(
+                        classe.id
+                      );
+
+                      return (
+                        <label
+                          key={classe.id}
+                          className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+                            checked
+                              ? "bg-emerald-50 text-emerald-800"
+                              : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              toggleClasse(classe.id)
+                            }
+                            disabled={saving}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+
+                          <span>
+                            {classe.nomComplet ||
+                              `Classe #${classe.id}`}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {form.classeIds.length > 0 && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {form.classeIds.length} classe
+                    {form.classeIds.length > 1 ? "s" : ""} sélectionnée
+                    {form.classeIds.length > 1 ? "s" : ""}
+                  </p>
+                )}
 
               </div>
 

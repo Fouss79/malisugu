@@ -9,6 +9,7 @@ import {
   sallesApi,
   epreuveSallesApi,
   repartitionEpreuvesApi,
+  examensApi
 } from "../../../../../lib/examens";
 
 export default function ExamenTabs({
@@ -120,6 +121,8 @@ function Epreuves({
 }) {
   const [epreuves, setEpreuves] = useState([]);
   const [programmes, setProgrammes] = useState([]);
+  const [examen, setExamen] = useState(null);
+const [loadingExamen, setLoadingExamen] = useState(false);
   const [creneaux, setCreneaux] = useState([]);
   const [salles, setSalles] = useState([]);
 
@@ -180,30 +183,120 @@ function Epreuves({
   };
 
   const chargerProgrammes = async () => {
-    if (!ecoleId || !anneeScolaireId) return;
+  if (!examenId || !ecoleId || !anneeScolaireId) return;
 
-    try {
-      setLoadingProgrammes(true);
+  try {
+    setLoadingExamen(true);
+    setLoadingProgrammes(true);
+    setError("");
 
-      const data =
-        await coefficientsApi.listByEcoleAndAnnee(
-          ecoleId,
-          anneeScolaireId
-        );
+    // 1. Charger l'examen avec ses classes
+    const examenData = await examensApi.get(examenId);
 
-      setProgrammes(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
+    setExamen(examenData);
 
+    const classes = Array.isArray(examenData?.classes)
+      ? examenData.classes
+      : [];
+
+    if (classes.length === 0) {
+      setProgrammes([]);
       setError(
-        err?.response?.data?.message ||
-          "Impossible de charger les programmes."
+        "Aucune classe n'est associée à cet examen."
       );
-    } finally {
-      setLoadingProgrammes(false);
+      return;
     }
-  };
 
+    // ----------------------------------------------------------
+    // 2. Construire les couples UNIQUES : Niveau + Série
+    // ----------------------------------------------------------
+
+    const niveauxSeries = [];
+
+    classes.forEach((classe) => {
+      if (!classe?.niveauId) return;
+
+      const niveauId = Number(classe.niveauId);
+
+      const serieId =
+        classe.serieId != null
+          ? Number(classe.serieId)
+          : null;
+
+      const existe = niveauxSeries.some(
+        (item) =>
+          item.niveauId === niveauId &&
+          item.serieId === serieId
+      );
+
+      if (!existe) {
+        niveauxSeries.push({
+          niveauId,
+          serieId,
+        });
+      }
+    });
+
+    if (niveauxSeries.length === 0) {
+      setProgrammes([]);
+      setError(
+        "Impossible de déterminer les niveaux et séries de l'examen."
+      );
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // 3. Charger les programmes pour chaque Niveau + Série
+    // ----------------------------------------------------------
+
+    const resultats = await Promise.all(
+      niveauxSeries.map(
+        ({ niveauId, serieId }) =>
+          coefficientsApi.listPourNiveauEtSerie(
+            ecoleId,
+            anneeScolaireId,
+            niveauId,
+            serieId
+          )
+      )
+    );
+
+    // ----------------------------------------------------------
+    // 4. Fusionner les résultats
+    // ----------------------------------------------------------
+
+    const tousLesProgrammes = resultats.flat();
+
+    // ----------------------------------------------------------
+    // 5. Supprimer les doublons
+    // ----------------------------------------------------------
+
+    const programmesUniques = Array.from(
+      new Map(
+        tousLesProgrammes.map((programme) => [
+          programme.id,
+          programme,
+        ])
+      ).values()
+    );
+
+    setProgrammes(programmesUniques);
+  } catch (err) {
+    console.error(err);
+
+    setProgrammes([]);
+
+    setError(
+      err?.response?.data?.message ||
+        err?.response?.data ||
+        err?.message ||
+        "Impossible de charger les programmes de l'examen."
+    );
+  } finally {
+    setLoadingExamen(false);
+    setLoadingProgrammes(false);
+  }
+};
   const chargerCreneaux = async () => {
     if (!examenId) return;
 
@@ -249,19 +342,18 @@ function Epreuves({
   };
 
   useEffect(() => {
-    if (!examenId) return;
+  if (!examenId) return;
 
-    chargerEpreuves();
-    chargerCreneaux();
-  }, [examenId]);
+  chargerEpreuves();
+  chargerCreneaux();
+}, [examenId]);
 
-  useEffect(() => {
-    if (!ecoleId || !anneeScolaireId) return;
+useEffect(() => {
+  if (!examenId || !ecoleId || !anneeScolaireId) return;
 
-    chargerProgrammes();
-    chargerSalles();
-  }, [ecoleId, anneeScolaireId]);
-
+  chargerProgrammes();
+  chargerSalles();
+}, [examenId, ecoleId, anneeScolaireId]);
   /* ----------------------------------------------------------
      CRÉNEAU
   ---------------------------------------------------------- */
@@ -738,22 +830,32 @@ function Epreuves({
                 </option>
 
                 {programmes
-                  .filter(
-                    (programme) =>
-                      !epreuveExiste(programme.id)
-                  )
-                  .map((programme) => (
-                    <option
-                      key={programme.id}
-                      value={programme.id}
-                    >
-                      {programme.matiereNom ||
-                        programme.matiere?.nom ||
-                        "Matière"}{" "}
-                      — coef.{" "}
-                      {programme.coefficient ?? "-"}
-                    </option>
-                  ))}
+  .filter(
+    (programme) =>
+      !epreuveExiste(programme.id)
+  )
+  .map((programme) => (
+    <option
+      key={programme.id}
+      value={programme.id}
+    >
+      {programme.matiereNom ||
+        programme.matiere?.nom ||
+        "Matière"}
+      {" — "}
+      {programme.niveauNom ||
+        programme.niveau?.nom ||
+        "Niveau"}
+      {(
+        programme.serieNom ||
+        programme.serie?.nom
+      )
+        ? ` ${programme.serieNom || programme.serie?.nom}`
+        : ""}
+      {" — coef. "}
+      {programme.coefficient ?? "-"}
+    </option>
+  ))}
               </select>
             </div>
 

@@ -62,6 +62,26 @@ export const coefficientsApi = {
         },
       })
       .then((r) => r.data),
+
+  // ----------------------------------------------------------
+  // Programmes correspondant à un NIVEAU + SÉRIE
+  // ----------------------------------------------------------
+  listPourNiveauEtSerie: (
+    ecoleId,
+    anneeScolaireId,
+    niveauId,
+    serieId
+  ) =>
+    api
+      .get("/coefficients/programme/niveau-serie", {
+        params: {
+          ecoleId,
+          anneeScolaireId,
+          niveauId,
+          ...(serieId != null ? { serieId } : {}),
+        },
+      })
+      .then((r) => r.data),
 };
 
 
@@ -178,44 +198,21 @@ export const epreuveSallesApi = {
 // ============================================================
 
 export const repartitionEpreuvesApi = {
-  /**
-   * Élèves concernés par une épreuve
-   *
-   * Epreuve
-   *   ↓
-   * CoefficientMatiere
-   *   ↓
-   * Classe
-   *   ↓
-   * Inscriptions
-   *   ↓
-   * Élèves compatibles avec le sous-groupe
-   */
   getEleves: (epreuveId) =>
     api
       .get(`/epreuves/${epreuveId}/eleves`)
       .then((r) => r.data),
 
-  /**
-   * Génère automatiquement la répartition
-   * des élèves dans les salles de l'épreuve.
-   */
   repartir: (epreuveId) =>
     api
       .post(`/epreuves/${epreuveId}/repartition`)
       .then((r) => r.data),
 
-  /**
-   * Récupère la répartition existante.
-   */
   getRepartition: (epreuveId) =>
     api
       .get(`/epreuves/${epreuveId}/repartition`)
       .then((r) => r.data),
 
-  /**
-   * Supprime la répartition d'une épreuve.
-   */
   supprimer: (epreuveId) =>
     api.delete(
       `/epreuves/${epreuveId}/repartition`
