@@ -7,10 +7,14 @@ import {
   coefficientsApi,
   creneauxApi,
   sallesApi,
-  epreuveSallesApi,
-  repartitionEpreuvesApi,
-  examensApi
+  examenSallesApi,
+  repartitionExamenApi,
+  examensApi,
 } from "../../../../../lib/examens";
+
+/* ============================================================
+   EXAM TABS
+============================================================ */
 
 export default function ExamenTabs({
   examenId,
@@ -18,13 +22,28 @@ export default function ExamenTabs({
   anneeScolaireId,
 }) {
   const [activeTab, setActiveTab] = useState("general");
-
+  
   const tabs = [
-    { id: "general", label: "Vue générale" },
-    { id: "epreuves", label: "Épreuves" },
-    { id: "creneaux", label: "Créneaux" },
-    { id: "salles", label: "Salles" },
-    { id: "repartition", label: "Répartition" },
+    {
+      id: "general",
+      label: "Vue générale",
+    },
+    {
+      id: "epreuves",
+      label: "Épreuves",
+    },
+    {
+      id: "creneaux",
+      label: "Créneaux",
+    },
+    {
+      id: "salles",
+      label: "Salles",
+    },
+    {
+      id: "repartition",
+      label: "Répartition",
+    },
   ];
 
   return (
@@ -32,6 +51,7 @@ export default function ExamenTabs({
       {/* ======================================================
           ONGLETS
       ====================================================== */}
+
       <div className="border-b border-gray-200">
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map((tab) => (
@@ -72,7 +92,10 @@ export default function ExamenTabs({
       )}
 
       {activeTab === "salles" && (
-        <Salles ecoleId={ecoleId} />
+        <SallesExamen
+          examenId={examenId}
+          ecoleId={ecoleId}
+        />
       )}
 
       {activeTab === "repartition" && (
@@ -87,24 +110,252 @@ export default function ExamenTabs({
 ============================================================ */
 
 function VueGenerale({ examenId }) {
+  const [examen, setExamen] = useState(null);
+  const [epreuves, setEpreuves] = useState([]);
+  const [creneaux, setCreneaux] = useState([]);
+  const [salles, setSalles] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const charger = async () => {
+    if (!examenId) return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const [
+        examenData,
+        epreuvesData,
+        creneauxData,
+        sallesData,
+      ] = await Promise.all([
+        examensApi.get(examenId),
+        epreuvesApi.listByExamen(examenId),
+        creneauxApi.listByExamen(examenId),
+        examenSallesApi.list(examenId),
+      ]);
+
+      setExamen(examenData);
+
+      setEpreuves(
+        Array.isArray(epreuvesData)
+          ? epreuvesData
+          : []
+      );
+
+      setCreneaux(
+        Array.isArray(creneauxData)
+          ? creneauxData
+          : []
+      );
+
+      setSalles(
+        Array.isArray(sallesData)
+          ? sallesData
+          : []
+      );
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
+          "Impossible de charger les informations de l'examen."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    charger();
+  }, [examenId]);
+
+  const epreuvesAvecCreneau = epreuves.filter(
+    (item) => item.creneauId
+  ).length;
+
+  if (loading) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-500">
+        Chargement de l'examen...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Message type="error">
+        {error}
+      </Message>
+    );
+  }
+
+  if (!examen) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-500">
+        Examen introuvable.
+      </div>
+    );
+  }
+
+  const classes = Array.isArray(examen.classes)
+    ? examen.classes
+    : [];
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900">
-        Vue générale
-      </h2>
+    <div className="space-y-6">
+      {/* HEADER */}
 
-      <p className="mt-2 text-sm text-gray-500">
-        Consultez ici les informations générales de l'examen.
-      </p>
+      <div className="bg-white border border-gray-200 rounded-2xl p-6">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {examen.nom || "Examen"}
+              </h2>
 
-      <div className="mt-6 rounded-xl bg-gray-50 border border-gray-200 p-5">
-        <p className="text-sm text-gray-500">
-          Identifiant de l'examen
-        </p>
+              <StatutBadge statut={examen.statut} />
+            </div>
 
-        <p className="mt-1 font-semibold text-gray-900">
-          #{examenId}
-        </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Gestion et préparation de cet examen.
+            </p>
+          </div>
+
+          <div className="text-sm text-gray-500 lg:text-right">
+            <p>
+              ID :{" "}
+              <span className="font-medium text-gray-900">
+                #{examen.id}
+              </span>
+            </p>
+
+            {examen.dateDebut && (
+              <p className="mt-1">
+                Du{" "}
+                <span className="font-medium text-gray-900">
+                  {examen.dateDebut}
+                </span>
+              </p>
+            )}
+
+            {examen.dateFin && (
+              <p>
+                Au{" "}
+                <span className="font-medium text-gray-900">
+                  {examen.dateFin}
+                </span>
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* STATISTIQUES */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Classes"
+          value={classes.length}
+          icon="🎓"
+        />
+
+        <StatCard
+          label="Épreuves"
+          value={epreuves.length}
+          icon="📝"
+        />
+
+        <StatCard
+          label="Créneaux"
+          value={creneaux.length}
+          icon="🕐"
+        />
+
+        <StatCard
+          label="Salles examen"
+          value={salles.length}
+          icon="🏫"
+        />
+      </div>
+
+      {/* PROGRESSION */}
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-6">
+        <div>
+          <h3 className="font-semibold text-gray-900">
+            Préparation de l'examen
+          </h3>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Vérifiez les éléments nécessaires avant la répartition.
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <ProgressRow
+            label="Épreuves créées"
+            value={epreuves.length}
+            total={epreuves.length}
+            complete={epreuves.length > 0}
+          />
+
+          <ProgressRow
+            label="Épreuves avec créneau"
+            value={epreuvesAvecCreneau}
+            total={epreuves.length}
+            complete={
+              epreuves.length > 0 &&
+              epreuvesAvecCreneau === epreuves.length
+            }
+          />
+
+          <ProgressRow
+            label="Créneaux configurés"
+            value={creneaux.length}
+            total={epreuves.length}
+            complete={
+              epreuves.length > 0 &&
+              creneaux.length > 0
+            }
+          />
+
+          <ProgressRow
+            label="Salles d'examen"
+            value={salles.length}
+            total={1}
+            complete={salles.length > 0}
+          />
+        </div>
+      </div>
+
+      {/* CLASSES */}
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-6">
+        <h3 className="font-semibold text-gray-900">
+          Classes concernées
+        </h3>
+
+        {classes.length === 0 ? (
+          <p className="text-sm text-gray-500 mt-4">
+            Aucune classe associée à cet examen.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2 mt-4">
+            {classes.map((classe) => (
+              <span
+                key={classe.id}
+                className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm"
+              >
+                {classe.nom || `Classe #${classe.id}`}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -122,44 +373,44 @@ function Epreuves({
   const [epreuves, setEpreuves] = useState([]);
   const [programmes, setProgrammes] = useState([]);
   const [examen, setExamen] = useState(null);
-const [loadingExamen, setLoadingExamen] = useState(false);
   const [creneaux, setCreneaux] = useState([]);
-  const [salles, setSalles] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [loadingProgrammes, setLoadingProgrammes] = useState(false);
-  const [loadingCreneaux, setLoadingCreneaux] = useState(false);
-  const [loadingSalles, setLoadingSalles] = useState(false);
+  const [loadingProgrammes, setLoadingProgrammes] =
+    useState(false);
+  const [loadingCreneaux, setLoadingCreneaux] =
+    useState(false);
 
   const [showModal, setShowModal] = useState(false);
-  const [showCreneauModal, setShowCreneauModal] = useState(false);
-  const [showSalleModal, setShowSalleModal] = useState(false);
+  const [showCreneauModal, setShowCreneauModal] =
+    useState(false);
 
   const [selectedProgrammeId, setSelectedProgrammeId] =
     useState("");
 
-  const [dureeMinutes, setDureeMinutes] = useState(120);
+  const [dureeMinutes, setDureeMinutes] =
+    useState(120);
 
-  const [editingEpreuve, setEditingEpreuve] = useState(null);
-  const [selectedCreneauId, setSelectedCreneauId] = useState("");
-
-  const [editingEpreuveSalles, setEditingEpreuveSalles] =
+  const [editingEpreuve, setEditingEpreuve] =
     useState(null);
 
-  const [sallesAffectees, setSallesAffectees] = useState([]);
+  const [selectedCreneauId, setSelectedCreneauId] =
+    useState("");
 
   const [saving, setSaving] = useState(false);
-  const [savingCreneau, setSavingCreneau] = useState(false);
-  const [savingSalle, setSavingSalle] = useState(false);
+  const [savingCreneau, setSavingCreneau] =
+    useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   /* ----------------------------------------------------------
-     CHARGEMENT
+     CHARGEMENT ÉPREUVES
   ---------------------------------------------------------- */
 
   const chargerEpreuves = async () => {
+    if (!examenId) return;
+
     try {
       setLoading(true);
       setError("");
@@ -167,7 +418,11 @@ const [loadingExamen, setLoadingExamen] = useState(false);
       const data =
         await epreuvesApi.listByExamen(examenId);
 
-      setEpreuves(Array.isArray(data) ? data : []);
+      setEpreuves(
+        Array.isArray(data)
+          ? data
+          : []
+      );
     } catch (err) {
       console.error(err);
 
@@ -182,121 +437,112 @@ const [loadingExamen, setLoadingExamen] = useState(false);
     }
   };
 
+  /* ----------------------------------------------------------
+     PROGRAMMES
+  ---------------------------------------------------------- */
+
   const chargerProgrammes = async () => {
-  if (!examenId || !ecoleId || !anneeScolaireId) return;
-
-  try {
-    setLoadingExamen(true);
-    setLoadingProgrammes(true);
-    setError("");
-
-    // 1. Charger l'examen avec ses classes
-    const examenData = await examensApi.get(examenId);
-
-    setExamen(examenData);
-
-    const classes = Array.isArray(examenData?.classes)
-      ? examenData.classes
-      : [];
-
-    if (classes.length === 0) {
-      setProgrammes([]);
-      setError(
-        "Aucune classe n'est associée à cet examen."
-      );
+    if (
+      !examenId ||
+      !ecoleId ||
+      !anneeScolaireId
+    ) {
       return;
     }
 
-    // ----------------------------------------------------------
-    // 2. Construire les couples UNIQUES : Niveau + Série
-    // ----------------------------------------------------------
+    try {
+      setLoadingProgrammes(true);
+      setError("");
 
-    const niveauxSeries = [];
+      const examenData =
+        await examensApi.get(examenId);
 
-    classes.forEach((classe) => {
-      if (!classe?.niveauId) return;
+      setExamen(examenData);
 
-      const niveauId = Number(classe.niveauId);
+      const classes =
+        Array.isArray(examenData?.classes)
+          ? examenData.classes
+          : [];
 
-      const serieId =
-        classe.serieId != null
-          ? Number(classe.serieId)
-          : null;
-
-      const existe = niveauxSeries.some(
-        (item) =>
-          item.niveauId === niveauId &&
-          item.serieId === serieId
-      );
-
-      if (!existe) {
-        niveauxSeries.push({
-          niveauId,
-          serieId,
-        });
+      if (classes.length === 0) {
+        setProgrammes([]);
+        return;
       }
-    });
 
-    if (niveauxSeries.length === 0) {
-      setProgrammes([]);
-      setError(
-        "Impossible de déterminer les niveaux et séries de l'examen."
-      );
-      return;
-    }
+      const niveauxSeries = [];
 
-    // ----------------------------------------------------------
-    // 3. Charger les programmes pour chaque Niveau + Série
-    // ----------------------------------------------------------
+      classes.forEach((classe) => {
+        if (!classe?.niveauId) return;
 
-    const resultats = await Promise.all(
-      niveauxSeries.map(
-        ({ niveauId, serieId }) =>
-          coefficientsApi.listPourNiveauEtSerie(
-            ecoleId,
-            anneeScolaireId,
+        const niveauId =
+          Number(classe.niveauId);
+
+        const serieId =
+          classe.serieId != null
+            ? Number(classe.serieId)
+            : null;
+
+        const existe =
+          niveauxSeries.some(
+            (item) =>
+              item.niveauId === niveauId &&
+              item.serieId === serieId
+          );
+
+        if (!existe) {
+          niveauxSeries.push({
             niveauId,
-            serieId
+            serieId,
+          });
+        }
+      });
+
+      const resultats =
+        await Promise.all(
+          niveauxSeries.map(
+            ({ niveauId, serieId }) =>
+              coefficientsApi.listPourNiveauEtSerie(
+                ecoleId,
+                anneeScolaireId,
+                niveauId,
+                serieId
+              )
           )
-      )
-    );
+        );
 
-    // ----------------------------------------------------------
-    // 4. Fusionner les résultats
-    // ----------------------------------------------------------
+      const tous = resultats.flat();
 
-    const tousLesProgrammes = resultats.flat();
+      const uniques =
+        Array.from(
+          new Map(
+            tous.map((programme) => [
+              programme.id,
+              programme,
+            ])
+          ).values()
+        );
 
-    // ----------------------------------------------------------
-    // 5. Supprimer les doublons
-    // ----------------------------------------------------------
+      setProgrammes(uniques);
+    } catch (err) {
+      console.error(err);
 
-    const programmesUniques = Array.from(
-      new Map(
-        tousLesProgrammes.map((programme) => [
-          programme.id,
-          programme,
-        ])
-      ).values()
-    );
+      setProgrammes([]);
 
-    setProgrammes(programmesUniques);
-  } catch (err) {
-    console.error(err);
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
+          "Impossible de charger les programmes."
+      );
+    } finally {
+      setLoadingProgrammes(false);
+    }
+  };
 
-    setProgrammes([]);
+  /* ----------------------------------------------------------
+     CRÉNEAUX
+  ---------------------------------------------------------- */
 
-    setError(
-      err?.response?.data?.message ||
-        err?.response?.data ||
-        err?.message ||
-        "Impossible de charger les programmes de l'examen."
-    );
-  } finally {
-    setLoadingExamen(false);
-    setLoadingProgrammes(false);
-  }
-};
   const chargerCreneaux = async () => {
     if (!examenId) return;
 
@@ -304,14 +550,22 @@ const [loadingExamen, setLoadingExamen] = useState(false);
       setLoadingCreneaux(true);
 
       const data =
-        await creneauxApi.listByExamen(examenId);
+        await creneauxApi.listByExamen(
+          examenId
+        );
 
-      setCreneaux(Array.isArray(data) ? data : []);
+      setCreneaux(
+        Array.isArray(data)
+          ? data
+          : []
+      );
     } catch (err) {
       console.error(err);
 
       setError(
         err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
           "Impossible de charger les créneaux."
       );
     } finally {
@@ -319,46 +573,36 @@ const [loadingExamen, setLoadingExamen] = useState(false);
     }
   };
 
-  const chargerSalles = async () => {
-    if (!ecoleId) return;
+  useEffect(() => {
+    if (!examenId) return;
 
-    try {
-      setLoadingSalles(true);
-
-      const data =
-        await sallesApi.listByEcole(ecoleId);
-
-      setSalles(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.message ||
-          "Impossible de charger les salles."
-      );
-    } finally {
-      setLoadingSalles(false);
-    }
-  };
+    chargerEpreuves();
+    chargerCreneaux();
+  }, [examenId]);
 
   useEffect(() => {
-  if (!examenId) return;
+    if (
+      !examenId ||
+      !ecoleId ||
+      !anneeScolaireId
+    ) {
+      return;
+    }
 
-  chargerEpreuves();
-  chargerCreneaux();
-}, [examenId]);
+    chargerProgrammes();
+  }, [
+    examenId,
+    ecoleId,
+    anneeScolaireId,
+  ]);
 
-useEffect(() => {
-  if (!examenId || !ecoleId || !anneeScolaireId) return;
-
-  chargerProgrammes();
-  chargerSalles();
-}, [examenId, ecoleId, anneeScolaireId]);
   /* ----------------------------------------------------------
-     CRÉNEAU
+     AFFECTATION CRÉNEAU
   ---------------------------------------------------------- */
 
-  const ouvrirAffectationCreneau = (epreuve) => {
+  const ouvrirAffectationCreneau = (
+    epreuve
+  ) => {
     setEditingEpreuve(epreuve);
 
     setSelectedCreneauId(
@@ -367,9 +611,9 @@ useEffect(() => {
         : ""
     );
 
-    setShowCreneauModal(true);
     setError("");
     setSuccess("");
+    setShowCreneauModal(true);
   };
 
   const affecterCreneau = async () => {
@@ -383,7 +627,7 @@ useEffect(() => {
       await epreuvesApi.update(
         editingEpreuve.id,
         {
-          examenId,
+          examenId: Number(examenId),
           coefficientMatiereId:
             editingEpreuve.coefficientMatiereId,
           creneauId: selectedCreneauId
@@ -417,130 +661,21 @@ useEffect(() => {
   };
 
   /* ----------------------------------------------------------
-     SALLES D'UNE ÉPREUVE
-  ---------------------------------------------------------- */
-
-  const ouvrirAffectationSalles = async (epreuve) => {
-    try {
-      setEditingEpreuveSalles(epreuve);
-      setShowSalleModal(true);
-      setError("");
-      setSuccess("");
-
-      const data =
-        await epreuveSallesApi.listByEpreuve(
-          epreuve.id
-        );
-
-      setSallesAffectees(
-        Array.isArray(data) ? data : []
-      );
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.message ||
-          "Impossible de charger les salles de l'épreuve."
-      );
-    }
-  };
-
-  const affecterSalle = async (salle) => {
-    if (!editingEpreuveSalles) return;
-
-    const dejaAffectee = sallesAffectees.some(
-      (item) =>
-        Number(item.salleId) === Number(salle.id)
-    );
-
-    if (dejaAffectee) {
-      return;
-    }
-
-    try {
-      setSavingSalle(true);
-      setError("");
-      setSuccess("");
-
-      const data =
-        await epreuveSallesApi.affecter(
-          editingEpreuveSalles.id,
-          salle.id
-        );
-
-      setSallesAffectees((prev) => [
-        ...prev,
-        data,
-      ]);
-
-      setSuccess(
-        `La salle ${salle.nom} a été affectée.`
-      );
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          err?.message ||
-          "Impossible d'affecter la salle."
-      );
-    } finally {
-      setSavingSalle(false);
-    }
-  };
-
-  const retirerSalle = async (salleId) => {
-    if (!editingEpreuveSalles) return;
-
-    try {
-      setSavingSalle(true);
-      setError("");
-      setSuccess("");
-
-      await epreuveSallesApi.retirer(
-        editingEpreuveSalles.id,
-        salleId
-      );
-
-      setSallesAffectees((prev) =>
-        prev.filter(
-          (item) =>
-            Number(item.salleId) !== Number(salleId)
-        )
-      );
-
-      setSuccess("La salle a été retirée.");
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          err?.message ||
-          "Impossible de retirer la salle."
-      );
-    } finally {
-      setSavingSalle(false);
-    }
-  };
-
-  /* ----------------------------------------------------------
      AJOUT ÉPREUVE
   ---------------------------------------------------------- */
 
   const ouvrirAjout = () => {
     setSelectedProgrammeId("");
     setDureeMinutes(120);
-    setShowModal(true);
     setError("");
     setSuccess("");
+    setShowModal(true);
   };
 
   const ajouterEpreuve = async () => {
     if (!selectedProgrammeId) {
       setError(
-        "Veuillez sélectionner un programme."
+        "Veuillez sélectionner une matière."
       );
       return;
     }
@@ -554,7 +689,8 @@ useEffect(() => {
         examenId: Number(examenId),
         coefficientMatiereId:
           Number(selectedProgrammeId),
-        dureeMinutes: Number(dureeMinutes),
+        dureeMinutes:
+          Number(dureeMinutes),
       });
 
       setShowModal(false);
@@ -578,12 +714,19 @@ useEffect(() => {
     }
   };
 
-  const supprimerEpreuve = async (epreuve) => {
-    const confirmation = window.confirm(
-      `Voulez-vous supprimer l'épreuve ${
-        epreuve.matiereNom || ""
-      } ?`
-    );
+  /* ----------------------------------------------------------
+     SUPPRESSION
+  ---------------------------------------------------------- */
+
+  const supprimerEpreuve = async (
+    epreuve
+  ) => {
+    const confirmation =
+      window.confirm(
+        `Voulez-vous supprimer l'épreuve ${
+          epreuve.matiereNom || ""
+        } ?`
+      );
 
     if (!confirmation) return;
 
@@ -591,11 +734,15 @@ useEffect(() => {
       setError("");
       setSuccess("");
 
-      await epreuvesApi.remove(epreuve.id);
+      await epreuvesApi.remove(
+        epreuve.id
+      );
 
       await chargerEpreuves();
 
-      setSuccess("Épreuve supprimée.");
+      setSuccess(
+        "Épreuve supprimée."
+      );
     } catch (err) {
       console.error(err);
 
@@ -608,11 +755,14 @@ useEffect(() => {
     }
   };
 
-  const epreuveExiste = (programmeId) =>
+  const epreuveExiste = (
+    programmeId
+  ) =>
     epreuves.some(
       (epreuve) =>
-        Number(epreuve.coefficientMatiereId) ===
-        Number(programmeId)
+        Number(
+          epreuve.coefficientMatiereId
+        ) === Number(programmeId)
     );
 
   return (
@@ -626,8 +776,7 @@ useEffect(() => {
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Définissez les matières qui seront évaluées
-            pendant cet examen.
+            Définissez les matières qui seront évaluées pendant cet examen.
           </p>
         </div>
 
@@ -643,17 +792,15 @@ useEffect(() => {
       {/* MESSAGES */}
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {typeof error === "string"
-            ? error
-            : "Une erreur est survenue."}
-        </div>
+        <Message type="error">
+          {error}
+        </Message>
       )}
 
       {success && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <Message type="success">
           {success}
-        </div>
+        </Message>
       )}
 
       {/* TABLE */}
@@ -674,8 +821,7 @@ useEffect(() => {
             </h3>
 
             <p className="text-sm text-gray-500 mt-1">
-              Commencez par ajouter les matières de
-              l'examen.
+              Commencez par ajouter les matières de l'examen.
             </p>
           </div>
         ) : (
@@ -714,101 +860,104 @@ useEffect(() => {
               </thead>
 
               <tbody className="divide-y">
-                {epreuves.map((epreuve) => (
-                  <tr
-                    key={epreuve.id}
-                    className="hover:bg-gray-50"
-                  >
-                    <td className="px-5 py-4 font-medium text-gray-900">
-                      {epreuve.matiereNom || "-"}
-                    </td>
+                {epreuves.map(
+                  (epreuve) => (
+                    <tr
+                      key={epreuve.id}
+                      className="hover:bg-gray-50"
+                    >
+                      <td className="px-5 py-4 font-medium text-gray-900">
+                        {epreuve.matiereNom ||
+                          "-"}
+                      </td>
 
-                    <td className="px-5 py-4 text-gray-600">
-                      {epreuve.niveauNom || "-"}
-                    </td>
+                      <td className="px-5 py-4 text-gray-600">
+                        {epreuve.niveauNom ||
+                          "-"}
+                      </td>
 
-                    <td className="px-5 py-4 text-gray-600">
-                      {epreuve.serieNom || "-"}
-                    </td>
+                      <td className="px-5 py-4 text-gray-600">
+                        {epreuve.serieNom ||
+                          "-"}
+                      </td>
 
-                    <td className="px-5 py-4">
-                      {epreuve.coefficient ?? "-"}
-                    </td>
+                      <td className="px-5 py-4">
+                        {epreuve.coefficient ??
+                          "-"}
+                      </td>
 
-                    <td className="px-5 py-4">
-                      {epreuve.creneauId ? (
-                        <span className="inline-flex px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs">
-                          {epreuve.creneauDate
-                            ? `${epreuve.creneauDate} ${
-                                epreuve.creneauHeureDebut ||
-                                ""
-                              }`
-                            : "Affecté"}
-                        </span>
-                      ) : (
-                        <span className="inline-flex px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs">
-                          Non affecté
-                        </span>
-                      )}
-                    </td>
+                      <td className="px-5 py-4">
+                        {epreuve.creneauId ? (
+                          <span className="inline-flex px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs">
+                            {epreuve.creneauDate
+                              ? `${epreuve.creneauDate} ${
+                                  epreuve.creneauHeureDebut ||
+                                  ""
+                                }`
+                              : "Affecté"}
+                          </span>
+                        ) : (
+                          <span className="inline-flex px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs">
+                            Non affecté
+                          </span>
+                        )}
+                      </td>
 
-                    <td className="px-5 py-4">
-                      {epreuve.dureeMinutes || 0} min
-                    </td>
+                      <td className="px-5 py-4">
+                        {epreuve.dureeMinutes ||
+                          0}{" "}
+                        min
+                      </td>
 
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            ouvrirAffectationCreneau(
-                              epreuve
-                            )
-                          }
-                          className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs hover:bg-gray-50"
-                        >
-                          {epreuve.creneauId
-                            ? "Modifier créneau"
-                            : "Créneau"}
-                        </button>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              ouvrirAffectationCreneau(
+                                epreuve
+                              )
+                            }
+                            className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs hover:bg-gray-50"
+                          >
+                            {epreuve.creneauId
+                              ? "Créneau"
+                              : "Affecter"}
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            ouvrirAffectationSalles(
-                              epreuve
-                            )
-                          }
-                          className="px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 text-xs hover:bg-blue-50"
-                        >
-                          Salles
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            supprimerEpreuve(epreuve)
-                          }
-                          className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              supprimerEpreuve(
+                                epreuve
+                              )
+                            }
+                            className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs hover:bg-red-50"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* MODAL AJOUT */}
+      {/* ======================================================
+          MODAL AJOUT
+      ====================================================== */}
 
       {showModal && (
         <Modal
           title="Ajouter une épreuve"
-          onClose={() => setShowModal(false)}
+          onClose={() =>
+            !saving &&
+            setShowModal(false)
+          }
         >
           <div className="space-y-5">
             <div>
@@ -819,7 +968,9 @@ useEffect(() => {
               <select
                 value={selectedProgrammeId}
                 onChange={(e) =>
-                  setSelectedProgrammeId(e.target.value)
+                  setSelectedProgrammeId(
+                    e.target.value
+                  )
                 }
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5"
               >
@@ -830,32 +981,38 @@ useEffect(() => {
                 </option>
 
                 {programmes
-  .filter(
-    (programme) =>
-      !epreuveExiste(programme.id)
-  )
-  .map((programme) => (
-    <option
-      key={programme.id}
-      value={programme.id}
-    >
-      {programme.matiereNom ||
-        programme.matiere?.nom ||
-        "Matière"}
-      {" — "}
-      {programme.niveauNom ||
-        programme.niveau?.nom ||
-        "Niveau"}
-      {(
-        programme.serieNom ||
-        programme.serie?.nom
-      )
-        ? ` ${programme.serieNom || programme.serie?.nom}`
-        : ""}
-      {" — coef. "}
-      {programme.coefficient ?? "-"}
-    </option>
-  ))}
+                  .filter(
+                    (programme) =>
+                      !epreuveExiste(
+                        programme.id
+                      )
+                  )
+                  .map((programme) => (
+                    <option
+                      key={programme.id}
+                      value={programme.id}
+                    >
+                      {programme.matiereNom ||
+                        programme.matiere?.nom ||
+                        "Matière"}
+                      {" — "}
+                      {programme.niveauNom ||
+                        programme.niveau?.nom ||
+                        "Niveau"}
+                      {(
+                        programme.serieNom ||
+                        programme.serie?.nom
+                      )
+                        ? ` ${
+                            programme.serieNom ||
+                            programme.serie?.nom
+                          }`
+                        : ""}
+                      {" — coef. "}
+                      {programme.coefficient ??
+                        "-"}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -899,13 +1056,14 @@ useEffect(() => {
               </select>
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() =>
                   setShowModal(false)
                 }
-                className="px-4 py-2 rounded-xl border border-gray-300 text-sm"
+                disabled={saving}
+                className="px-4 py-2 rounded-xl border border-gray-300"
               >
                 Annuler
               </button>
@@ -914,7 +1072,7 @@ useEffect(() => {
                 type="button"
                 disabled={saving}
                 onClick={ajouterEpreuve}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50"
               >
                 {saving
                   ? "Enregistrement..."
@@ -925,217 +1083,90 @@ useEffect(() => {
         </Modal>
       )}
 
-      {/* MODAL CRÉNEAU */}
+      {/* ======================================================
+          MODAL CRÉNEAU
+      ====================================================== */}
 
-      {showCreneauModal && editingEpreuve && (
-        <Modal
-          title="Affecter un créneau"
-          onClose={() =>
-            setShowCreneauModal(false)
-          }
-        >
-          <div className="space-y-5">
-            <div className="rounded-xl bg-gray-50 p-4">
-              <p className="text-xs text-gray-500">
-                Épreuve
-              </p>
-
-              <p className="font-semibold text-gray-900">
-                {editingEpreuve.matiereNom}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Créneau
-              </label>
-
-              <select
-                value={selectedCreneauId}
-                onChange={(e) =>
-                  setSelectedCreneauId(
-                    e.target.value
-                  )
-                }
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5"
-              >
-                <option value="">
-                  Aucun créneau
-                </option>
-
-                {creneaux.map((creneau) => (
-                  <option
-                    key={creneau.id}
-                    value={creneau.id}
-                  >
-                    {creneau.date} —{" "}
-                    {creneau.heureDebut} à{" "}
-                    {creneau.heureFin}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setShowCreneauModal(false)
-                }
-                className="px-4 py-2 rounded-xl border border-gray-300"
-              >
-                Annuler
-              </button>
-
-              <button
-                type="button"
-                disabled={savingCreneau}
-                onClick={affecterCreneau}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50"
-              >
-                {savingCreneau
-                  ? "Enregistrement..."
-                  : "Enregistrer"}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* MODAL SALLES */}
-
-      {showSalleModal &&
-        editingEpreuveSalles && (
+      {showCreneauModal &&
+        editingEpreuve && (
           <Modal
-            title={`Salles — ${
-              editingEpreuveSalles.matiereNom ||
-              "Épreuve"
-            }`}
+            title="Affecter un créneau"
             onClose={() =>
-              setShowSalleModal(false)
+              !savingCreneau &&
+              setShowCreneauModal(false)
             }
           >
             <div className="space-y-5">
-              <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
-                <p className="text-sm text-blue-800">
-                  Sélectionnez les salles qui pourront
-                  accueillir les élèves de cette épreuve.
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">
+                  Épreuve
+                </p>
+
+                <p className="font-semibold text-gray-900">
+                  {editingEpreuve.matiereNom ||
+                    "Épreuve"}
                 </p>
               </div>
 
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {salles
-                  .filter(
-                    (salle) =>
-                      salle.active !== false
-                  )
-                  .map((salle) => {
-                    const affectee =
-                      sallesAffectees.some(
-                        (item) =>
-                          Number(item.salleId) ===
-                          Number(salle.id)
-                      );
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Créneau
+                </label>
 
-                    return (
-                      <div
-                        key={salle.id}
-                        className={`flex items-center justify-between border rounded-xl p-3 ${
-                          affectee
-                            ? "border-blue-300 bg-blue-50"
-                            : "border-gray-200"
-                        }`}
+                <select
+                  value={selectedCreneauId}
+                  onChange={(e) =>
+                    setSelectedCreneauId(
+                      e.target.value
+                    )
+                  }
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5"
+                >
+                  <option value="">
+                    Aucun créneau
+                  </option>
+
+                  {creneaux.map(
+                    (creneau) => (
+                      <option
+                        key={creneau.id}
+                        value={creneau.id}
                       >
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {salle.nom}
-                          </p>
-
-                          <p className="text-xs text-gray-500">
-                            Capacité :{" "}
-                            {salle.capacite ?? 0} places
-                          </p>
-                        </div>
-
-                        {affectee ? (
-                          <button
-                            type="button"
-                            disabled={savingSalle}
-                            onClick={() =>
-                              retirerSalle(
-                                salle.id
-                              )
-                            }
-                            className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs"
-                          >
-                            Retirer
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={savingSalle}
-                            onClick={() =>
-                              affecterSalle(
-                                salle
-                              )
-                            }
-                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs"
-                          >
-                            Affecter
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                {salles.filter(
-                  (salle) => salle.active !== false
-                ).length === 0 && (
-                  <div className="text-center py-8 text-sm text-gray-500">
-                    Aucune salle active disponible.
-                  </div>
-                )}
+                        {creneau.date} —{" "}
+                        {
+                          creneau.heureDebut
+                        }{" "}
+                        à{" "}
+                        {creneau.heureFin}
+                      </option>
+                    )
+                  )}
+                </select>
               </div>
 
-              <div className="rounded-xl bg-gray-50 p-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    Salles affectées
-                  </span>
-
-                  <span className="font-semibold">
-                    {sallesAffectees.length}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-sm mt-2">
-                  <span className="text-gray-500">
-                    Capacité totale
-                  </span>
-
-                  <span className="font-semibold">
-                    {sallesAffectees.reduce(
-                      (total, salle) =>
-                        total +
-                        Number(
-                          salle.capacite || 0
-                        ),
-                      0
-                    )}{" "}
-                    places
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() =>
-                    setShowSalleModal(false)
+                    setShowCreneauModal(
+                      false
+                    )
                   }
-                  className="px-4 py-2 rounded-xl bg-gray-900 text-white"
+                  disabled={savingCreneau}
+                  className="px-4 py-2 rounded-xl border border-gray-300"
                 >
-                  Fermer
+                  Annuler
+                </button>
+
+                <button
+                  type="button"
+                  disabled={savingCreneau}
+                  onClick={affecterCreneau}
+                  className="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50"
+                >
+                  {savingCreneau
+                    ? "Enregistrement..."
+                    : "Enregistrer"}
                 </button>
               </div>
             </div>
@@ -1150,38 +1181,66 @@ useEffect(() => {
 ============================================================ */
 
 function Creneaux({ examenId }) {
-  const [creneaux, setCreneaux] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [creneaux, setCreneaux] =
+    useState([]);
 
-  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [date, setDate] = useState("");
-  const [heureDebut, setHeureDebut] = useState("");
-  const [heureFin, setHeureFin] = useState("");
+  const [showModal, setShowModal] =
+    useState(false);
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [date, setDate] =
+    useState("");
+
+  const [heureDebut, setHeureDebut] =
+    useState("");
+
+  const [heureFin, setHeureFin] =
+    useState("");
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
 
   const charger = async () => {
+    if (!examenId) return;
+
     try {
       setLoading(true);
+      setError("");
 
-      const data = await creneauxApi.listByExamen(examenId);
+      const data =
+        await creneauxApi.listByExamen(
+          examenId
+        );
 
-      setCreneaux(Array.isArray(data) ? data : []);
+      setCreneaux(
+        Array.isArray(data)
+          ? data
+          : []
+      );
     } catch (err) {
       console.error(err);
-      setError("Impossible de charger les créneaux.");
+
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
+          "Impossible de charger les créneaux."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (examenId) {
-      charger();
-    }
+    charger();
   }, [examenId]);
 
   const ouvrirAjout = () => {
@@ -1193,13 +1252,6 @@ function Creneaux({ examenId }) {
     setShowModal(true);
   };
 
-  const fermerModal = () => {
-    if (saving) return;
-
-    setShowModal(false);
-    setError("");
-  };
-
   const ajouterCreneau = async (e) => {
     e.preventDefault();
 
@@ -1207,17 +1259,23 @@ function Creneaux({ examenId }) {
     setSuccess("");
 
     if (!date) {
-      setError("Veuillez sélectionner une date.");
+      setError(
+        "Veuillez sélectionner une date."
+      );
       return;
     }
 
     if (!heureDebut || !heureFin) {
-      setError("Veuillez renseigner les heures.");
+      setError(
+        "Veuillez renseigner les heures."
+      );
       return;
     }
 
     if (heureDebut >= heureFin) {
-      setError("L'heure de fin doit être supérieure à l'heure de début.");
+      setError(
+        "L'heure de fin doit être supérieure à l'heure de début."
+      );
       return;
     }
 
@@ -1231,9 +1289,11 @@ function Creneaux({ examenId }) {
         heureFin,
       });
 
-      setSuccess("Créneau ajouté avec succès.");
-
       await charger();
+
+      setSuccess(
+        "Créneau ajouté avec succès."
+      );
 
       setDate("");
       setHeureDebut("");
@@ -1248,6 +1308,8 @@ function Creneaux({ examenId }) {
 
       setError(
         err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
           "Impossible d'ajouter le créneau."
       );
     } finally {
@@ -1257,8 +1319,8 @@ function Creneaux({ examenId }) {
 
   return (
     <div className="space-y-5">
+      {/* HEADER */}
 
-      {/* EN-TÊTE */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">
@@ -1273,22 +1335,33 @@ function Creneaux({ examenId }) {
         <button
           type="button"
           onClick={ouvrirAjout}
-          className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
+          className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
         >
           + Ajouter un créneau
         </button>
       </div>
 
-      {/* LISTE */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      {error && (
+        <Message type="error">
+          {error}
+        </Message>
+      )}
 
+      {success && (
+        <Message type="success">
+          {success}
+        </Message>
+      )}
+
+      {/* LISTE */}
+
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-gray-500">
             Chargement...
           </div>
         ) : creneaux.length === 0 ? (
           <div className="p-10 text-center">
-
             <div className="text-4xl mb-3">
               🕐
             </div>
@@ -1300,198 +1373,205 @@ function Creneaux({ examenId }) {
             <p className="text-sm text-gray-500 mt-1">
               Commencez par créer un créneau pour cet examen.
             </p>
-
-            <button
-              type="button"
-              onClick={ouvrirAjout}
-              className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-            >
-              + Créer le premier créneau
-            </button>
-
           </div>
         ) : (
           <div className="divide-y">
+            {creneaux.map(
+              (creneau) => (
+                <div
+                  key={creneau.id}
+                  className="p-5 flex items-center justify-between gap-4"
+                >
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {creneau.date}
+                    </p>
 
-            {creneaux.map((creneau) => (
-              <div
-                key={creneau.id}
-                className="p-5 flex items-center justify-between gap-4"
-              >
+                    <p className="text-sm text-gray-500 mt-1">
+                      {creneau.heureDebut} —{" "}
+                      {creneau.heureFin}
+                    </p>
+                  </div>
 
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {creneau.date}
-                  </p>
-
-                  <p className="text-sm text-gray-500 mt-1">
-                    {creneau.heureDebut} — {creneau.heureFin}
-                  </p>
+                  <span className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700">
+                    Créneau
+                  </span>
                 </div>
-
-                <span className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700">
-                  Créneau
-                </span>
-
-              </div>
-            ))}
-
+              )
+            )}
           </div>
         )}
-
       </div>
 
-      {/* MODALE AJOUT */}
+      {/* MODAL */}
+
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <Modal
+          title="Ajouter un créneau"
+          onClose={() =>
+            !saving &&
+            setShowModal(false)
+          }
+        >
+          <form
+            onSubmit={ajouterCreneau}
+            className="space-y-5"
+          >
+            {error && (
+              <Message type="error">
+                {error}
+              </Message>
+            )}
 
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl">
+            {success && (
+              <Message type="success">
+                {success}
+              </Message>
+            )}
 
-            {/* HEADER MODALE */}
-            <div className="flex items-center justify-between px-6 py-5 border-b">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Date
+              </label>
 
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Ajouter un créneau
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  Définissez la date et les horaires.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={fermerModal}
-                className="text-gray-400 hover:text-gray-700 text-xl"
-              >
-                ×
-              </button>
-
+              <input
+                type="date"
+                value={date}
+                onChange={(e) =>
+                  setDate(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                required
+              />
             </div>
 
-            {/* FORMULAIRE */}
-            <form
-              onSubmit={ajouterCreneau}
-              className="p-6 space-y-5"
-            >
-
-              {error && (
-                <div className="rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
-                  {error}
-                </div>
-              )}
-
-              {success && (
-                <div className="rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3">
-                  {success}
-                </div>
-              )}
-
-              {/* DATE */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date
+                  Heure de début
                 </label>
 
                 <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  type="time"
+                  value={heureDebut}
+                  onChange={(e) =>
+                    setHeureDebut(
+                      e.target.value
+                    )
+                  }
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
                   required
                 />
               </div>
 
-              {/* HEURES */}
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Heure de fin
+                </label>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heure de début
-                  </label>
-
-                  <input
-                    type="time"
-                    value={heureDebut}
-                    onChange={(e) => setHeureDebut(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heure de fin
-                  </label>
-
-                  <input
-                    type="time"
-                    value={heureFin}
-                    onChange={(e) => setHeureFin(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
+                <input
+                  type="time"
+                  value={heureFin}
+                  onChange={(e) =>
+                    setHeureFin(
+                      e.target.value
+                    )
+                  }
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                  required
+                />
               </div>
+            </div>
 
-              {/* ACTIONS */}
-              <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setShowModal(false)
+                }
+                disabled={saving}
+                className="px-4 py-2.5 rounded-xl border border-gray-300"
+              >
+                Annuler
+              </button>
 
-                <button
-                  type="button"
-                  onClick={fermerModal}
-                  disabled={saving}
-                  className="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-                >
-                  Annuler
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? "Enregistrement..." : "Ajouter"}
-                </button>
-
-              </div>
-
-            </form>
-
-          </div>
-
-        </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 text-white disabled:opacity-50"
+              >
+                {saving
+                  ? "Enregistrement..."
+                  : "Ajouter"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
-
     </div>
   );
 }
+
 /* ============================================================
-   SALLES
+   SALLES DE L'EXAMEN
 ============================================================ */
 
-function Salles({ ecoleId }) {
-  const [salles, setSalles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+function SallesExamen({
+  examenId,
+  ecoleId,
+}) {
+  const [sallesEcole, setSallesEcole] =
+    useState([]);
+
+  const [sallesExamen, setSallesExamen] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
 
   const charger = async () => {
+    if (!examenId || !ecoleId) return;
+
     try {
       setLoading(true);
       setError("");
 
-      const data =
-        await sallesApi.listByEcole(ecoleId);
+      const [
+        toutesLesSalles,
+        sallesDeExamen,
+      ] = await Promise.all([
+        sallesApi.listByEcole(ecoleId),
+        examenSallesApi.list(examenId),
+      ]);
 
-      setSalles(Array.isArray(data) ? data : []);
+      setSallesEcole(
+        Array.isArray(toutesLesSalles)
+          ? toutesLesSalles
+          : []
+      );
+
+      setSallesExamen(
+        Array.isArray(sallesDeExamen)
+          ? sallesDeExamen
+          : []
+      );
     } catch (err) {
       console.error(err);
 
       setError(
         err?.response?.data?.message ||
-          "Impossible de charger les salles."
+          err?.response?.data ||
+          err?.message ||
+          "Impossible de charger les salles de l'examen."
       );
     } finally {
       setLoading(false);
@@ -1499,113 +1579,300 @@ function Salles({ ecoleId }) {
   };
 
   useEffect(() => {
-    if (ecoleId) {
-      charger();
+    charger();
+  }, [examenId, ecoleId]);
+
+  const affecteesIds = useMemo(
+    () =>
+      new Set(
+        sallesExamen.map(
+          (item) =>
+            Number(item.salleId)
+        )
+      ),
+    [sallesExamen]
+  );
+
+  const sallesActives =
+    sallesEcole.filter(
+      (salle) =>
+        salle.active !== false
+    );
+
+  const capaciteTotale =
+    sallesExamen.reduce(
+      (total, salle) =>
+        total +
+        Number(
+          salle.capacite || 0
+        ),
+      0
+    );
+
+  const affecter = async (salle) => {
+    if (
+      affecteesIds.has(
+        Number(salle.id)
+      )
+    ) {
+      return;
     }
-  }, [ecoleId]);
 
-  const changerStatut = async (salle) => {
     try {
+      setSaving(true);
       setError("");
+      setSuccess("");
 
-      const salleModifiee =
-        await sallesApi.changerStatut(
-          salle.id,
-          !salle.active
+      const data =
+        await examenSallesApi.affecter(
+          examenId,
+          salle.id
         );
 
-      setSalles((prev) =>
-        prev.map((item) =>
-          item.id === salleModifiee.id
-            ? salleModifiee
-            : item
-        )
+      setSallesExamen(
+        (prev) => [
+          ...prev,
+          data,
+        ]
+      );
+
+      setSuccess(
+        `La salle ${salle.nom} a été ajoutée à l'examen.`
       );
     } catch (err) {
       console.error(err);
 
       setError(
         err?.response?.data?.message ||
-          "Impossible de modifier le statut de la salle."
+          err?.response?.data ||
+          err?.message ||
+          "Impossible d'affecter la salle."
       );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const retirer = async (salle) => {
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      await examenSallesApi.retirer(
+        examenId,
+        salle.salleId
+      );
+
+      setSallesExamen(
+        (prev) =>
+          prev.filter(
+            (item) =>
+              Number(
+                item.salleId
+              ) !==
+              Number(
+                salle.salleId
+              )
+          )
+      );
+
+      setSuccess(
+        `La salle ${salle.salleNom} a été retirée de l'examen.`
+      );
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data ||
+          err?.message ||
+          "Impossible de retirer la salle."
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* HEADER */}
+
       <div>
         <h2 className="text-xl font-bold text-gray-900">
-          Salles
+          Salles de l'examen
         </h2>
 
         <p className="text-sm text-gray-500 mt-1">
-          Gérez les salles disponibles pour les examens.
+          Sélectionnez les salles qui seront disponibles pour l'ensemble de cet examen.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+        <Message type="error">
           {error}
-        </div>
+        </Message>
       )}
+
+      {success && (
+        <Message type="success">
+          {success}
+        </Message>
+      )}
+
+      {/* RÉSUMÉ */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          label="Salles sélectionnées"
+          value={sallesExamen.length}
+          icon="🏫"
+        />
+
+        <StatCard
+          label="Capacité totale"
+          value={capaciteTotale}
+          suffix="places"
+          icon="💺"
+        />
+
+        <StatCard
+          label="Salles actives"
+          value={sallesActives.length}
+          icon="✓"
+        />
+      </div>
+
+      {/* LISTE */}
 
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-gray-500">
             Chargement des salles...
           </div>
-        ) : salles.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">
-            Aucune salle enregistrée.
+        ) : sallesActives.length === 0 ? (
+          <div className="p-10 text-center">
+            <div className="text-4xl mb-3">
+              🏫
+            </div>
+
+            <p className="font-semibold text-gray-900">
+              Aucune salle active
+            </p>
+
+            <p className="text-sm text-gray-500 mt-1">
+              Activez d'abord des salles dans la gestion de l'école.
+            </p>
           </div>
         ) : (
           <div className="divide-y">
-            {salles.map((salle) => (
-              <div
-                key={salle.id}
-                className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-              >
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {salle.nom}
-                  </p>
+            {sallesActives.map(
+              (salle) => {
+                const affectee =
+                  affecteesIds.has(
+                    Number(
+                      salle.id
+                    )
+                  );
 
-                  <p className="text-sm text-gray-500 mt-1">
-                    Capacité :{" "}
-                    {salle.capacite ?? 0} places
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-xs ${
-                      salle.active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
+                return (
+                  <div
+                    key={salle.id}
+                    className={`p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
+                      affectee
+                        ? "bg-blue-50/50"
+                        : ""
                     }`}
                   >
-                    {salle.active
-                      ? "Active"
-                      : "Inactive"}
-                  </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900">
+                          {salle.nom}
+                        </p>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      changerStatut(salle)
-                    }
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm hover:bg-gray-50"
-                  >
-                    {salle.active
-                      ? "Désactiver"
-                      : "Activer"}
-                  </button>
-                </div>
-              </div>
-            ))}
+                        {affectee && (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs">
+                            Sélectionnée
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-sm text-gray-500 mt-1">
+                        Capacité :{" "}
+                        {salle.capacite ??
+                          0}{" "}
+                        places
+                      </p>
+                    </div>
+
+                    {affectee ? (
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          const item =
+                            sallesExamen.find(
+                              (x) =>
+                                Number(
+                                  x.salleId
+                                ) ===
+                                Number(
+                                  salle.id
+                                )
+                            );
+
+                          if (item) {
+                            retirer(item);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Retirer
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() =>
+                          affecter(salle)
+                        }
+                        className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        Affecter à l'examen
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+            )}
           </div>
         )}
       </div>
+
+      {/* CAPACITÉ */}
+
+      {sallesExamen.length > 0 && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+          <p className="font-semibold text-blue-900">
+            Capacité disponible pour l'examen
+          </p>
+
+          <p className="text-sm text-blue-700 mt-1">
+            {sallesExamen.length} salle
+            {sallesExamen.length > 1
+              ? "s"
+              : ""}{" "}
+            sélectionnée
+            {sallesExamen.length > 1
+              ? "s"
+              : ""}{" "}
+            pour une capacité totale de{" "}
+            <strong>
+              {capaciteTotale} places
+            </strong>.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1615,40 +1882,78 @@ function Salles({ ecoleId }) {
 ============================================================ */
 
 function Repartition({ examenId }) {
-  const [epreuves, setEpreuves] = useState([]);
-  const [selectedEpreuveId, setSelectedEpreuveId] =
-    useState("");
-
-  const [eleves, setEleves] = useState([]);
-  const [repartition, setRepartition] = useState([]);
-  const [sallesAffectees, setSallesAffectees] =
+  const [epreuves, setEpreuves] =
     useState([]);
 
-  const [loadingEpreuves, setLoadingEpreuves] =
-    useState(true);
+  const [
+    selectedEpreuveId,
+    setSelectedEpreuveId,
+  ] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  /*
+   * Élèves concernés par TOUT l'examen.
+   * La génération de la répartition se fait au niveau examen.
+   */
+  const [elevesExamen, setElevesExamen] =
+    useState([]);
 
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  /*
+   * Répartition complète de l'examen.
+   */
+  const [repartitionComplete, setRepartitionComplete] =
+    useState([]);
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  /*
+   * Répartition filtrée pour l'épreuve sélectionnée.
+   */
+  const [repartitionAffichee, setRepartitionAffichee] =
+    useState([]);
+
+  const [
+    sallesAffectees,
+    setSallesAffectees,
+  ] = useState([]);
+
+  const [
+    loadingEpreuves,
+    setLoadingEpreuves,
+  ] = useState(true);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
 
   /* ----------------------------------------------------------
-     CHARGER ÉPREUVES
+     ÉPREUVES
   ---------------------------------------------------------- */
 
   const chargerEpreuves = async () => {
+    if (!examenId) return;
+
     try {
       setLoadingEpreuves(true);
       setError("");
 
       const data =
-        await epreuvesApi.listByExamen(examenId);
+        await epreuvesApi.listByExamen(
+          examenId
+        );
 
       const liste =
-        Array.isArray(data) ? data : [];
+        Array.isArray(data)
+          ? data
+          : [];
 
       setEpreuves(liste);
 
@@ -1674,279 +1979,405 @@ function Repartition({ examenId }) {
   };
 
   /* ----------------------------------------------------------
-     CHARGER DONNÉES
+     DONNÉES RÉPARTITION
   ---------------------------------------------------------- */
 
-  const chargerDonnees = async (
-    epreuveId = selectedEpreuveId
-  ) => {
-    if (!epreuveId) {
-      setEleves([]);
-      setRepartition([]);
-      setSallesAffectees([]);
-      return;
+const chargerDonnees = async () => {
+  if (!examenId) return;
+
+  try {
+    setLoading(true);
+    setError("");
+
+    const id = Number(examenId);
+
+    console.log("🔎 Chargement répartition examen :", id);
+
+    let elevesData = [];
+    let repartitionData = [];
+    let sallesData = [];
+
+    try {
+      elevesData = await repartitionExamenApi.getEleves(id);
+      console.log("✅ Élèves :", elevesData);
+    } catch (err) {
+      console.error(
+        "❌ getEleves()",
+        err.response?.status,
+        err.response?.data,
+        err.config?.url
+      );
+      throw err;
     }
 
     try {
-      setLoading(true);
-      setError("");
-
-      const [
-        elevesData,
-        repartitionData,
-        sallesData,
-      ] = await Promise.all([
-        repartitionEpreuvesApi.getEleves(
-          Number(epreuveId)
-        ),
-
-        repartitionEpreuvesApi.getRepartition(
-          Number(epreuveId)
-        ),
-
-        epreuveSallesApi.listByEpreuve(
-          Number(epreuveId)
-        ),
-      ]);
-
-      setEleves(
-        Array.isArray(elevesData)
-          ? elevesData
-          : []
-      );
-
-      setRepartition(
-        Array.isArray(repartitionData)
-          ? repartitionData
-          : []
-      );
-
-      setSallesAffectees(
-        Array.isArray(sallesData)
-          ? sallesData
-          : []
-      );
+      repartitionData = await repartitionExamenApi.getRepartition(id);
+      console.log("✅ Répartition :", repartitionData);
     } catch (err) {
-      console.error(err);
-
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          err?.message ||
-          "Impossible de charger les données."
+      console.error(
+        "❌ getRepartition()",
+        err.response?.status,
+        err.response?.data,
+        err.config?.url
       );
-
-      setEleves([]);
-      setRepartition([]);
-      setSallesAffectees([]);
-    } finally {
-      setLoading(false);
+      throw err;
     }
-  };
 
+    try {
+      sallesData = await examenSallesApi.list(id);
+      console.log("✅ Salles :", sallesData);
+    } catch (err) {
+      console.error(
+        "❌ examenSallesApi.list()",
+        err.response?.status,
+        err.response?.data,
+        err.config?.url
+      );
+      throw err;
+    }
+
+    setElevesExamen(
+  Array.isArray(elevesData) ? elevesData : []
+);
+
+setRepartitionComplete(
+  Array.isArray(repartitionData)
+    ? repartitionData
+    : []
+);
+
+setSallesAffectees(
+  Array.isArray(sallesData)
+    ? sallesData
+    : []
+);
+  } catch (err) {
+    console.error("❌ Erreur chargement répartition :", err);
+
+    setError(
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      "Impossible de charger les données de répartition."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
-    if (!examenId) return;
-
     chargerEpreuves();
   }, [examenId]);
 
+  /*
+   * Chargement principal de l'examen.
+   */
   useEffect(() => {
-    if (!selectedEpreuveId) return;
+    chargerDonnees();
+  }, [examenId]);
 
-    chargerDonnees(selectedEpreuveId);
-  }, [selectedEpreuveId]);
+  /*
+   * Lorsque l'utilisateur change d'épreuve,
+   * on ne régénère PAS la répartition.
+   * On filtre simplement l'affichage.
+   */
+  useEffect(() => {
+    const chargerParEpreuve = async () => {
+      if (!examenId) return;
 
-  /* ----------------------------------------------------------
-     ÉPREUVE SÉLECTIONNÉE
-  ---------------------------------------------------------- */
-
-  const epreuveSelectionnee = useMemo(
-    () =>
-      epreuves.find(
-        (epreuve) =>
-          Number(epreuve.id) ===
-          Number(selectedEpreuveId)
-      ),
-    [epreuves, selectedEpreuveId]
-  );
-
-  /* ----------------------------------------------------------
-     STATISTIQUES SALLES
-  ---------------------------------------------------------- */
-
-  const capaciteTotale = useMemo(
-    () =>
-      sallesAffectees.reduce(
-        (total, salle) =>
-          total +
-          Number(salle.capacite || 0),
-        0
-      ),
-    [sallesAffectees]
-  );
-
-  const nombreEleves = eleves.length;
-
-  const nombreAffectes =
-    repartition.length;
-
-  const nombreNonAffectes = Math.max(
-    0,
-    nombreEleves - nombreAffectes
-  );
-
-  const placesRestantes = Math.max(
-    0,
-    capaciteTotale - nombreEleves
-  );
-
-  /* ----------------------------------------------------------
-     GROUPEMENT PAR SALLE
-  ---------------------------------------------------------- */
-
-  const repartitionParSalle = useMemo(() => {
-    const groupes = {};
-
-    sallesAffectees.forEach((salle) => {
-      groupes[salle.salleId] = {
-        salleId: salle.salleId,
-        salleNom:
-          salle.salleNom ||
-          `Salle ${salle.salleId}`,
-        capacite:
-          Number(salle.capacite || 0),
-        eleves: [],
-      };
-    });
-
-    repartition.forEach((item) => {
-      if (!groupes[item.salleId]) {
-        groupes[item.salleId] = {
-          salleId: item.salleId,
-          salleNom:
-            item.salleNom ||
-            `Salle ${item.salleId}`,
-          capacite:
-            Number(item.salleCapacite || 0),
-          eleves: [],
-        };
+      if (!selectedEpreuveId) {
+        setRepartitionAffichee(
+          repartitionComplete
+        );
+        return;
       }
 
-      groupes[item.salleId].eleves.push(
-        item
-      );
-    });
+      try {
+        setLoading(true);
+        setError("");
 
-    return Object.values(groupes);
-  }, [sallesAffectees, repartition]);
+        const data =
+          await repartitionExamenApi.getParEpreuve(
+            Number(examenId),
+            Number(selectedEpreuveId)
+          );
+
+        setRepartitionAffichee(
+          Array.isArray(data)
+            ? data
+            : []
+        );
+      } catch (err) {
+        console.error(err);
+
+        /*
+         * Fallback sur la répartition complète.
+         */
+        setRepartitionAffichee(
+          repartitionComplete
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    /*
+     * Évite de refaire une requête inutile
+     * au premier chargement si aucune épreuve n'est encore définie.
+     */
+    if (
+      selectedEpreuveId &&
+      epreuves.length > 0
+    ) {
+      chargerParEpreuve();
+    }
+  }, [
+    selectedEpreuveId,
+    examenId,
+  ]);
+
+  const epreuveSelectionnee =
+    useMemo(
+      () =>
+        epreuves.find(
+          (epreuve) =>
+            Number(epreuve.id) ===
+            Number(
+              selectedEpreuveId
+            )
+        ),
+      [
+        epreuves,
+        selectedEpreuveId,
+      ]
+    );
 
   /* ----------------------------------------------------------
-     GÉNÉRER
+     STATISTIQUES EXAMEN
   ---------------------------------------------------------- */
 
-  const lancerRepartition = async () => {
-    if (!selectedEpreuveId) {
-      setError(
-        "Veuillez sélectionner une épreuve."
-      );
-      return;
-    }
+  const capaciteTotale =
+    sallesAffectees.reduce(
+      (total, salle) =>
+        total +
+        Number(
+          salle.capacite || 0
+        ),
+      0
+    );
 
-    if (eleves.length === 0) {
-      setError(
-        "Aucun élève n'est concerné par cette épreuve."
-      );
-      return;
-    }
+  /*
+   * Ces statistiques sont volontairement basées
+   * sur TOUT l'examen.
+   */
+  const nombreEleves =
+    elevesExamen.length;
 
-    if (sallesAffectees.length === 0) {
-      setError(
-        "Aucune salle n'est affectée à cette épreuve."
-      );
-      return;
-    }
+  const nombreAffectes =
+    repartitionComplete.length;
 
-    if (capaciteTotale < nombreEleves) {
-      setError(
-        `Capacité insuffisante : ${nombreEleves} élèves pour ${capaciteTotale} places.`
-      );
-      return;
-    }
+  const nombreNonAffectes =
+    Math.max(
+      0,
+      nombreEleves -
+        nombreAffectes
+    );
 
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
+  const placesRestantes =
+    Math.max(
+      0,
+      capaciteTotale -
+        nombreAffectes
+    );
 
-      await repartitionEpreuvesApi.repartir(
-        Number(selectedEpreuveId)
+  /* ----------------------------------------------------------
+     GROUPES PAR SALLE
+  ---------------------------------------------------------- */
+
+  const repartitionParSalle =
+    useMemo(() => {
+      const groupes = {};
+
+      /*
+       * On initialise les salles sélectionnées
+       * pour l'examen.
+       */
+      sallesAffectees.forEach(
+        (salle) => {
+          groupes[salle.salleId] = {
+            salleId:
+              salle.salleId,
+
+            salleNom:
+              salle.salleNom ||
+              `Salle ${salle.salleId}`,
+
+            capacite:
+              Number(
+                salle.capacite || 0
+              ),
+
+            eleves: [],
+          };
+        }
       );
 
-      setSuccess(
-        "La répartition des élèves a été générée avec succès."
+      /*
+       * On affiche la répartition correspondant
+       * à l'épreuve sélectionnée.
+       */
+      repartitionAffichee.forEach(
+        (item) => {
+          if (
+            !groupes[item.salleId]
+          ) {
+            groupes[item.salleId] = {
+              salleId:
+                item.salleId,
+
+              salleNom:
+                item.salleNom ||
+                `Salle ${item.salleId}`,
+
+              capacite:
+                Number(
+                  item.salleCapacite ||
+                    0
+                ),
+
+              eleves: [],
+            };
+          }
+
+          groupes[
+            item.salleId
+          ].eleves.push(item);
+        }
       );
 
-      await chargerDonnees(
-        selectedEpreuveId
+      return Object.values(
+        groupes
       );
-    } catch (err) {
-      console.error(err);
+    }, [
+      sallesAffectees,
+      repartitionAffichee,
+    ]);
 
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          err?.message ||
-          "Impossible de générer la répartition."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  /* ----------------------------------------------------------
+     GÉNÉRER LA RÉPARTITION DE L'EXAMEN
+  ---------------------------------------------------------- */
+
+  const lancerRepartition =
+    async () => {
+      if (nombreEleves === 0) {
+        setError(
+          "Aucun élève n'est concerné par cet examen."
+        );
+        return;
+      }
+
+      if (
+        sallesAffectees.length ===
+        0
+      ) {
+        setError(
+          "Aucune salle n'est affectée à cet examen."
+        );
+        return;
+      }
+
+      if (
+        capaciteTotale <
+        nombreEleves
+      ) {
+        setError(
+          `Capacité insuffisante : ${nombreEleves} élèves pour ${capaciteTotale} places.`
+        );
+        return;
+      }
+
+      try {
+        setSaving(true);
+        setError("");
+        setSuccess("");
+
+        /*
+         * IMPORTANT :
+         * La génération est maintenant faite
+         * au niveau de l'EXAMEN.
+         */
+        await repartitionExamenApi.repartir(
+          Number(examenId)
+        );
+
+        setSuccess(
+          "La répartition des élèves de l'examen a été générée avec succès."
+        );
+
+        /*
+         * Recharge toute la répartition.
+         */
+        await chargerDonnees();
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err?.response?.data?.message ||
+            err?.response?.data ||
+            err?.message ||
+            "Impossible de générer la répartition."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
 
   /* ----------------------------------------------------------
      SUPPRIMER
   ---------------------------------------------------------- */
 
-  const supprimerRepartition = async () => {
-    if (!selectedEpreuveId) return;
+  const supprimerRepartition =
+    async () => {
+      if (!examenId) return;
 
-    const confirmation = window.confirm(
-      "Voulez-vous vraiment supprimer la répartition actuelle de cette épreuve ?"
-    );
+      const confirmation =
+        window.confirm(
+          "Voulez-vous vraiment supprimer la répartition actuelle de tout l'examen ?"
+        );
 
-    if (!confirmation) return;
+      if (!confirmation) return;
 
-    try {
-      setDeleting(true);
-      setError("");
-      setSuccess("");
+      try {
+        setDeleting(true);
+        setError("");
+        setSuccess("");
 
-      await repartitionEpreuvesApi.supprimer(
-        Number(selectedEpreuveId)
-      );
+        /*
+         * Suppression au niveau EXAMEN.
+         */
+        await repartitionExamenApi.supprimer(
+          Number(examenId)
+        );
 
-      setRepartition([]);
+        setRepartitionComplete([]);
+        setRepartitionAffichee([]);
 
-      setSuccess(
-        "La répartition a été supprimée."
-      );
+        await chargerDonnees();
 
-      await chargerDonnees(
-        selectedEpreuveId
-      );
-    } catch (err) {
-      console.error(err);
+        setSuccess(
+          "La répartition de l'examen a été supprimée."
+        );
+      } catch (err) {
+        console.error(err);
 
-      setError(
-        err?.response?.data?.message ||
-          err?.response?.data ||
-          err?.message ||
-          "Impossible de supprimer la répartition."
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
+        setError(
+          err?.response?.data?.message ||
+            err?.response?.data ||
+            err?.message ||
+            "Impossible de supprimer la répartition."
+        );
+      } finally {
+        setDeleting(false);
+      }
+    };
 
   return (
     <div className="space-y-6">
@@ -1959,24 +2390,27 @@ function Repartition({ examenId }) {
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Répartissez automatiquement les élèves
-            dans les salles affectées à chaque épreuve.
+            Répartissez automatiquement les élèves dans les salles disponibles pour tout l'examen.
           </p>
         </div>
 
         <div className="w-full lg:w-96">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Épreuve
+            Afficher une épreuve
           </label>
 
           <select
-            value={selectedEpreuveId}
+            value={
+              selectedEpreuveId
+            }
             onChange={(e) =>
               setSelectedEpreuveId(
                 e.target.value
               )
             }
-            disabled={loadingEpreuves}
+            disabled={
+              loadingEpreuves
+            }
             className="w-full border border-gray-300 rounded-xl px-3 py-2.5 bg-white"
           >
             <option value="">
@@ -1985,66 +2419,68 @@ function Repartition({ examenId }) {
                 : "Sélectionner une épreuve"}
             </option>
 
-            {epreuves.map((epreuve) => (
-              <option
-                key={epreuve.id}
-                value={epreuve.id}
-              >
-                {epreuve.matiereNom ||
-                  "Épreuve"}{" "}
-                {epreuve.niveauNom
-                  ? `— ${epreuve.niveauNom}`
-                  : ""}
-                {epreuve.serieNom
-                  ? ` ${epreuve.serieNom}`
-                  : ""}
-              </option>
-            ))}
+            {epreuves.map(
+              (epreuve) => (
+                <option
+                  key={epreuve.id}
+                  value={epreuve.id}
+                >
+                  {epreuve.matiereNom ||
+                    "Épreuve"}
+                  {epreuve.niveauNom
+                    ? ` — ${epreuve.niveauNom}`
+                    : ""}
+                  {epreuve.serieNom
+                    ? ` ${epreuve.serieNom}`
+                    : ""}
+                </option>
+              )
+            )}
           </select>
         </div>
       </div>
 
-      {/* MESSAGES */}
-
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {typeof error === "string"
-            ? error
-            : "Une erreur est survenue."}
-        </div>
+        <Message type="error">
+          {error}
+        </Message>
       )}
 
       {success && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <Message type="success">
           {success}
-        </div>
+        </Message>
       )}
 
-      {!selectedEpreuveId ? (
+      {/* ======================================================
+          PAS D'ÉPREUVES
+      ====================================================== */}
+
+      {epreuves.length === 0 &&
+      !loadingEpreuves ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
           <div className="text-4xl mb-3">
-            🧑‍🎓
+            📝
           </div>
 
           <h3 className="font-semibold text-gray-900">
-            Aucune épreuve sélectionnée
+            Aucune épreuve
           </h3>
 
           <p className="text-sm text-gray-500 mt-1">
-            Sélectionnez une épreuve pour préparer
-            la répartition.
+            Créez d'abord les épreuves de cet examen.
           </p>
         </div>
       ) : (
         <>
-          {/* INFORMATIONS ÉPREUVE */}
+          {/* ÉPREUVE SÉLECTIONNÉE */}
 
           {epreuveSelectionnee && (
             <div className="bg-white border border-gray-200 rounded-2xl p-5">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-gray-400">
-                    Épreuve sélectionnée
+                    Affichage
                   </p>
 
                   <h3 className="text-lg font-bold text-gray-900 mt-1">
@@ -2078,31 +2514,69 @@ function Repartition({ examenId }) {
             </div>
           )}
 
+          {/* INFORMATION */}
+
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+            <div className="flex items-start gap-3">
+              <div className="text-xl">
+                🏫
+              </div>
+
+              <div>
+                <p className="font-semibold text-blue-900">
+                  Répartition au niveau de l'examen
+                </p>
+
+                <p className="text-sm text-blue-700 mt-1">
+                  Les salles sont communes à l'ensemble de
+                  l'examen. La répartition est donc générée une
+                  seule fois pour tous les élèves concernés.
+                </p>
+
+                {selectedEpreuveId && (
+                  <p className="text-sm text-blue-700 mt-2">
+                    L'épreuve sélectionnée sert uniquement à
+                    filtrer l'affichage des élèves affectés.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* STATISTIQUES */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard
-              label="Élèves concernés"
+              label="Élèves examen"
               value={nombreEleves}
               icon="👨‍🎓"
             />
 
             <StatCard
-              label="Élèves affectés"
+              label="Affectés"
               value={nombreAffectes}
               icon="✓"
             />
 
             <StatCard
-              label="Salles"
-              value={sallesAffectees.length}
+              label="Non affectés"
+              value={nombreNonAffectes}
+              icon="⚠️"
+            />
+
+            <StatCard
+              label="Salles examen"
+              value={
+                sallesAffectees.length
+              }
               icon="🏫"
             />
 
             <StatCard
-              label="Capacité disponible"
-              value={capaciteTotale}
-              suffix="places"
+              label="Places restantes"
+              value={
+                placesRestantes
+              }
               icon="💺"
             />
           </div>
@@ -2111,53 +2585,37 @@ function Repartition({ examenId }) {
 
           <div
             className={`rounded-2xl border p-5 ${
-              capaciteTotale >= nombreEleves
+              capaciteTotale >=
+              nombreEleves
                 ? "border-green-200 bg-green-50"
                 : "border-red-200 bg-red-50"
             }`}
           >
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <p
-                  className={`font-semibold ${
-                    capaciteTotale >= nombreEleves
-                      ? "text-green-800"
-                      : "text-red-800"
-                  }`}
-                >
-                  {capaciteTotale >=
-                  nombreEleves
-                    ? "Capacité suffisante"
-                    : "Capacité insuffisante"}
-                </p>
-
-                <p
-                  className={`text-sm mt-1 ${
-                    capaciteTotale >=
-                    nombreEleves
-                      ? "text-green-700"
-                      : "text-red-700"
-                  }`}
-                >
-                  {nombreEleves} élèves pour{" "}
-                  {capaciteTotale} places.
-                </p>
-              </div>
-
+            <p
+              className={`font-semibold ${
+                capaciteTotale >=
+                nombreEleves
+                  ? "text-green-800"
+                  : "text-red-800"
+              }`}
+            >
               {capaciteTotale >=
-                nombreEleves && (
-                <div className="text-sm text-green-700">
-                  {placesRestantes} place
-                  {placesRestantes > 1
-                    ? "s"
-                    : ""}{" "}
-                  restante
-                  {placesRestantes > 1
-                    ? "s"
-                    : ""}
-                </div>
-              )}
-            </div>
+              nombreEleves
+                ? "Capacité suffisante"
+                : "Capacité insuffisante"}
+            </p>
+
+            <p
+              className={`text-sm mt-1 ${
+                capaciteTotale >=
+                nombreEleves
+                  ? "text-green-700"
+                  : "text-red-700"
+              }`}
+            >
+              {nombreEleves} élèves pour{" "}
+              {capaciteTotale} places.
+            </p>
           </div>
 
           {/* ACTIONS */}
@@ -2170,17 +2628,19 @@ function Repartition({ examenId }) {
                 </h3>
 
                 <p className="text-sm text-gray-500 mt-1">
-                  Les élèves seront affectés aux salles
-                  dans l'ordre, selon la capacité de
-                  chaque salle.
+                  La génération concerne tous les élèves de
+                  l'examen et toutes les salles sélectionnées.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {repartition.length > 0 && (
+                {repartitionComplete.length >
+                  0 && (
                   <button
                     type="button"
-                    disabled={deleting}
+                    disabled={
+                      deleting
+                    }
                     onClick={
                       supprimerRepartition
                     }
@@ -2188,7 +2648,7 @@ function Repartition({ examenId }) {
                   >
                     {deleting
                       ? "Suppression..."
-                      : "Effacer la répartition"}
+                      : "Effacer"}
                   </button>
                 )}
 
@@ -2197,194 +2657,177 @@ function Repartition({ examenId }) {
                   disabled={
                     saving ||
                     loading ||
-                    nombreEleves === 0 ||
+                    nombreEleves ===
+                      0 ||
                     sallesAffectees.length ===
                       0 ||
                     capaciteTotale <
                       nombreEleves
                   }
-                  onClick={lancerRepartition}
+                  onClick={
+                    lancerRepartition
+                  }
                   className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
                   {saving
                     ? "Génération..."
-                    : repartition.length > 0
-                    ? "Regénérer la répartition"
+                    : repartitionComplete.length >
+                      0
+                    ? "Regénérer"
                     : "Générer la répartition"}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* CHARGEMENT */}
+          {/* CONTENU */}
 
           {loading ? (
             <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-500">
               Chargement de la répartition...
             </div>
+          ) : repartitionComplete.length ===
+            0 ? (
+            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+              <div className="text-4xl mb-3">
+                🪑
+              </div>
+
+              <h3 className="font-semibold text-gray-900">
+                Répartition non générée
+              </h3>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Configurez les salles de l'examen puis générez
+                la répartition.
+              </p>
+            </div>
+          ) : repartitionAffichee.length ===
+            0 ? (
+            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+              <div className="text-4xl mb-3">
+                🧑‍🎓
+              </div>
+
+              <h3 className="font-semibold text-gray-900">
+                Aucun élève pour cette épreuve
+              </h3>
+
+              <p className="text-sm text-gray-500 mt-1">
+                La répartition de l'examen existe, mais aucun
+                élève n'est retourné pour l'épreuve sélectionnée.
+              </p>
+            </div>
           ) : (
-            <>
-              {/* AUCUNE RÉPARTITION */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+              {repartitionParSalle.map(
+                (salle) => {
+                  const occupation =
+                    salle.capacite >
+                    0
+                      ? Math.round(
+                          (salle.eleves
+                            .length /
+                            salle.capacite) *
+                            100
+                        )
+                      : 0;
 
-              {repartition.length === 0 ? (
-                <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
-                  <div className="text-4xl mb-3">
-                    🪑
-                  </div>
+                  return (
+                    <div
+                      key={
+                        salle.salleId
+                      }
+                      className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
+                    >
+                      <div className="p-5 border-b bg-gray-50">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-bold text-gray-900">
+                              {
+                                salle.salleNom
+                              }
+                            </h3>
 
-                  <h3 className="font-semibold text-gray-900">
-                    Répartition non générée
-                  </h3>
-
-                  <p className="text-sm text-gray-500 mt-1 max-w-lg mx-auto">
-                    {sallesAffectees.length === 0
-                      ? "Aucune salle n'est encore affectée à cette épreuve."
-                      : nombreEleves === 0
-                      ? "Aucun élève n'est concerné par cette épreuve."
-                      : capaciteTotale <
-                        nombreEleves
-                      ? "La capacité des salles affectées est insuffisante."
-                      : "Les élèves peuvent maintenant être répartis dans les salles."}
-                  </p>
-                </div>
-              ) : (
-                /* SALLES */
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                  {repartitionParSalle.map(
-                    (salle) => {
-                      const occupation =
-                        salle.capacite > 0
-                          ? Math.round(
-                              (salle.eleves
-                                .length /
-                                salle.capacite) *
-                                100
-                            )
-                          : 0;
-
-                      return (
-                        <div
-                          key={salle.salleId}
-                          className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
-                        >
-                          {/* HEADER SALLE */}
-
-                          <div className="p-5 border-b bg-gray-50">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <h3 className="font-bold text-gray-900">
-                                  {salle.salleNom}
-                                </h3>
-
-                                <p className="text-sm text-gray-500 mt-1">
-                                  {salle.eleves.length}{" "}
-                                  /{" "}
-                                  {salle.capacite}{" "}
-                                  places
-                                </p>
-                              </div>
-
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                                  occupation >=
-                                  100
-                                    ? "bg-red-100 text-red-700"
-                                    : occupation >=
-                                      80
-                                    ? "bg-yellow-100 text-yellow-700"
-                                    : "bg-green-100 text-green-700"
-                                }`}
-                              >
-                                {occupation}%
-                              </span>
-                            </div>
-
-                            <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-blue-600 rounded-full transition-all"
-                                style={{
-                                  width: `${Math.min(
-                                    occupation,
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {
+                                salle
+                                  .eleves
+                                  .length
+                              }{" "}
+                              /{" "}
+                              {
+                                salle.capacite
+                              }{" "}
+                              places
+                            </p>
                           </div>
 
-                          {/* ÉLÈVES */}
-
-                          <div className="p-4">
-                            <div className="max-h-80 overflow-y-auto space-y-2">
-                              {salle.eleves.map(
-                                (
-                                  eleve,
-                                  index
-                                ) => (
-                                  <div
-                                    key={
-                                      eleve.id ||
-                                      `${eleve.inscriptionId}-${index}`
-                                    }
-                                    className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
-                                  >
-                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                                      {index + 1}
-                                    </div>
-
-                                    <div className="min-w-0">
-                                      <p className="font-medium text-sm text-gray-900 truncate">
-                                        {
-                                          eleve.eleveNom
-                                        }{" "}
-                                        {
-                                          eleve.elevePrenom
-                                        }
-                                      </p>
-
-                                      {eleve.classeNom && (
-                                        <p className="text-xs text-gray-500 truncate">
-                                          {
-                                            eleve.classeNom
-                                          }
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            {occupation}%
+                          </span>
                         </div>
-                      );
-                    }
-                  )}
-                </div>
+
+                        <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-600 rounded-full"
+                            style={{
+                              width: `${Math.min(
+                                occupation,
+                                100
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="max-h-80 overflow-y-auto space-y-2">
+                          {salle.eleves.map(
+                            (
+                              eleve,
+                              index
+                            ) => (
+                              <div
+                                key={
+                                  eleve.id ||
+                                  `${eleve.inscriptionId}-${index}`
+                                }
+                                className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                  {index +
+                                    1}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm text-gray-900 truncate">
+                                    {
+                                      eleve.eleveNom
+                                    }{" "}
+                                    {
+                                      eleve.elevePrenom
+                                    }
+                                  </p>
+
+                                  {eleve.classeNom && (
+                                    <p className="text-xs text-gray-500 truncate">
+                                      {
+                                        eleve.classeNom
+                                      }
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
               )}
-
-              {/* NON AFFECTÉS */}
-
-              {nombreNonAffectes > 0 && (
-                <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-5">
-                  <p className="font-semibold text-yellow-800">
-                    {nombreNonAffectes} élève
-                    {nombreNonAffectes > 1
-                      ? "s"
-                      : ""}{" "}
-                    non affecté
-                    {nombreNonAffectes > 1
-                      ? "s"
-                      : ""}
-                  </p>
-
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Tous les élèves concernés ne sont
-                    pas encore présents dans une salle.
-                  </p>
-                </div>
-              )}
-            </>
+            </div>
           )}
         </>
       )}
@@ -2393,7 +2836,7 @@ function Repartition({ examenId }) {
 }
 
 /* ============================================================
-   STAT CARD
+   COMPOSANTS UI
 ============================================================ */
 
 function StatCard({
@@ -2404,12 +2847,12 @@ function StatCard({
 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <span className="text-2xl">
           {icon}
         </span>
 
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-400 text-right">
           {label}
         </span>
       </div>
@@ -2429,9 +2872,116 @@ function StatCard({
   );
 }
 
-/* ============================================================
-   MODAL
-============================================================ */
+function ProgressRow({
+  label,
+  value,
+  total,
+  complete,
+}) {
+  const percentage =
+    total > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (value / total) * 100
+          )
+        )
+      : complete
+      ? 100
+      : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm mb-2">
+        <span className="text-gray-600">
+          {label}
+        </span>
+
+        <span
+          className={
+            complete
+              ? "text-green-600 font-medium"
+              : "text-gray-500"
+          }
+        >
+          {value}
+          {total > 1
+            ? ` / ${total}`
+            : ""}
+        </span>
+      </div>
+
+      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${
+            complete
+              ? "bg-green-500"
+              : "bg-blue-500"
+          }`}
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StatutBadge({ statut }) {
+  const config = {
+    PLANIFIE: {
+      label: "Planifié",
+      className:
+        "bg-blue-100 text-blue-700",
+    },
+
+    EN_COURS: {
+      label: "En cours",
+      className:
+        "bg-yellow-100 text-yellow-700",
+    },
+
+    TERMINE: {
+      label: "Terminé",
+      className:
+        "bg-green-100 text-green-700",
+    },
+  };
+
+  const current =
+    config[statut] || {
+      label:
+        statut || "Inconnu",
+      className:
+        "bg-gray-100 text-gray-600",
+    };
+
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-medium ${current.className}`}
+    >
+      {current.label}
+    </span>
+  );
+}
+
+function Message({
+  type,
+  children,
+}) {
+  const classes =
+    type === "success"
+      ? "border-green-200 bg-green-50 text-green-700"
+      : "border-red-200 bg-red-50 text-red-700";
+
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 text-sm ${classes}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 function Modal({
   title,

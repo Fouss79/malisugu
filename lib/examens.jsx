@@ -63,9 +63,6 @@ export const coefficientsApi = {
       })
       .then((r) => r.data),
 
-  // ----------------------------------------------------------
-  // Programmes correspondant à un NIVEAU + SÉRIE
-  // ----------------------------------------------------------
   listPourNiveauEtSerie: (
     ecoleId,
     anneeScolaireId,
@@ -136,7 +133,7 @@ export const epreuvesApi = {
 
 
 // ============================================================
-// SALLES
+// SALLES DE L'ÉCOLE
 // ============================================================
 
 export const sallesApi = {
@@ -170,52 +167,93 @@ export const sallesApi = {
 
 
 // ============================================================
-// SALLES AFFECTÉES À UNE ÉPREUVE
+// SALLES DE L'EXAMEN
 // ============================================================
 
-export const epreuveSallesApi = {
-  listByEpreuve: (epreuveId) =>
+export const examenSallesApi = {
+  /**
+   * Liste les salles sélectionnées pour l'examen.
+   */
+  list: (examenId) =>
     api
-      .get(`/epreuves/${epreuveId}/salles`)
+      .get(`/examens/${examenId}/salles`)
       .then((r) => r.data),
 
-  affecter: (epreuveId, salleId) =>
+  /**
+   * Affecte une salle à l'examen.
+   */
+  affecter: (examenId, salleId) =>
     api
-      .post(
-        `/epreuves/${epreuveId}/salles/${salleId}`
-      )
+      .post(`/examens/${examenId}/salles/${salleId}`)
       .then((r) => r.data),
 
-  retirer: (epreuveId, salleId) =>
+  /**
+   * Retire une salle de l'examen.
+   */
+  retirer: (examenId, salleId) =>
     api.delete(
-      `/epreuves/${epreuveId}/salles/${salleId}`
+      `/examens/${examenId}/salles/${salleId}`
     ),
 };
 
 
 // ============================================================
-// RÉPARTITION DES ÉLÈVES PAR ÉPREUVE
+// RÉPARTITION DE L'EXAMEN
 // ============================================================
 
-export const repartitionEpreuvesApi = {
-  getEleves: (epreuveId) =>
+export const repartitionExamenApi = {
+  /**
+   * Liste tous les élèves concernés par l'examen.
+   */
+  getEleves: (examenId) =>
     api
-      .get(`/epreuves/${epreuveId}/eleves`)
+      .get(`/examens/${examenId}/eleves`)
       .then((r) => r.data),
 
-  repartir: (epreuveId) =>
+  /**
+   * Génère automatiquement la répartition
+   * élève → salle pour tout l'examen.
+   */
+  repartir: (examenId) =>
     api
-      .post(`/epreuves/${epreuveId}/repartition`)
+      .post(`/examens/${examenId}/repartition`)
       .then((r) => r.data),
 
-  getRepartition: (epreuveId) =>
+  /**
+   * Récupère la répartition complète.
+   */
+  getRepartition: (examenId) =>
     api
-      .get(`/epreuves/${epreuveId}/repartition`)
+      .get(`/examens/${examenId}/repartition`)
       .then((r) => r.data),
 
-  supprimer: (epreuveId) =>
+  /**
+   * Récupère la répartition groupée par salle.
+   */
+  getParSalle: (examenId) =>
+    api
+      .get(
+        `/examens/${examenId}/repartition/par-salle`
+      )
+      .then((r) => r.data),
+
+  /**
+   * Récupère uniquement les élèves concernés
+   * par une épreuve donnée.
+   */
+  getParEpreuve: (examenId, epreuveId) =>
+    api
+      .get(
+        `/examens/${examenId}/epreuves/${epreuveId}/repartition`
+      )
+      .then((r) => r.data),
+
+  /**
+   * Supprime toute la répartition de l'examen.
+   */
+  supprimer: (examenId) =>
     api.delete(
-      `/epreuves/${epreuveId}/repartition`
+      `/examens/${examenId}/repartition`
     ),
 };
 
