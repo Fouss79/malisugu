@@ -553,40 +553,54 @@ export default function NotesPage() {
   // ============================================================
 
   const downloadBulletinClasse = async () => {
-    setEtats(prev => ({ ...prev, erreur: "" }));
+  setEtats((prev) => ({ ...prev, erreur: "" }));
 
-    if (!filtres.classeId || !filtres.anneeScolaireId || !filtres.periode) {
-      afficherErreur(
-        "Choisissez la classe, l'année et la période avant de générer les bulletins."
-      );
-      return;
-    }
+  if (!filtres.classeId || !filtres.anneeScolaireId || !filtres.periode) {
+    afficherErreur(
+      "Choisissez la classe, l'année et la période avant de générer les bulletins."
+    );
+    return;
+  }
 
-    try {
-      const response = await api.get("/bulletins/generate-classe", {
-        params: {
-          classeId: filtres.classeId,
-          anneeId: filtres.anneeScolaireId,
-          periode: filtres.periode,
-        },
-        responseType: "blob",
-      });
+  try {
+    const response = await api.get("/bulletins/generate-classe", {
+      params: {
+        classeId: Number(filtres.classeId),
+        anneeId: Number(filtres.anneeScolaireId),
+        periode: filtres.periode,
+      },
+      responseType: "blob",
+    });
 
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "bulletins-classe.pdf";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Erreur bulletin:", error);
-      afficherErreur("Erreur lors de la génération des bulletins.");
-    }
-  };
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
 
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bulletins-classe-${filtres.classeId}-${filtres.periode
+      .toLowerCase()
+      .replace(/\s+/g, "-")}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+
+    afficherToast("✓ Bulletins de la classe générés avec succès");
+  } catch (error) {
+    console.error("Erreur génération bulletins :", error);
+
+    // Avec responseType blob, le message d'erreur du backend
+    // n'est pas directement accessible comme une chaîne.
+    afficherErreur(
+      "Erreur lors de la génération des bulletins de la classe."
+    );
+  }
+};
 
   // ============================================================
   // RENDU
