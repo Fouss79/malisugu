@@ -196,6 +196,22 @@ export const examenSallesApi = {
     ),
 };
 
+export const compositionEpreuveApi = {
+  list: (epreuveId) =>
+    api.get(`/epreuves/${epreuveId}/compositions`).then((r) => r.data),
+
+  modifierStatut: (epreuveId, inscriptionId, statut) =>
+    api.patch(
+      `/epreuves/${epreuveId}/eleves/${inscriptionId}/composition`,
+      { statut }
+    ).then((r) => r.data),
+
+  remettreNonConfirme: (epreuveId, inscriptionId) =>
+    api.delete(
+      `/epreuves/${epreuveId}/eleves/${inscriptionId}/composition`
+    ),
+};
+
 
 // ============================================================
 // RÉPARTITION DE L'EXAMEN

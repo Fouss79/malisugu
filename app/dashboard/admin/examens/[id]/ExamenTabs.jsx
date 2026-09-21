@@ -10,6 +10,7 @@ import {
   examenSallesApi,
   repartitionExamenApi,
   examensApi,
+  compositionEpreuveApi,
 } from "../../../../../lib/examens";
 
 /* ============================================================
@@ -22,7 +23,7 @@ export default function ExamenTabs({
   anneeScolaireId,
 }) {
   const [activeTab, setActiveTab] = useState("general");
-  
+
   const tabs = [
     {
       id: "general",
@@ -1934,6 +1935,16 @@ function Repartition({ examenId }) {
   const [success, setSuccess] =
     useState("");
 
+  /*
+   * Statuts de composition (présence à l'épreuve)
+   * indexés par inscriptionId, pour l'épreuve sélectionnée.
+   */
+  const [statutsComposition, setStatutsComposition] =
+    useState({});
+
+  const [loadingComposition, setLoadingComposition] =
+    useState(false);
+
   /* ----------------------------------------------------------
      ÉPREUVES
   ---------------------------------------------------------- */
@@ -2063,6 +2074,82 @@ setSallesAffectees(
     setLoading(false);
   }
 };
+
+  /* ----------------------------------------------------------
+     COMPOSITIONS (présence à l'épreuve sélectionnée)
+  ---------------------------------------------------------- */
+
+  const chargerCompositions = async () => {
+    if (!selectedEpreuveId) {
+      setStatutsComposition({});
+      return;
+    }
+
+    try {
+      setLoadingComposition(true);
+
+      const data = await compositionEpreuveApi.list(
+        Number(selectedEpreuveId)
+      );
+
+      const map = {};
+
+      if (Array.isArray(data)) {
+        data.forEach((item) => {
+          if (item.inscriptionId != null) {
+            map[item.inscriptionId] =
+              item.statut || "NON_CONFIRME";
+          }
+        });
+      }
+
+      setStatutsComposition(map);
+    } catch (error) {
+      console.error(
+        "Erreur chargement compositions :",
+        error
+      );
+    } finally {
+      setLoadingComposition(false);
+    }
+  };
+
+  const modifierStatutComposition = async (
+    inscriptionId,
+    statut
+  ) => {
+    if (!selectedEpreuveId || !inscriptionId) return;
+
+    try {
+      setLoadingComposition(true);
+
+      const result =
+        await compositionEpreuveApi.modifierStatut(
+          Number(selectedEpreuveId),
+          Number(inscriptionId),
+          statut
+        );
+
+      setStatutsComposition((prev) => ({
+        ...prev,
+        [inscriptionId]:
+          result?.statut || statut,
+      }));
+    } catch (error) {
+      console.error(
+        "Erreur modification composition :",
+        error
+      );
+
+      alert(
+        error?.response?.data?.message ||
+        "Impossible de modifier le statut."
+      );
+    } finally {
+      setLoadingComposition(false);
+    }
+  };
+
   useEffect(() => {
     chargerEpreuves();
   }, [examenId]);
@@ -2073,6 +2160,14 @@ setSallesAffectees(
   useEffect(() => {
     chargerDonnees();
   }, [examenId]);
+
+  /*
+   * Recharge les statuts de composition
+   * à chaque changement d'épreuve sélectionnée.
+   */
+  useEffect(() => {
+    chargerCompositions();
+  }, [selectedEpreuveId]);
 
   /*
    * Lorsque l'utilisateur change d'épreuve,
@@ -2192,74 +2287,26 @@ setSallesAffectees(
      GROUPES PAR SALLE
   ---------------------------------------------------------- */
 
-  const repartitionParSalle =
-    useMemo(() => {
-      const groupes = {};
+  const repartitionParSalle = useMemo(() => {
+  const groupes = sallesAffectees.map((salle) => ({
+    salleId: salle.salleId,
+    salleNom: salle.salleNom,
+    capacite: Number(salle.capacite || 0),
+    eleves: [],
+  }));
 
-      /*
-       * On initialise les salles sélectionnées
-       * pour l'examen.
-       */
-      sallesAffectees.forEach(
-        (salle) => {
-          groupes[salle.salleId] = {
-            salleId:
-              salle.salleId,
+  repartitionComplete.forEach((eleve) => {
+    const groupe = groupes.find(
+      (salle) => Number(salle.salleId) === Number(eleve.salleId)
+    );
 
-            salleNom:
-              salle.salleNom ||
-              `Salle ${salle.salleId}`,
+    if (groupe) {
+      groupe.eleves.push(eleve);
+    }
+  });
 
-            capacite:
-              Number(
-                salle.capacite || 0
-              ),
-
-            eleves: [],
-          };
-        }
-      );
-
-      /*
-       * On affiche la répartition correspondant
-       * à l'épreuve sélectionnée.
-       */
-      repartitionAffichee.forEach(
-        (item) => {
-          if (
-            !groupes[item.salleId]
-          ) {
-            groupes[item.salleId] = {
-              salleId:
-                item.salleId,
-
-              salleNom:
-                item.salleNom ||
-                `Salle ${item.salleId}`,
-
-              capacite:
-                Number(
-                  item.salleCapacite ||
-                    0
-                ),
-
-              eleves: [],
-            };
-          }
-
-          groupes[
-            item.salleId
-          ].eleves.push(item);
-        }
-      );
-
-      return Object.values(
-        groupes
-      );
-    }, [
-      sallesAffectees,
-      repartitionAffichee,
-    ]);
+  return groupes;
+}, [sallesAffectees, repartitionComplete]);
 
   /* ----------------------------------------------------------
      GÉNÉRER LA RÉPARTITION DE L'EXAMEN
@@ -2536,7 +2583,8 @@ setSallesAffectees(
                 {selectedEpreuveId && (
                   <p className="text-sm text-blue-700 mt-2">
                     L'épreuve sélectionnée sert uniquement à
-                    filtrer l'affichage des élèves affectés.
+                    filtrer l'affichage des élèves affectés,
+                    et à afficher leur statut de composition.
                   </p>
                 )}
               </div>
@@ -2680,155 +2728,237 @@ setSallesAffectees(
             </div>
           </div>
 
-          {/* CONTENU */}
+    {/* CONTENU */}
 
-          {loading ? (
-            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-500">
-              Chargement de la répartition...
-            </div>
-          ) : repartitionComplete.length ===
-            0 ? (
-            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
-              <div className="text-4xl mb-3">
-                🪑
+{loading ? (
+  <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center text-gray-500">
+    Chargement de la répartition...
+  </div>
+) : repartitionComplete.length === 0 ? (
+  <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+    <div className="text-4xl mb-3">
+      🪑
+    </div>
+
+    <h3 className="font-semibold text-gray-900">
+      Répartition non générée
+    </h3>
+
+    <p className="text-sm text-gray-500 mt-1">
+      Configurez les salles de l'examen puis générez
+      la répartition.
+    </p>
+  </div>
+) : repartitionAffichee.length === 0 ? (
+  <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+    <div className="text-4xl mb-3">
+      🧑‍🎓
+    </div>
+
+    <h3 className="font-semibold text-gray-900">
+      Aucun élève pour cette épreuve
+    </h3>
+
+    <p className="text-sm text-gray-500 mt-1">
+      La répartition de l'examen existe, mais aucun
+      élève n'est retourné pour l'épreuve sélectionnée.
+    </p>
+  </div>
+) : (
+  <div className="space-y-6">
+    {repartitionParSalle.map((salle) => {
+      const occupation =
+        salle.capacite > 0
+          ? Math.round(
+              (salle.eleves.length / salle.capacite) * 100
+            )
+          : 0;
+
+      return (
+        <div
+          key={salle.salleId}
+          className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
+        >
+          {/* ==================================================
+              EN-TÊTE SALLE
+          ================================================== */}
+
+          <div className="px-5 py-4 bg-gray-50 border-b">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {salle.salleNom}
+                </h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  {salle.eleves.length} /{" "}
+                  {salle.capacite} places occupées
+                </p>
               </div>
 
-              <h3 className="font-semibold text-gray-900">
-                Répartition non générée
-              </h3>
-
-              <p className="text-sm text-gray-500 mt-1">
-                Configurez les salles de l'examen puis générez
-                la répartition.
-              </p>
+              <span className="inline-flex w-fit px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                {occupation}% occupée
+              </span>
             </div>
-          ) : repartitionAffichee.length ===
-            0 ? (
-            <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
-              <div className="text-4xl mb-3">
-                🧑‍🎓
-              </div>
 
-              <h3 className="font-semibold text-gray-900">
-                Aucun élève pour cette épreuve
-              </h3>
-
-              <p className="text-sm text-gray-500 mt-1">
-                La répartition de l'examen existe, mais aucun
-                élève n'est retourné pour l'épreuve sélectionnée.
-              </p>
+            <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 rounded-full transition-all"
+                style={{
+                  width: `${Math.min(occupation, 100)}%`,
+                }}
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-              {repartitionParSalle.map(
-                (salle) => {
-                  const occupation =
-                    salle.capacite >
-                    0
-                      ? Math.round(
-                          (salle.eleves
-                            .length /
-                            salle.capacite) *
-                            100
-                        )
-                      : 0;
+          </div>
 
-                  return (
-                    <div
-                      key={
-                        salle.salleId
-                      }
-                      className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
-                    >
-                      <div className="p-5 border-b bg-gray-50">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h3 className="font-bold text-gray-900">
-                              {
-                                salle.salleNom
-                              }
-                            </h3>
+          {/* ==================================================
+              TABLEAU DES ÉLÈVES
+          ================================================== */}
 
-                            <p className="text-sm text-gray-500 mt-1">
-                              {
-                                salle
-                                  .eleves
-                                  .length
-                              }{" "}
-                              /{" "}
-                              {
-                                salle.capacite
-                              }{" "}
-                              places
-                            </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-white text-left">
+                  <th className="px-5 py-3 w-16 text-xs font-semibold text-gray-500 uppercase">
+                    N°
+                  </th>
+
+                  <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">
+                    Élève
+                  </th>
+
+                  <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">
+                    Classe
+                  </th>
+
+                  <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">
+                    Matricule
+                  </th>
+
+                  {selectedEpreuveId && (
+                    <th className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">
+                      Composition
+                    </th>
+                  )}
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100">
+                {salle.eleves.map(
+                  (eleve, index) => {
+                    const statutActuel =
+                      statutsComposition[
+                        eleve.inscriptionId
+                      ] || "NON_CONFIRME";
+
+                    return (
+                      <tr
+                        key={
+                          eleve.id ||
+                          `${eleve.inscriptionId}-${index}`
+                        }
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        {/* N° */}
+
+                        <td className="px-5 py-3 font-medium text-gray-500">
+                          {index + 1}
+                        </td>
+
+                        {/* ÉLÈVE */}
+
+                        <td className="px-5 py-3">
+                          <div className="font-medium text-gray-900">
+                            {eleve.eleveNom}{" "}
+                            {eleve.elevePrenom}
                           </div>
+                        </td>
 
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                            {occupation}%
-                          </span>
-                        </div>
+                        {/* CLASSE */}
 
-                        <div className="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-600 rounded-full"
-                            style={{
-                              width: `${Math.min(
-                                occupation,
-                                100
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
+                        <td className="px-5 py-3 text-gray-600">
+                          {eleve.classeNom || "-"}
+                        </td>
 
-                      <div className="p-4">
-                        <div className="max-h-80 overflow-y-auto space-y-2">
-                          {salle.eleves.map(
-                            (
-                              eleve,
-                              index
-                            ) => (
-                              <div
-                                key={
-                                  eleve.id ||
-                                  `${eleve.inscriptionId}-${index}`
+                        {/* MATRICULE */}
+
+                        <td className="px-5 py-3 text-gray-600 font-mono text-xs">
+                          {eleve.matricule || "-"}
+                        </td>
+
+                        {/* COMPOSITION */}
+
+                        {selectedEpreuveId && (
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2">
+
+                              <StatutCompositionBadge
+                                statut={
+                                  statutActuel
                                 }
-                                className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50"
+                              />
+
+                              <select
+                                value={
+                                  statutActuel
+                                }
+                                disabled={
+                                  loadingComposition
+                                }
+                                onChange={(e) =>
+                                  modifierStatutComposition(
+                                    eleve.inscriptionId,
+                                    e.target.value
+                                  )
+                                }
+                                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white disabled:opacity-50"
                               >
-                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                                  {index +
-                                    1}
-                                </div>
+                                <option value="NON_CONFIRME">
+                                  Non confirmé
+                                </option>
 
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm text-gray-900 truncate">
-                                    {
-                                      eleve.eleveNom
-                                    }{" "}
-                                    {
-                                      eleve.elevePrenom
-                                    }
-                                  </p>
+                                <option value="A_COMPOSE">
+                                  A composé
+                                </option>
 
-                                  {eleve.classeNom && (
-                                    <p className="text-xs text-gray-500 truncate">
-                                      {
-                                        eleve.classeNom
-                                      }
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          )}
+                                <option value="ABSENT">
+                                  Absent
+                                </option>
+                              </select>
+
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  }
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ==================================================
+              PIED DE SALLE
+          ================================================== */}
+
+          <div className="px-5 py-3 bg-gray-50 border-t text-sm text-gray-500">
+            <span className="font-medium text-gray-700">
+              {salle.eleves.length}
+            </span>{" "}
+            élève
+            {salle.eleves.length > 1 ? "s" : ""} dans cette
+            salle sur{" "}
+            <span className="font-medium text-gray-700">
+              {salle.capacite}
+            </span>{" "}
+            places.
+          </div>
+        </div>
+      );
+    })}
+  </div>
+)}
         </>
       )}
     </div>
@@ -2963,6 +3093,34 @@ function StatutBadge({ statut }) {
       {current.label}
     </span>
   );
+}
+
+/*
+ * Badge de statut de composition (présence à une épreuve).
+ */
+function StatutCompositionBadge({ statut }) {
+  switch (statut) {
+    case "A_COMPOSE":
+      return (
+        <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+          ✓ A composé
+        </span>
+      );
+
+    case "ABSENT":
+      return (
+        <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+          ✕ Absent
+        </span>
+      );
+
+    default:
+      return (
+        <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
+          ○ Non confirmé
+        </span>
+      );
+  }
 }
 
 function Message({
