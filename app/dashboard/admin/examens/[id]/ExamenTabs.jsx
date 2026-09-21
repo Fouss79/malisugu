@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
+  
 import {
   epreuvesApi,
   coefficientsApi,
@@ -11,6 +11,7 @@ import {
   repartitionExamenApi,
   examensApi,
   compositionEpreuveApi,
+  examenDocumentsApi
 } from "../../../../../lib/examens";
 
 /* ============================================================
@@ -1944,6 +1945,7 @@ function Repartition({ examenId }) {
 
   const [loadingComposition, setLoadingComposition] =
     useState(false);
+    const [generatingPdf, setGeneratingPdf] = useState("");
 
   /* ----------------------------------------------------------
      ÉPREUVES
@@ -2149,6 +2151,99 @@ setSallesAffectees(
       setLoadingComposition(false);
     }
   };
+  const telechargerPdf = (blob, nomFichier) => {
+  const url = window.URL.createObjectURL(blob);
+
+  const lien = document.createElement("a");
+  lien.href = url;
+  lien.download = nomFichier;
+
+  document.body.appendChild(lien);
+  lien.click();
+  lien.remove();
+
+  window.URL.revokeObjectURL(url);
+};
+const handleListesSallesPdf = async () => {
+  try {
+    setGeneratingPdf("salles");
+    setError("");
+    setSuccess("");
+
+    const blob =
+      await examenDocumentsApi.listesSalles(examenId);
+
+    telechargerPdf(
+      blob,
+      `listes-salles-examen-${examenId}.pdf`
+    );
+
+    setSuccess("Les listes des salles ont été générées.");
+  } catch (err) {
+    console.error(err);
+    setError(
+      "Impossible de générer les listes des salles."
+    );
+  } finally {
+    setGeneratingPdf("");
+  }
+};
+const genererListesSallesPdf = () => {
+  if (!examenId) return;
+
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/examens/${examenId}/documents/listes-salles.pdf`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const genererFeuillePresencePdf = () => {
+  if (!examenId || !selectedEpreuveId) return;
+
+  const url =
+    `${process.env.NEXT_PUBLIC_API_URL}` +
+    `/examens/${examenId}/epreuves/${selectedEpreuveId}/documents/feuille-presence.pdf`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+const handleFeuillePresencePdf = async () => {
+  if (!selectedEpreuveId) {
+    setError("Veuillez sélectionner une épreuve.");
+    return;
+  }
+
+  try {
+    setGeneratingPdf("presence");
+    setError("");
+    setSuccess("");
+
+    const blob =
+      await examenDocumentsApi.feuillePresence(
+        examenId,
+        selectedEpreuveId
+      );
+
+    const nomEpreuve =
+      epreuveSelectionnee?.coefficientMatiere?.matiere?.nom ||
+      "epreuve";
+
+    const nomFichier = `feuille-presence-${nomEpreuve
+      .toLowerCase()
+      .replace(/\s+/g, "-")}-examen-${examenId}.pdf`;
+
+    telechargerPdf(blob, nomFichier);
+
+    setSuccess(
+      "La feuille de présence a été générée."
+    );
+  } catch (err) {
+    console.error(err);
+    setError(
+      "Impossible de générer la feuille de présence."
+    );
+  } finally {
+    setGeneratingPdf("");
+  }
+};
 
   useEffect(() => {
     chargerEpreuves();
@@ -2628,6 +2723,81 @@ setSallesAffectees(
               icon="💺"
             />
           </div>
+          <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
+  <div className="mb-4">
+    <h2 className="text-lg font-semibold text-gray-900">
+      Documents d'examen
+    </h2>
+
+    <p className="mt-1 text-sm text-gray-500">
+      Générez les documents nécessaires pour l'organisation
+      et le suivi des épreuves.
+    </p>
+  </div>
+
+  <div className="flex flex-wrap gap-3">
+
+    {/* LISTES DES SALLES */}
+    <button
+      type="button"
+      onClick={handleListesSallesPdf}
+      disabled={
+        generatingPdf === "salles" ||
+        repartitionComplete.length === 0
+      }
+      className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {generatingPdf === "salles" ? (
+        <>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          Génération...
+        </>
+      ) : (
+        <>
+          🖨️
+          Listes des salles
+        </>
+      )}
+    </button>
+
+    {/* FEUILLE DE PRÉSENCE */}
+    <button
+      type="button"
+      onClick={handleFeuillePresencePdf}
+      disabled={
+        generatingPdf === "presence" ||
+        !selectedEpreuveId ||
+        repartitionComplete.length === 0
+      }
+      className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {generatingPdf === "presence" ? (
+        <>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+          Génération...
+        </>
+      ) : (
+        <>
+          📋
+          Feuille de présence
+        </>
+      )}
+    </button>
+  </div>
+
+  {/* ÉPREUVE SÉLECTIONNÉE */}
+  {selectedEpreuveId && epreuveSelectionnee && (
+    <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm">
+      <span className="text-gray-500">
+        Feuille de présence :
+      </span>{" "}
+      <span className="font-semibold text-gray-900">
+        {epreuveSelectionnee?.coefficientMatiere?.matiere?.nom ||
+          "Épreuve"}
+      </span>
+    </div>
+  )}
+</div>
 
           {/* CAPACITÉ */}
 

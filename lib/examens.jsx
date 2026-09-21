@@ -196,6 +196,25 @@ export const examenSallesApi = {
     ),
 };
 
+export const examenDocumentsApi = {
+  listesSalles: (examenId) =>
+    api.get(
+      `/examens/${examenId}/documents/listes-salles.pdf`,
+      {
+        responseType: "blob",
+      }
+    ).then((r) => r.data),
+
+  feuillePresence: (examenId, epreuveId) =>
+    api.get(
+      `/examens/${examenId}/epreuves/${epreuveId}/documents/feuille-presence.pdf`,
+      {
+        responseType: "blob",
+      }
+    ).then((r) => r.data),
+};
+
+
 export const compositionEpreuveApi = {
   list: (epreuveId) =>
     api.get(`/epreuves/${epreuveId}/compositions`).then((r) => r.data),
