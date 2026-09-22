@@ -541,6 +541,7 @@ export default function ElevesPage() {
   const [modalAjoutOuvert, setModalAjoutOuvert] = useState(false);
   const [eleveEnEdition, setEleveEnEdition] = useState(null);
   const [generatingFormulaire, setGeneratingFormulaire] = useState(false);
+  const [generatingListeClasse, setGeneratingListeClasse] = useState(false);
 
   const telechargerFormulaireVierge = async () => {
     setGeneratingFormulaire(true);
@@ -570,6 +571,86 @@ export default function ElevesPage() {
       setGeneratingFormulaire(false);
     }
   };
+  
+  const telechargerListeElevesClasse = async () => {
+  if (!classeFilter) {
+    alert("Veuillez sélectionner une classe.");
+    return;
+  }
+
+  const inscriptionClasse = eleves.find(
+    (e) => e.classeNom === classeFilter
+  );
+
+  if (!inscriptionClasse) {
+    alert("Impossible de trouver la classe sélectionnée.");
+    return;
+  }
+
+  if (!inscriptionClasse.classeId || !inscriptionClasse.anneeId) {
+    console.error("Données de l'inscription :", inscriptionClasse);
+    alert("Les informations de la classe ou de l'année sont introuvables.");
+    return;
+  }
+
+  setGeneratingListeClasse(true);
+
+  try {
+    const response = await api.get(
+      `/inscriptions/classe/${inscriptionClasse.classeId}/${inscriptionClasse.anneeId}/pdf`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `liste-eleves-${classeFilter}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error(
+      "Erreur génération liste élèves :",
+      error
+    );
+
+    if (error?.response?.data instanceof Blob) {
+      try {
+        const texte = await error.response.data.text();
+        const json = JSON.parse(texte);
+
+        alert(
+          json?.message ||
+          json?.error ||
+          "Impossible de générer la liste."
+        );
+      } catch {
+        alert("Impossible de générer la liste des élèves.");
+      }
+    } else {
+      alert(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        "Impossible de générer la liste des élèves."
+      );
+    }
+  } finally {
+    setGeneratingListeClasse(false);
+  }
+};
+
 
   const loadEleves = async () => {
     if (!user?.ecole?.id) return;
@@ -712,6 +793,23 @@ export default function ElevesPage() {
             </>
           )}
         </button>
+        <button
+  onClick={telechargerListeElevesClasse}
+  disabled={generatingListeClasse || !classeFilter}
+  className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {generatingListeClasse ? (
+    <>
+      <Loader2 size={18} className="animate-spin" />
+      Génération...
+    </>
+  ) : (
+    <>
+      <Download size={18} />
+      Liste de la classe
+    </>
+  )}
+</button>
       </div>
 
       {/* ===== VUE MOBILE : CARTES ===== */}
