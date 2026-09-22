@@ -2871,29 +2871,24 @@ const handleFeuillePresencePdf = async () => {
                 )}
 
                 <button
-                  type="button"
-                  disabled={
-                    saving ||
-                    loading ||
-                    nombreEleves ===
-                      0 ||
-                    sallesAffectees.length ===
-                      0 ||
-                    capaciteTotale <
-                      nombreEleves
-                  }
-                  onClick={
-                    lancerRepartition
-                  }
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving
-                    ? "Génération..."
-                    : repartitionComplete.length >
-                      0
-                    ? "Regénérer"
-                    : "Générer la répartition"}
-                </button>
+  type="button"
+  disabled={
+    saving ||
+    loading ||
+    nombreEleves === 0 ||
+    sallesAffectees.length === 0 ||
+    capaciteTotale < nombreEleves ||
+    repartitionComplete.length > 0
+  }
+  onClick={lancerRepartition}
+  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {saving
+    ? "Génération..."
+    : repartitionComplete.length > 0
+    ? "Répartition déjà générée"
+    : "Générer la répartition"}
+</button>
               </div>
             </div>
           </div>

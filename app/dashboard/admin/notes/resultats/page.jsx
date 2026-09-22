@@ -14,6 +14,8 @@ import {
   Award,
   TrendingUp,
   ChevronRight,
+  Send,
+  Mail,
 } from "lucide-react";
 
 // =========================================================
@@ -66,8 +68,16 @@ function AppreciationBadge({ appreciation }) {
 // MODAL BULLETIN
 // =========================================================
 
-function ModalApercu({ resultat, onClose }) {
+function ModalApercu({
+  resultat,
+  onClose,
+  onSend,
+  sendingId,
+}) {
   const matieres = resultat?.matieres || [];
+
+  const envoiEnCours =
+    sendingId === resultat.inscriptionId;
 
   const formatNote = (value) => {
     if (
@@ -630,6 +640,7 @@ function ModalApercu({ resultat, onClose }) {
             px-4
             py-3
             sm:flex-row
+            sm:items-center
             sm:justify-end
             sm:px-6
           "
@@ -652,6 +663,47 @@ function ModalApercu({ resultat, onClose }) {
             "
           >
             Fermer
+          </button>
+
+          <button
+            onClick={() => onSend(resultat)}
+            disabled={envoiEnCours}
+            className="
+              inline-flex
+              items-center
+              justify-center
+              gap-2
+              rounded-lg
+              bg-[#2C8C82]
+              px-4
+              py-2
+              text-xs
+              font-semibold
+              text-white
+              transition
+              hover:bg-[#236F68]
+              disabled:cursor-not-allowed
+              disabled:opacity-60
+            "
+          >
+            {envoiEnCours ? (
+              <span
+                className="
+                  h-3.5
+                  w-3.5
+                  animate-spin
+                  rounded-full
+                  border-2
+                  border-white/30
+                  border-t-white
+                "
+              />
+            ) : (
+              <Send size={14} />
+            )}
+            {envoiEnCours
+              ? "Envoi..."
+              : "Envoyer aux parents"}
           </button>
 
           <button
@@ -839,6 +891,12 @@ export default function ResultatsPage() {
   const [apercu, setApercu] = useState(null);
   const [loadingBulletinId, setLoadingBulletinId] =
     useState(null);
+
+  // Id (inscriptionId) du bulletin en cours d'envoi par mail
+  const [sendingId, setSendingId] = useState(null);
+  // Envoi groupé pour toute la classe affichée
+  const [sendingClasse, setSendingClasse] =
+    useState(false);
 
   const [filtres, setFiltres] = useState({
     cycleId: "",
@@ -1118,6 +1176,111 @@ export default function ResultatsPage() {
   };
 
   // =========================================================
+  // ENVOI DU BULLETIN AUX PARENTS (PAR EMAIL)
+  //
+  // ⚠️ Hypothèse : le backend expose un endpoint
+  //   POST /bulletins/envoyer-parent
+  // avec les mêmes paramètres que /bulletins/generate
+  // (inscriptionId, classeId, anneeId, periode), qui génère
+  // le PDF et l'envoie à l'email du tuteur enregistré pour
+  // cet élève. Adapte le chemin/les paramètres si ton
+  // contrôleur backend utilise un nom différent.
+  // =========================================================
+
+  const envoyerAuxParents = async (resultat) => {
+    setSendingId(resultat.inscriptionId);
+
+    try {
+      const classeId = classes.find(
+        (c) => c.nomComplet === resultat.classeNom
+      )?.id;
+
+      await api.post(
+        "/bulletins/envoyer-parent",
+        null,
+        {
+          params: {
+            inscriptionId: resultat.inscriptionId,
+            classeId,
+            anneeId: filtres.anneeScolaireId,
+            periode: filtres.periode,
+          },
+        }
+      );
+
+      alert(
+        `Bulletin envoyé au(x) parent(s) de ${resultat.prenom} ${resultat.nom}.`
+      );
+    } catch (err) {
+      console.error(
+        "Erreur envoi bulletin parent :",
+        err
+      );
+
+      alert(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Erreur lors de l'envoi du bulletin au parent."
+      );
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  // Envoi groupé : tous les bulletins de la classe/période affichée
+  const envoyerTousLesBulletins = async () => {
+    if (
+      !filtres.classeId ||
+      !filtres.anneeScolaireId ||
+      !filtres.periode
+    ) {
+      alert(
+        "Sélectionnez une classe, une année et une période avant l'envoi groupé."
+      );
+      return;
+    }
+
+    const confirmation = window.confirm(
+      `Envoyer les bulletins de ${resultatsTries.length} élève(s) à leurs parents ?`
+    );
+
+    if (!confirmation) return;
+
+    setSendingClasse(true);
+
+    try {
+      await api.post(
+        "/bulletins/envoyer-parent-classe",
+        null,
+        {
+          params: {
+            classeId: filtres.classeId,
+            anneeId: filtres.anneeScolaireId,
+            periode: filtres.periode,
+          },
+        }
+      );
+
+      alert(
+        "Les bulletins de la classe ont été envoyés aux parents."
+      );
+    } catch (err) {
+      console.error(
+        "Erreur envoi groupé bulletins :",
+        err
+      );
+
+      alert(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "Erreur lors de l'envoi groupé des bulletins."
+      );
+    } finally {
+      setSendingClasse(false);
+    }
+  };
+
+  // =========================================================
   // IMPRESSION
   // =========================================================
 
@@ -1196,35 +1359,92 @@ export default function ResultatsPage() {
 
         </div>
 
-        <button
-          onClick={imprimerTableau}
-          disabled={
-            resultatsTries.length === 0
-          }
-          className="
-            inline-flex
-            w-full
-            items-center
-            justify-center
-            gap-2
-            rounded-xl
-            bg-[#101B33]
-            px-4
-            py-2.5
-            text-xs
-            font-semibold
-            text-white
-            shadow-sm
-            transition
-            hover:bg-[#182746]
-            disabled:cursor-not-allowed
-            disabled:opacity-40
-            sm:w-auto
-          "
-        >
-          <Printer size={15} />
-          Imprimer la liste
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+
+          <button
+            onClick={envoyerTousLesBulletins}
+            disabled={
+              sendingClasse ||
+              !filtres.classeId ||
+              resultatsTries.length === 0
+            }
+            title={
+              !filtres.classeId
+                ? "Sélectionnez une classe pour l'envoi groupé"
+                : "Envoyer les bulletins de la classe aux parents"
+            }
+            className="
+              inline-flex
+              w-full
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-[#2C8C82]
+              px-4
+              py-2.5
+              text-xs
+              font-semibold
+              text-white
+              shadow-sm
+              transition
+              hover:bg-[#236F68]
+              disabled:cursor-not-allowed
+              disabled:opacity-40
+              sm:w-auto
+            "
+          >
+            {sendingClasse ? (
+              <span
+                className="
+                  h-3.5
+                  w-3.5
+                  animate-spin
+                  rounded-full
+                  border-2
+                  border-white/30
+                  border-t-white
+                "
+              />
+            ) : (
+              <Mail size={15} />
+            )}
+            {sendingClasse
+              ? "Envoi..."
+              : "Envoyer à la classe"}
+          </button>
+
+          <button
+            onClick={imprimerTableau}
+            disabled={
+              resultatsTries.length === 0
+            }
+            className="
+              inline-flex
+              w-full
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-[#101B33]
+              px-4
+              py-2.5
+              text-xs
+              font-semibold
+              text-white
+              shadow-sm
+              transition
+              hover:bg-[#182746]
+              disabled:cursor-not-allowed
+              disabled:opacity-40
+              sm:w-auto
+            "
+          >
+            <Printer size={15} />
+            Imprimer la liste
+          </button>
+
+        </div>
 
       </div>
 
@@ -1678,11 +1898,15 @@ export default function ResultatsPage() {
                         loadingBulletinId={
                           loadingBulletinId
                         }
+                        sendingId={sendingId}
                         onView={
                           ouvrirBulletin
                         }
                         onDownload={
                           telechargerPdf
+                        }
+                        onSend={
+                          envoyerAuxParents
                         }
                       />
 
@@ -1932,6 +2156,49 @@ export default function ResultatsPage() {
                   <Download size={15} />
                 </button>
 
+                <button
+                  onClick={() =>
+                    envoyerAuxParents(r)
+                  }
+                  disabled={
+                    sendingId ===
+                    r.inscriptionId
+                  }
+                  className="
+                    flex
+                    items-center
+                    justify-center
+                    rounded-lg
+                    border
+                    border-[#DEDCD0]
+                    bg-white
+                    px-3
+                    text-[#2C8C82]
+                    transition
+                    hover:bg-[#F8F7F2]
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                  "
+                  title="Envoyer aux parents"
+                >
+                  {sendingId ===
+                  r.inscriptionId ? (
+                    <span
+                      className="
+                        h-3.5
+                        w-3.5
+                        animate-spin
+                        rounded-full
+                        border-2
+                        border-[#2C8C82]/30
+                        border-t-[#2C8C82]
+                      "
+                    />
+                  ) : (
+                    <Send size={15} />
+                  )}
+                </button>
+
               </div>
 
             </div>
@@ -1948,6 +2215,8 @@ export default function ResultatsPage() {
         <ModalApercu
           resultat={apercu}
           onClose={() => setApercu(null)}
+          onSend={envoyerAuxParents}
+          sendingId={sendingId}
         />
       )}
 
@@ -1962,12 +2231,17 @@ export default function ResultatsPage() {
 function ActionButtons({
   resultat,
   loadingBulletinId,
+  sendingId,
   onView,
   onDownload,
+  onSend,
 }) {
   const loading =
     loadingBulletinId ===
     resultat.inscriptionId;
+
+  const envoiEnCours =
+    sendingId === resultat.inscriptionId;
 
   return (
     <div className="flex justify-end gap-1.5">
@@ -2028,6 +2302,44 @@ function ActionButtons({
         "
       >
         <Download size={14} />
+      </button>
+
+      <button
+        onClick={() => onSend(resultat)}
+        disabled={envoiEnCours}
+        title="Envoyer aux parents"
+        className="
+          flex
+          h-8
+          w-8
+          items-center
+          justify-center
+          rounded-lg
+          bg-[#DCEDEA]
+          text-[#236F68]
+          transition
+          hover:bg-[#C7E4DF]
+          disabled:cursor-not-allowed
+          disabled:opacity-50
+        "
+      >
+
+        {envoiEnCours ? (
+          <span
+            className="
+              h-3.5
+              w-3.5
+              animate-spin
+              rounded-full
+              border-2
+              border-[#236F68]/30
+              border-t-[#236F68]
+            "
+          />
+        ) : (
+          <Send size={14} />
+        )}
+
       </button>
 
       <button
