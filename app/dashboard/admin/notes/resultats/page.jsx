@@ -1626,15 +1626,33 @@ export default function ResultatsPage() {
             </option>
 
             <option value="Trimestre 1">
-              Trimestre 1
+              1ère Periode
             </option>
 
             <option value="Trimestre 2">
-              Trimestre 2
+              2ème Periode
             </option>
 
             <option value="Trimestre 3">
-              Trimestre 3
+              3ème Periode
+            </option>
+             <option value="Trimestre 3">
+              4ème Periode
+            </option>
+             <option value="Trimestre 3">
+              5ème Periode
+            </option>
+             <option value="Trimestre 3">
+              6ème Periode
+            </option>
+             <option value="Trimestre 3">
+              7ème Periode
+            </option>
+             <option value="Trimestre 3">
+              8ème Periode
+            </option>
+             <option value="Trimestre 3">
+              9ème Periode
             </option>
           </select>
 

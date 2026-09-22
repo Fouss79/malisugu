@@ -22,7 +22,7 @@ import { useParams, useRouter } from "next/navigation";
 // CONSTANTES
 // ============================================================
 
-const PERIODES = ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
+const PERIODES = ["1ère Periode", "2ème Periode", "3ème Periode","4ème Periode","5ème Periode","6ème Periode","7ème Periode","8ème Periode","9ème Periode"];
 
 const STYLES = {
   input:
