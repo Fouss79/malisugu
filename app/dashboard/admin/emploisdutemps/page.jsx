@@ -316,6 +316,53 @@ export default function EmploiDuTempsForm() {
   };
 
   // =========================================================
+// 📄 GÉNÉRATION DU PDF A4 PAYSAGE
+// =========================================================
+
+const telechargerPdf = async () => {
+  if (!form.classeId || !form.anneeId) {
+    setErreur("Veuillez sélectionner une classe et une année scolaire.");
+    return;
+  }
+
+  try {
+    setErreur("");
+
+    const response = await api.get(
+      `/emploi/classe/${form.classeId}/${form.anneeId}/pdf`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `emploi-du-temps-${form.classeId}-${form.anneeId}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Erreur génération PDF:", error);
+
+    setErreur(
+      extraireMessageErreur(
+        error,
+        "Impossible de générer l'emploi du temps en PDF."
+      )
+    );
+  }
+};
+
+  // =========================================================
   // VALIDATION CÔTÉ CLIENT (avant même d'appeler l'API)
   // =========================================================
 
@@ -741,15 +788,15 @@ export default function EmploiDuTempsForm() {
       {/* ===== VUE MOBILE : LISTE PAR JOUR (compacte) ===== */}
       <div className="space-y-3 rounded-2xl bg-white p-3 shadow-md sm:hidden">
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
-            style={{ background: INK }}
-          >
-            <Printer size={12} />
-            Imprimer
-          </button>
+         <button
+  type="button"
+  onClick={telechargerPdf}
+  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
+  style={{ background: INK }}
+>
+  <Printer size={12} />
+  PDF
+</button>
         </div>
 
         {JOURS_SEMAINE.map((jour) => {
@@ -824,15 +871,15 @@ export default function EmploiDuTempsForm() {
       {/* ===== VUE DESKTOP : GRILLE HORAIRE (compacte) ===== */}
       <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-md sm:block">
         <div className="flex justify-end border-b border-slate-100 p-2">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
-            style={{ background: INK }}
-          >
-            <Printer size={12} />
-            Imprimer
-          </button>
+         <button
+  type="button"
+  onClick={telechargerPdf}
+  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110"
+  style={{ background: INK }}
+>
+  <Printer size={12} />
+  PDF
+</button>
         </div>
 
         <table className="w-full min-w-[700px] table-fixed border-collapse text-xs">
