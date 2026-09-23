@@ -1038,6 +1038,18 @@ export default function ResultatsPage() {
     ecoleId,
   ]);
 
+  const PERIODES = [
+  "1ère Periode",
+  "2ème Periode",
+  "3ème Periode",
+  "4ème Periode",
+  "5ème Periode",
+  "6ème Periode",
+  "7ème Periode",
+  "8ème Periode",
+  "9ème Periode",
+];
+
   // =========================================================
   // TRI / RECHERCHE
   // =========================================================
@@ -1600,62 +1612,20 @@ export default function ResultatsPage() {
           </select>
 
           <select
-            name="periode"
-            value={filtres.periode}
-            onChange={handleChange}
-            className="
-              h-10
-              w-full
-              rounded-lg
-              border
-              border-[#DEDCD0]
-              bg-[#FAFAF7]
-              px-3
-              text-xs
-              font-medium
-              text-[#1B2333]
-              outline-none
-              transition
-              focus:border-[#C89B3C]
-              focus:ring-2
-              focus:ring-[#C89B3C]/10
-            "
-          >
-            <option value="">
-              Période
-            </option>
+  name="periode"
+  value={filtres.periode}
+  onChange={handleChange}
+>
+  <option value="">
+    Période
+  </option>
 
-            <option value="Trimestre 1">
-              1ère Periode
-            </option>
-
-            <option value="Trimestre 2">
-              2ème Periode
-            </option>
-
-            <option value="Trimestre 3">
-              3ème Periode
-            </option>
-             <option value="Trimestre 3">
-              4ème Periode
-            </option>
-             <option value="Trimestre 3">
-              5ème Periode
-            </option>
-             <option value="Trimestre 3">
-              6ème Periode
-            </option>
-             <option value="Trimestre 3">
-              7ème Periode
-            </option>
-             <option value="Trimestre 3">
-              8ème Periode
-            </option>
-             <option value="Trimestre 3">
-              9ème Periode
-            </option>
-          </select>
-
+  {PERIODES.map((periode) => (
+    <option key={periode} value={periode}>
+      {periode}
+    </option>
+  ))}
+</select>
         </div>
 
         {/* RECHERCHE */}
