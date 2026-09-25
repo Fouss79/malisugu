@@ -8,7 +8,7 @@ import { useAuth } from "../../../context/AuthContext";
 import api from "../../../../lib/api";
 
 /* =========================================================
-   PALETTE (identique au reste de l'application)
+   PALETTE
 ========================================================= */
 const INK = "#101B33";
 const GOLD = "#C89B3C";
@@ -18,16 +18,44 @@ const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
 
+/* =========================================================
+   CONVERSION MINUTES → HH:MM
+   Exemple :
+   480 → 08:00
+   510 → 08:30
+   600 → 10:00
+========================================================= */
+const formatMinutes = (minutes) => {
+  if (minutes === null || minutes === undefined || minutes === "") {
+    return "--:--";
+  }
+
+  const totalMinutes = Number(minutes);
+
+  if (Number.isNaN(totalMinutes)) {
+    return "--:--";
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+};
+
 export default function EmargementPage() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
   const [anneeId, setAnneeId] = useState("");
   const [annees, setAnnees] = useState([]);
-const [dateDebutAnnee, setDateDebutAnnee] = useState("");
-const [dateFinAnnee, setDateFinAnnee] = useState("");
+
+  const [dateDebutAnnee, setDateDebutAnnee] = useState("");
+  const [dateFinAnnee, setDateFinAnnee] = useState("");
+
   const [emploi, setEmploi] = useState([]);
   const [emargements, setEmargements] = useState([]);
 
@@ -59,57 +87,63 @@ const [dateFinAnnee, setDateFinAnnee] = useState("");
 
     load();
   }, [user]);
+
   // ================= DATES ANNÉE SCOLAIRE =================
-useEffect(() => {
-  if (!anneeId || annees.length === 0) {
-    setDateDebutAnnee("");
-    setDateFinAnnee("");
-    return;
-  }
+  useEffect(() => {
+    if (!anneeId || annees.length === 0) {
+      setDateDebutAnnee("");
+      setDateFinAnnee("");
+      return;
+    }
 
-  const annee = annees.find(
-    (a) => String(a.id) === String(anneeId)
-  );
+    const annee = annees.find(
+      (a) => String(a.id) === String(anneeId)
+    );
 
-  if (!annee) {
-    setDateDebutAnnee("");
-    setDateFinAnnee("");
-    return;
-  }
+    if (!annee) {
+      setDateDebutAnnee("");
+      setDateFinAnnee("");
+      return;
+    }
 
-  setDateDebutAnnee(annee.dateDebut || "");
-  setDateFinAnnee(annee.dateFin || "");
-}, [anneeId, annees]);
-// ================= DATE CONFORME À L'ANNÉE SCOLAIRE =================
-useEffect(() => {
-  if (!dateDebutAnnee || !dateFinAnnee) return;
+    setDateDebutAnnee(annee.dateDebut || "");
+    setDateFinAnnee(annee.dateFin || "");
+  }, [anneeId, annees]);
 
-  if (date < dateDebutAnnee) {
-    setDate(dateDebutAnnee);
-    return;
-  }
+  // ================= DATE CONFORME À L'ANNÉE SCOLAIRE =================
+  useEffect(() => {
+    if (!dateDebutAnnee || !dateFinAnnee) return;
 
-  if (date > dateFinAnnee) {
-    setDate(dateFinAnnee);
-  }
-}, [date, dateDebutAnnee, dateFinAnnee]);
+    if (date < dateDebutAnnee) {
+      setDate(dateDebutAnnee);
+      return;
+    }
+
+    if (date > dateFinAnnee) {
+      setDate(dateFinAnnee);
+    }
+  }, [date, dateDebutAnnee, dateFinAnnee]);
 
   // ================= LOAD DATA =================
   const loadAll = useCallback(async () => {
     if (!anneeId || !date) return;
 
-    const [resEmploi, resEmargement] = await Promise.all([
-      api.get("/emargement/emploi", {
-        params: { date, anneeId },
-      }),
+    try {
+      const [resEmploi, resEmargement] = await Promise.all([
+        api.get("/emargement/emploi", {
+          params: { date, anneeId },
+        }),
 
-      api.get("/emargement/jour", {
-        params: { date },
-      }),
-    ]);
+        api.get("/emargement/jour", {
+          params: { date },
+        }),
+      ]);
 
-    setEmploi(resEmploi.data || []);
-    setEmargements(resEmargement.data || []);
+      setEmploi(resEmploi.data || []);
+      setEmargements(resEmargement.data || []);
+    } catch (err) {
+      console.error(err);
+    }
   }, [date, anneeId]);
 
   useEffect(() => {
@@ -118,7 +152,9 @@ useEffect(() => {
 
   // ================= CHECK =================
   const isEmarge = (edt) => {
-    return emargements.some((e) => e.emploiDuTemps?.id === edt.id);
+    return emargements.some(
+      (e) => e.emploiDuTemps?.id === edt.id
+    );
   };
 
   // ================= EMARGER =================
@@ -128,12 +164,19 @@ useEffect(() => {
     try {
       setLoadingId(edtId);
 
-      await api.post(`/emargement/emarger/${edtId}`, null, { params: { date } });
+      await api.post(
+        `/emargement/emarger/${edtId}`,
+        null,
+        { params: { date } }
+      );
 
       await loadAll();
     } catch (err) {
       if (err.response?.status === 409) {
-        setEmargements((prev) => [...prev, { emploiDuTemps: { id: edtId } }]);
+        setEmargements((prev) => [
+          ...prev,
+          { emploiDuTemps: { id: edtId } },
+        ]);
       } else {
         console.error(err);
       }
@@ -144,17 +187,25 @@ useEffect(() => {
 
   return (
     <div className="space-y-5 p-4">
+
       {/* HEADER */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span
             className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-            style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+            style={{
+              background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`,
+              color: INK,
+            }}
           >
             <ClipboardCheck size={20} />
           </span>
+
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Émargement</h1>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Émargement
+            </h1>
+
             <p className="text-sm text-slate-500">
               Suivi de présence des enseignants par cours et par jour.
             </p>
@@ -184,58 +235,80 @@ useEffect(() => {
           ))}
         </select>
 
-       <input
-  type="date"
-  value={date}
-  min={dateDebutAnnee || undefined}
-  max={dateFinAnnee || undefined}
-  onChange={(e) => {
-    const nouvelleDate = e.target.value;
+        <input
+          type="date"
+          value={date}
+          min={dateDebutAnnee || undefined}
+          max={dateFinAnnee || undefined}
+          onChange={(e) => {
+            const nouvelleDate = e.target.value;
 
-    if (
-      dateDebutAnnee &&
-      nouvelleDate < dateDebutAnnee
-    ) {
-      setDate(dateDebutAnnee);
-      return;
-    }
+            if (
+              dateDebutAnnee &&
+              nouvelleDate < dateDebutAnnee
+            ) {
+              setDate(dateDebutAnnee);
+              return;
+            }
 
-    if (
-      dateFinAnnee &&
-      nouvelleDate > dateFinAnnee
-    ) {
-      setDate(dateFinAnnee);
-      return;
-    }
+            if (
+              dateFinAnnee &&
+              nouvelleDate > dateFinAnnee
+            ) {
+              setDate(dateFinAnnee);
+              return;
+            }
 
-    setDate(nouvelleDate);
-  }}
-  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
-/>
+            setDate(nouvelleDate);
+          }}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
+        />
       </div>
 
       {/* TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
+
             <thead>
               <tr
                 className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400"
                 style={{ background: "#F8F7F2" }}
               >
-                <th className="px-4 py-3 font-medium">Classe</th>
-                <th className="px-4 py-3 font-medium">Matière</th>
-                <th className="px-4 py-3 font-medium">Enseignant</th>
-                <th className="px-4 py-3 font-medium">Horaire</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="px-4 py-3 font-medium text-right">Action</th>
+                <th className="px-4 py-3 font-medium">
+                  Classe
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Matière
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Enseignant
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Horaire
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Statut
+                </th>
+
+                <th className="px-4 py-3 font-medium text-right">
+                  Action
+                </th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-50">
+
               {emploi.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-10 text-center text-slate-400"
+                  >
                     Aucun cours prévu ce jour.
                   </td>
                 </tr>
@@ -245,37 +318,88 @@ useEffect(() => {
                 const ok = isEmarge(edt);
 
                 return (
-                  <tr key={edt.id} className="transition hover:bg-slate-50/70">
-                    <td className="px-4 py-3 font-medium text-slate-800">{edt.classe?.nomComplet}</td>
-                    <td className="px-4 py-3 text-slate-600">{edt.matiere?.nom}</td>
-                    <td className="px-4 py-3 text-slate-600">{edt.enseignant?.nom}</td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {edt.heureDebut}h - {edt.heureFin}h
+                  <tr
+                    key={edt.id}
+                    className="transition hover:bg-slate-50/70"
+                  >
+                    <td className="px-4 py-3 font-medium text-slate-800">
+                      {edt.classe?.nomComplet}
                     </td>
 
+                    <td className="px-4 py-3 text-slate-600">
+                      {edt.matiere?.nom}
+                    </td>
+
+                    <td className="px-4 py-3 text-slate-600">
+                      {edt.enseignant?.nom}
+                    </td>
+
+                    {/* ================= HORAIRE ================= */}
+                    <td className="px-4 py-3 text-slate-600">
+                      <span className="font-medium text-slate-800">
+                        {formatMinutes(edt.heureDebut)}
+                      </span>
+
+                      <span className="mx-1 text-slate-400">
+                        -
+                      </span>
+
+                      <span className="font-medium text-slate-800">
+                        {formatMinutes(edt.heureFin)}
+                      </span>
+                    </td>
+
+                    {/* STATUT */}
                     <td className="px-4 py-3">
                       <span
                         className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                        style={ok ? { background: TEAL_SOFT, color: TEAL } : { background: CORAL_SOFT, color: CORAL }}
+                        style={
+                          ok
+                            ? {
+                                background: TEAL_SOFT,
+                                color: TEAL,
+                              }
+                            : {
+                                background: CORAL_SOFT,
+                                color: CORAL,
+                              }
+                        }
                       >
-                        {ok ? <Check size={12} /> : <X size={12} />}
+                        {ok ? (
+                          <Check size={12} />
+                        ) : (
+                          <X size={12} />
+                        )}
+
                         {ok ? "Présent" : "Absent"}
                       </span>
                     </td>
 
+                    {/* ACTION */}
                     <td className="px-4 py-3 text-right">
                       <button
-                        disabled={ok || loadingId === edt.id}
+                        disabled={
+                          ok || loadingId === edt.id
+                        }
                         onClick={() => emarger(edt.id)}
                         className="rounded-lg px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{ background: ok ? TEAL : `linear-gradient(135deg, ${INK}, #182746)` }}
+                        style={{
+                          background: ok
+                            ? TEAL
+                            : `linear-gradient(135deg, ${INK}, #182746)`,
+                        }}
                       >
-                        {ok ? "OK" : loadingId === edt.id ? "..." : "Émarger"}
+                        {ok
+                          ? "OK"
+                          : loadingId === edt.id
+                          ? "..."
+                          : "Émarger"}
                       </button>
                     </td>
                   </tr>
                 );
               })}
+
             </tbody>
           </table>
         </div>
