@@ -11,10 +11,10 @@ import SallePage from "./component/SallePage";
 
 export default function ParametresScolaires() {
 
-  const [tab, setTab] = useState("cycle");
+  const [tab, setTab] = useState("niveau");
 
   const tabs = [
-    { key: "cycle", label: "Cycle" },
+  
     { key: "niveau", label: "Niveau" },
     { key: "serie", label: "Série" },
     { key: "groupe", label: "Groupe" },
@@ -49,7 +49,7 @@ export default function ParametresScolaires() {
       {/* CONTENT */}
       <div className="mt-1">
 
-        {tab === "cycle" && <CyclePage />}
+        
         {tab === "niveau" && <NiveauPage />}
         {tab === "serie" && <SeriePage />}
         {tab === "groupe" && <GroupePage />}
