@@ -768,7 +768,7 @@ export default function ElevesPage() {
         </button>
 
         <Link
-          href="/dashboard/admin/eleves/reinscription"
+          href="/dashboard/admin/eleves/inscriptions/re"
           className="flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:brightness-110"
           style={{ background: TEAL }}
         >

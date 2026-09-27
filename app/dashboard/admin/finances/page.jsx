@@ -47,6 +47,18 @@ function formatDateLocal(date) {
   return date.toISOString().split("T")[0];
 }
 
+// Le backend renvoie désormais le temps en MINUTES (et non plus en heures).
+// On convertit ici pour l'affichage : ex. 150 -> "2h30", 120 -> "2h".
+function formatHeures(minutes) {
+  if (!minutes || minutes <= 0) return "-";
+
+  const totalMinutes = Math.round(minutes);
+  const heures = Math.floor(totalMinutes / 60);
+  const reste = totalMinutes % 60;
+
+  return reste > 0 ? `${heures}h${String(reste).padStart(2, "0")}` : `${heures}h`;
+}
+
 export default function PaiementEnseignantPage() {
   const { user } = useAuth();
   const ecoleId = user?.ecole?.id;
@@ -373,7 +385,7 @@ export default function PaiementEnseignantPage() {
                     <td className="px-4 py-3 font-medium text-slate-800">
                       {p.enseignantPrenom} {p.enseignantNom}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{p.totalHeures > 0 ? `${p.totalHeures}h` : "-"}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatHeures(p.totalHeures)}</td>
                     <td className="px-4 py-3 text-right text-slate-600">
                       {p.salaireBase > 0 ? formatMontant(p.salaireBase) : "-"}
                     </td>
