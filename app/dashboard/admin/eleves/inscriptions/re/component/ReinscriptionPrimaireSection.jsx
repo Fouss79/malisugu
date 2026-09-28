@@ -229,7 +229,7 @@ export default function ReinscriptionPrimaireSection() {
                   </span>
                 </p>
                 <p>
-                  <span className="text-slate-400">Rang :</span> {formatRang(e.rangDansClasse)}
+                  <span className="text-slate-400">Rang :</span> {formatRang(e.rang)}
                 </p>
                 <p>
                   <span className="text-slate-400">Décision :</span>{" "}
@@ -339,18 +339,18 @@ export default function ReinscriptionPrimaireSection() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-500">{e.matricule}</td>
-                    <td className="px-4 py-3 text-slate-500">{e.classeNom || "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{e.ancienneClasse || "—"}</td>
 
                     <td className="hidden px-4 py-3 font-semibold lg:table-cell" style={{ color: TEAL }}>
                       {formatMoyenne(e.moyenneAnnuelle)}
                     </td>
 
                     <td className="hidden px-4 py-3 text-slate-500 lg:table-cell">
-                      {formatRang(e.rangDansClasse)}
+                      {formatRang(e.rang)}
                     </td>
 
                     <td className="px-4 py-3 font-semibold" style={{ color: TEAL }}>
-                      {libelleDecision(e.decision)}
+                      {libelleDecision(e.decisionConseil)}
                     </td>
 
                     <td className="px-4 py-3">
@@ -359,7 +359,7 @@ export default function ReinscriptionPrimaireSection() {
 
                     <td className="px-4 py-3">
                       {e.statutReinscription === "REINSCRIT" ? (
-                        <span className="text-slate-600">{e.nouvelleClasseNom}</span>
+                        <span className="text-slate-600">{e.nouvelleClasse}</span>
                       ) : (
                         <select
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-[#C89B3C]"

@@ -1492,76 +1492,82 @@ export default function NotesPage() {
           ACTIONS (secondaire uniquement)
       ====================================================== */}
 
-      {!estPrimaire && (
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+      {/* ======================================================
+    ACTIONS — PRIMAIRE ET SECONDAIRE
+====================================================== */}
 
-          {matiereChoisie && affectationChoisie && (
-            <div className="mb-3 w-full rounded-2xl border border-[#DEDCD0] bg-white px-4 py-3 shadow-sm">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+<div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
 
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E7E3F8] text-[#6E5DC6]">
-                    <GraduationCap size={18} />
-                  </div>
+  {/* Bouton commun aux deux cycles */}
+  <button
+    type="button"
+    onClick={() => router.push("/dashboard/admin/notes/resultats")}
+    className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
+  >
+    <BarChart3 size={17} />
+    Voir les résultats
+  </button>
 
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A91A2]">
-                      Relevé de notes
-                    </p>
-                    <p className="text-sm font-bold text-[#101B33]">
-                      {matiereChoisie.nom} · {classeChoisie?.nomComplet || "Classe"}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[#7A8190]">
-                      Enseignant :{" "}
-                      <span className="font-semibold text-[#101B33]">
-                        {affectationChoisie.enseignantNom ?? ""}{" "}
-                        {affectationChoisie.enseignantPrenom ?? ""}
-                      </span>
-                    </p>
-                  </div>
-                </div>
+  {/* Actions réservées au secondaire */}
+  {!estPrimaire && (
+    <>
+      {matiereChoisie && affectationChoisie && (
+        <div className="mb-3 w-full rounded-2xl border border-[#DEDCD0] bg-white px-4 py-3 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E7E3F8] text-[#6E5DC6]">
+                <GraduationCap size={18} />
+              </div>
 
-                {sousGroupeNomEffectif && (
-                  <span className="w-fit rounded-full bg-[#E7E3F8] px-3 py-1.5 text-xs font-bold text-[#5747A5]">
-                    Sous-groupe : {sousGroupeNomEffectif}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A91A2]">
+                  Relevé de notes
+                </p>
+                <p className="text-sm font-bold text-[#101B33]">
+                  {matiereChoisie.nom} · {classeChoisie?.nomComplet || "Classe"}
+                </p>
+                <p className="mt-0.5 text-xs text-[#7A8190]">
+                  Enseignant :{" "}
+                  <span className="font-semibold text-[#101B33]">
+                    {affectationChoisie.enseignantNom ?? ""}{" "}
+                    {affectationChoisie.enseignantPrenom ?? ""}
                   </span>
-                )}
-
+                </p>
               </div>
             </div>
-          )}
 
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard/admin/notes/resultats")}
-            className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
-          >
-            <BarChart3 size={17} />
-            Voir les résultats
-          </button>
-
-          <button
-            type="button"
-            onClick={downloadReleveNotes}
-            disabled={!classeId || !coefficientMatiereId || !anneeId}
-            className={`${STYLES.button.primary} bg-[#2C8C82] shadow-sm hover:bg-[#236F68]`}
-          >
-            <FileText size={17} />
-            Relevé de notes
-          </button>
-
-          <button
-            type="button"
-            onClick={downloadBulletinClasse}
-            disabled={!classeId || !anneeId || !periode}
-            className={`${STYLES.button.primary} bg-[#C89B3C] shadow-sm hover:bg-[#B68931]`}
-          >
-            <Download size={17} />
-            Télécharger les bulletins
-          </button>
-
+            {sousGroupeNomEffectif && (
+              <span className="w-fit rounded-full bg-[#E7E3F8] px-3 py-1.5 text-xs font-bold text-[#5747A5]">
+                Sous-groupe : {sousGroupeNomEffectif}
+              </span>
+            )}
+          </div>
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={downloadReleveNotes}
+        disabled={!classeId || !coefficientMatiereId || !anneeId}
+        className={`${STYLES.button.primary} bg-[#2C8C82] shadow-sm hover:bg-[#236F68]`}
+      >
+        <FileText size={17} />
+        Relevé de notes
+      </button>
+
+      <button
+        type="button"
+        onClick={downloadBulletinClasse}
+        disabled={!classeId || !anneeId || !periode}
+        className={`${STYLES.button.primary} bg-[#C89B3C] shadow-sm hover:bg-[#B68931]`}
+      >
+        <Download size={17} />
+        Télécharger les bulletins
+      </button>
+    </>
+  )}
+
+</div>
 
       {/* ======================================================
           ===============  TABLEAU — PRIMAIRE  ==================

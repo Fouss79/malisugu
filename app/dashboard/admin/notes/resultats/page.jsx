@@ -1,2476 +1,399 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../../context/AuthContext";
 import api from "../../../../../lib/api";
+import { Eye, Download, Printer, Search, X, GraduationCap, Award, Send, Mail, AlertCircle } from "lucide-react";
 
-import {
-  Eye,
-  Download,
-  Printer,
-  Search,
-  X,
-  GraduationCap,
-  Award,
-  TrendingUp,
-  ChevronRight,
-  Send,
-  Mail,
-} from "lucide-react";
-
-// =========================================================
-// STYLES APPRECIATIONS
-// =========================================================
-
-const STATUT_STYLES = {
-  "Très Bien":
-    "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  Bien:
-    "bg-teal-50 text-teal-700 ring-teal-200",
-  "Assez Bien":
-    "bg-sky-50 text-sky-700 ring-sky-200",
-  Passable:
-    "bg-amber-50 text-amber-700 ring-amber-200",
-  Insuffisant:
-    "bg-rose-50 text-rose-700 ring-rose-200",
+const ROUTES = {
+  secondaire: {
+    classe: (id) => `/resultats/classe/${id}`,
+    ecole: (id) => `/resultats/ecole/${id}`,
+    eleve: (id) => `/resultats/eleve/${id}`,
+    pdf: "/bulletins/generate",
+    envoyer: "/bulletins/envoyer-parent",
+    envoyerClasse: "/bulletins/envoyer-parent-classe",
+  },
+  primaire: {
+    classe: (id) => `/resultats/primaire/classe/${id}`,
+    ecole: (id) => `/resultats/primaire/ecole/${id}`,
+    pdfEleve: ({ classeId, anneeId, inscriptionId, mois }) =>
+      `/bulletins-mensuels/${classeId}/${anneeId}/eleve/${inscriptionId}/pdf?mois=${encodeURIComponent(mois)}`,
+    envoyer: "/bulletins/envoyer-parent-primaire",
+    envoyerClasse: "/bulletins/envoyer-parent-classe-primaire",
+  },
 };
 
-// =========================================================
-// BADGE APPRECIATION
-// =========================================================
+const MOIS = ["SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DECEMBRE", "JANVIER", "FEVRIER", "MARS", "AVRIL", "MAI", "JUIN"];
+const PERIODES = Array.from({ length: 9 }, (_, i) => `${i + 1}${i === 0 ? "ère" : "ème"} Periode`);
+const APPRECIATIONS = {
+  "Très Bien": "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Bien: "bg-teal-50 text-teal-700 ring-teal-200",
+  "Assez Bien": "bg-sky-50 text-sky-700 ring-sky-200",
+  Passable: "bg-amber-50 text-amber-700 ring-amber-200",
+  Insuffisant: "bg-rose-50 text-rose-700 ring-rose-200",
+};
+const selectClass = "h-10 w-full rounded-lg border border-[#DEDCD0] bg-[#FAFAF7] px-3 text-xs font-medium text-[#1B2333] outline-none focus:border-[#C89B3C] focus:ring-2 focus:ring-[#C89B3C]/10";
+const buttonClass = "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40";
 
-function AppreciationBadge({ appreciation }) {
-  const style =
-    STATUT_STYLES[appreciation] ||
-    "bg-slate-100 text-slate-600 ring-slate-200";
-
-  return (
-    <span
-      className={`
-        inline-flex
-        items-center
-        rounded-full
-        px-2.5
-        py-1
-        text-[11px]
-        font-semibold
-        ring-1
-        ring-inset
-        ${style}
-      `}
-    >
-      {appreciation || "—"}
-    </span>
-  );
+function normalizeText(value = "") {
+  return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 }
-
-// =========================================================
-// MODAL BULLETIN
-// =========================================================
-
-function ModalApercu({
-  resultat,
-  onClose,
-  onSend,
-  sendingId,
-}) {
-  const matieres = resultat?.matieres || [];
-
-  const envoiEnCours =
-    sendingId === resultat.inscriptionId;
-
-  const formatNote = (value) => {
-    if (
-      value == null ||
-      Number.isNaN(Number(value))
-    ) {
-      return "0.00";
-    }
-
-    return Number(value).toFixed(2);
-  };
-
-  const formatPoints = (value) => {
-    if (
-      value == null ||
-      Number.isNaN(Number(value))
-    ) {
-      return "0.00";
-    }
-
-    return Number(value).toFixed(2);
-  };
-
-  return (
-    <div
-      className="
-        fixed
-        inset-0
-        z-50
-        flex
-        items-center
-        justify-center
-        bg-[#101B33]/70
-        p-3
-        backdrop-blur-sm
-      "
-      onClick={onClose}
-    >
-      <div
-        className="
-          flex
-          max-h-[94vh]
-          w-full
-          max-w-4xl
-          flex-col
-          overflow-hidden
-          rounded-2xl
-          bg-white
-          shadow-2xl
-        "
-        onClick={(e) => e.stopPropagation()}
-      >
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
-        <div
-          className="
-            shrink-0
-            border-b
-            border-[#DEDCD0]
-            bg-white
-            px-4
-            py-4
-            sm:px-6
-          "
-        >
-
-          <div className="flex items-start justify-between gap-4">
-
-            <div className="min-w-0">
-
-              <div className="flex items-center gap-2">
-
-                <div
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-lg
-                    bg-[#182746]
-                    text-[#E4B655]
-                  "
-                >
-                  <GraduationCap size={18} />
-                </div>
-
-                <div>
-
-                  <h2
-                    className="
-                      font-display
-                      text-base
-                      font-bold
-                      text-[#101B33]
-                      sm:text-lg
-                    "
-                  >
-                    Bulletin scolaire
-                  </h2>
-
-                  <p className="text-[11px] text-[#5B6478]">
-                    {resultat.anneeScolaire ||
-                      "Année scolaire"}
-                    {" · "}
-                    {resultat.periode || "Période"}
-                  </p>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            <button
-              onClick={onClose}
-              className="
-                flex
-                h-8
-                w-8
-                shrink-0
-                items-center
-                justify-center
-                rounded-lg
-                text-[#5B6478]
-                transition
-                hover:bg-slate-100
-                hover:text-[#101B33]
-              "
-              title="Fermer"
-            >
-              <X size={18} />
-            </button>
-
-          </div>
-
-          {/* INFOS ELEVE */}
-
-          <div
-            className="
-              mt-4
-              grid
-              grid-cols-2
-              gap-2
-              sm:grid-cols-4
-            "
-          >
-
-            <InfoBox
-              label="Élève"
-              value={`${resultat.prenom || ""} ${
-                resultat.nom || ""
-              }`}
-            />
-
-            <InfoBox
-              label="Matricule"
-              value={resultat.matricule || "—"}
-            />
-
-            <InfoBox
-              label="Classe"
-              value={resultat.classeNom || "—"}
-            />
-
-            <InfoBox
-              label="Niveau"
-              value={resultat.niveauNom || "—"}
-            />
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            CONTENU
-        ================================================= */}
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-
-          {/* TABLEAU MATIERES */}
-
-          <div className="px-4 py-4 sm:px-6">
-
-            <div className="mb-3 flex items-center justify-between">
-
-              <div>
-
-                <h3
-                  className="
-                    font-display
-                    text-sm
-                    font-bold
-                    text-[#101B33]
-                  "
-                >
-                  Résultats par matière
-                </h3>
-
-                <p className="mt-0.5 text-[11px] text-[#5B6478]">
-                  Détail des notes et coefficients
-                </p>
-
-              </div>
-
-              <span
-                className="
-                  rounded-full
-                  bg-[#ECEAE2]
-                  px-2.5
-                  py-1
-                  text-[10px]
-                  font-semibold
-                  text-[#5B6478]
-                "
-              >
-                {matieres.length} matière
-                {matieres.length > 1 ? "s" : ""}
-              </span>
-
-            </div>
-
-            <div className="overflow-hidden rounded-xl border border-[#DEDCD0]">
-
-              <div className="overflow-x-auto">
-
-                <table
-                  className="
-                    w-full
-                    min-w-[680px]
-                    text-xs
-                  "
-                >
-
-                  <thead>
-
-                    <tr className="bg-[#F6F5F0]">
-
-                      {[
-                        ["Matière", "text-left"],
-                        ["Sous-groupe", "text-left"],
-                        ["Classe", "text-center"],
-                        ["Examen", "text-center"],
-                        ["Moyenne", "text-center"],
-                        ["Coef.", "text-center"],
-                        ["Points", "text-right"],
-                      ].map(([label, align]) => (
-                        <th
-                          key={label}
-                          className={`
-                            px-3
-                            py-2.5
-                            text-[9px]
-                            font-bold
-                            uppercase
-                            tracking-wider
-                            text-[#5B6478]
-                            ${align}
-                          `}
-                        >
-                          {label}
-                        </th>
-                      ))}
-
-                    </tr>
-
-                  </thead>
-
-                  <tbody className="divide-y divide-[#ECEAE2]">
-
-                    {matieres.length === 0 ? (
-
-                      <tr>
-
-                        <td
-                          colSpan={7}
-                          className="
-                            px-3
-                            py-10
-                            text-center
-                            text-xs
-                            text-[#8A93A5]
-                          "
-                        >
-                          Aucune matière disponible
-                        </td>
-
-                      </tr>
-
-                    ) : (
-
-                      matieres.map(
-                        (matiere, index) => (
-
-                          <tr
-                            key={`
-                              ${matiere.matiereId}-
-                              ${matiere.sousGroupeId || "none"}-
-                              ${index}
-                            `}
-                            className="
-                              transition
-                              hover:bg-[#FAFAF7]
-                            "
-                          >
-
-                            <td
-                              className="
-                                px-3
-                                py-2.5
-                                font-semibold
-                                text-[#1B2333]
-                              "
-                            >
-                              {matiere.matiereNom || "—"}
-                            </td>
-
-                            <td
-                              className="
-                                px-3
-                                py-2.5
-                                text-[#5B6478]
-                              "
-                            >
-                              {matiere.sousGroupeNom || "—"}
-                            </td>
-
-                            <td className="px-3 py-2.5 text-center text-[#1B2333]">
-                              {formatNote(
-                                matiere.noteClasse
-                              )}
-                            </td>
-
-                            <td className="px-3 py-2.5 text-center text-[#1B2333]">
-                              {formatNote(
-                                matiere.noteExamen
-                              )}
-                            </td>
-
-                            <td
-                              className="
-                                px-3
-                                py-2.5
-                                text-center
-                                font-bold
-                                text-[#101B33]
-                              "
-                            >
-                              {formatNote(
-                                matiere.moyenne
-                              )}
-                            </td>
-
-                            <td
-                              className="
-                                px-3
-                                py-2.5
-                                text-center
-                                font-semibold
-                                text-[#5B6478]
-                              "
-                            >
-                              {matiere.coefficient ??
-                                "—"}
-                            </td>
-
-                            <td
-                              className="
-                                px-3
-                                py-2.5
-                                text-right
-                                font-bold
-                                text-[#101B33]
-                              "
-                            >
-                              {formatPoints(
-                                matiere.points
-                              )}
-                            </td>
-
-                          </tr>
-
-                        )
-                      )
-
-                    )}
-
-                  </tbody>
-
-                  <tfoot>
-
-                    <tr
-                      className="
-                        border-t-2
-                        border-[#DEDCD0]
-                        bg-[#F6F5F0]
-                      "
-                    >
-
-                      <td
-                        colSpan={5}
-                        className="
-                          px-3
-                          py-3
-                          text-right
-                          text-[11px]
-                          font-bold
-                          uppercase
-                          tracking-wide
-                          text-[#5B6478]
-                        "
-                      >
-                        Totaux
-                      </td>
-
-                      <td
-                        className="
-                          px-3
-                          py-3
-                          text-center
-                          text-xs
-                          font-bold
-                          text-[#101B33]
-                        "
-                      >
-                        {resultat.totalCoefficients ??
-                          "—"}
-                      </td>
-
-                      <td
-                        className="
-                          px-3
-                          py-3
-                          text-right
-                          text-xs
-                          font-bold
-                          text-[#101B33]
-                        "
-                      >
-                        {formatPoints(
-                          resultat.totalPoints
-                        )}
-                      </td>
-
-                    </tr>
-
-                  </tfoot>
-
-                </table>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* =================================================
-              MOYENNE / RANG / APPRECIATION
-          ================================================= */}
-
-          <div
-            className="
-              grid
-              grid-cols-1
-              gap-3
-              px-4
-              pb-4
-              sm:grid-cols-3
-              sm:px-6
-            "
-          >
-
-            {/* MOYENNE */}
-
-            <StatCard
-              icon={<TrendingUp size={17} />}
-              label="Moyenne générale"
-              value={
-                resultat.moyenneGenerale != null
-                  ? Number(
-                      resultat.moyenneGenerale
-                    ).toFixed(2)
-                  : "—"
-              }
-              suffix="/20"
-              variant="gold"
-            />
-
-            {/* RANG */}
-
-            <StatCard
-              icon={<Award size={17} />}
-              label="Rang"
-              value={
-                resultat.rang
-                  ? `${resultat.rang}ᵉ`
-                  : "—"
-              }
-              suffix="dans la classe"
-              variant="navy"
-            />
-
-            {/* APPRECIATION */}
-
-            <div
-              className="
-                rounded-xl
-                border
-                border-[#DEDCD0]
-                bg-white
-                p-4
-              "
-            >
-
-              <p
-                className="
-                  text-[9px]
-                  font-bold
-                  uppercase
-                  tracking-wider
-                  text-[#8A93A5]
-                "
-              >
-                Appréciation
-              </p>
-
-              <div className="mt-3">
-
-                <AppreciationBadge
-                  appreciation={
-                    resultat.appreciation
-                  }
-                />
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            FOOTER
-        ================================================= */}
-
-        <div
-          className="
-            flex
-            shrink-0
-            flex-col-reverse
-            gap-2
-            border-t
-            border-[#DEDCD0]
-            bg-[#F8F7F2]
-            px-4
-            py-3
-            sm:flex-row
-            sm:items-center
-            sm:justify-end
-            sm:px-6
-          "
-        >
-
-          <button
-            onClick={onClose}
-            className="
-              rounded-lg
-              border
-              border-[#DEDCD0]
-              bg-white
-              px-4
-              py-2
-              text-xs
-              font-semibold
-              text-[#5B6478]
-              transition
-              hover:bg-slate-50
-            "
-          >
-            Fermer
-          </button>
-
-          <button
-            onClick={() => onSend(resultat)}
-            disabled={envoiEnCours}
-            className="
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              rounded-lg
-              bg-[#2C8C82]
-              px-4
-              py-2
-              text-xs
-              font-semibold
-              text-white
-              transition
-              hover:bg-[#236F68]
-              disabled:cursor-not-allowed
-              disabled:opacity-60
-            "
-          >
-            {envoiEnCours ? (
-              <span
-                className="
-                  h-3.5
-                  w-3.5
-                  animate-spin
-                  rounded-full
-                  border-2
-                  border-white/30
-                  border-t-white
-                "
-              />
-            ) : (
-              <Send size={14} />
-            )}
-            {envoiEnCours
-              ? "Envoi..."
-              : "Envoyer aux parents"}
-          </button>
-
-          <button
-            onClick={() => window.print()}
-            className="
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              rounded-lg
-              bg-[#101B33]
-              px-4
-              py-2
-              text-xs
-              font-semibold
-              text-white
-              transition
-              hover:bg-[#182746]
-            "
-          >
-            <Printer size={14} />
-            Imprimer
-          </button>
-
-        </div>
-
-      </div>
-    </div>
-  );
+function isPrimaire(cycleName = "") {
+  const name = normalizeText(cycleName);
+  return name.includes("PRIMAIRE") || name.includes("FONDAMENTAL") || name.includes("PREMIER CYCLE") || name.includes("1ER CYCLE");
 }
-
-// =========================================================
-// INFO BOX
-// =========================================================
-
+function kindForCycle(cycleName = "") {
+  return isPrimaire(cycleName) ? "primaire" : "secondaire";
+}
+function fmt(value) {
+  return value == null || value === "" || !Number.isFinite(Number(value)) ? "—" : Number(value).toFixed(2);
+}
+function apiError(error) {
+  const data = error?.response?.data;
+  if (typeof data === "string" && !data.startsWith("%PDF")) return data;
+  return data?.message || data?.error || error?.message || "Une erreur est survenue.";
+}
+async function readPdf(response) {
+  const raw = response.data;
+  const blob = raw instanceof Blob ? raw : new Blob([raw], { type: "application/pdf" });
+  if (!blob.size) throw new Error("Le bulletin PDF est vide.");
+  // Une erreur JSON peut arriver même avec responseType: blob.
+  if (blob.type.includes("json") || blob.type.includes("text/html")) {
+    const body = await blob.text();
+    try {
+      const parsed = JSON.parse(body);
+      throw new Error(parsed.message || parsed.error || "Le serveur n'a pas renvoyé de PDF.");
+    } catch (error) {
+      if (error instanceof SyntaxError) throw new Error("Le serveur n'a pas renvoyé de PDF.");
+      throw error;
+    }
+  }
+  const signature = await blob.slice(0, 5).text();
+  if (signature !== "%PDF-") throw new Error("La réponse du serveur n'est pas un PDF valide.");
+  return blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
+}
+function AppreciationBadge({ value }) {
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${APPRECIATIONS[value] || "bg-slate-100 text-slate-600 ring-slate-200"}`}>{value || "—"}</span>;
+}
+function Spinner() {
+  return <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
+}
 function InfoBox({ label, value }) {
-  return (
-    <div
-      className="
-        min-w-0
-        rounded-lg
-        bg-[#F6F5F0]
-        px-3
-        py-2
-      "
-    >
-      <p
-        className="
-          text-[8px]
-          font-bold
-          uppercase
-          tracking-wider
-          text-[#8A93A5]
-        "
-      >
-        {label}
-      </p>
-
-      <p
-        className="
-          mt-0.5
-          truncate
-          text-[11px]
-          font-semibold
-          text-[#1B2333]
-        "
-      >
-        {value}
-      </p>
-    </div>
-  );
+  return <div className="min-w-0 rounded-lg bg-[#F6F5F0] px-3 py-2"><p className="text-[9px] font-bold uppercase tracking-wider text-[#8A93A5]">{label}</p><p className="mt-1 truncate text-xs font-semibold text-[#1B2333]">{value ?? "—"}</p></div>;
 }
 
-// =========================================================
-// STAT CARD
-// =========================================================
-
-function StatCard({
-  icon,
-  label,
-  value,
-  suffix,
-  variant,
-}) {
-  const styles = {
-    gold: {
-      box: "border-[#E8D8AF] bg-[#FBF7EA]",
-      icon: "bg-[#C89B3C] text-white",
-      value: "text-[#8B681E]",
-    },
-
-    navy: {
-      box: "border-[#D8DEEA] bg-[#F5F7FB]",
-      icon: "bg-[#101B33] text-white",
-      value: "text-[#101B33]",
-    },
-  };
-
-  const s = styles[variant];
-
+function BulletinModal({ bulletin, resultat, periode, annee, onClose, onDownload, onSend, sending, downloading }) {
+  const matieres = Array.isArray(bulletin?.matieres) ? bulletin.matieres : [];
   return (
-    <div
-      className={`
-        rounded-xl
-        border
-        p-4
-        ${s.box}
-      `}
-    >
-
-      <div className="flex items-center gap-2">
-
-        <div
-          className={`
-            flex
-            h-7
-            w-7
-            items-center
-            justify-center
-            rounded-lg
-            ${s.icon}
-          `}
-        >
-          {icon}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#101B33]/70 p-3 backdrop-blur-sm print:static print:bg-white" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Aperçu du bulletin secondaire" onClick={(e) => e.stopPropagation()} className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl print:max-h-none print:overflow-visible print:shadow-none">
+        <header className="flex shrink-0 items-start justify-between border-b border-[#DEDCD0] p-5">
+          <div><h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="text-[#C89B3C]" size={22} /> Bulletin secondaire</h2><p className="mt-1 text-xs text-[#5B6478]">{annee} · {periode} · Notes sur 20</p></div>
+          <button type="button" onClick={onClose} aria-label="Fermer" className="rounded-lg p-2 hover:bg-slate-100 print:hidden"><X size={19} /></button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 print:overflow-visible">
+          <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <InfoBox label="Élève" value={`${bulletin.prenom || resultat.prenom || ""} ${bulletin.nom || resultat.nom || ""}`} />
+            <InfoBox label="Matricule" value={bulletin.matricule || resultat.matricule} />
+            <InfoBox label="Classe" value={bulletin.classeNom || resultat.classeNom} />
+            <InfoBox label="Niveau" value={bulletin.niveauNom || resultat.niveauNom} />
+          </div>
+          <h3 className="mb-3 text-sm font-bold">Résultats par matière</h3>
+          <div className="overflow-x-auto rounded-xl border border-[#DEDCD0]">
+            <table className="w-full min-w-[540px] text-xs">
+              <thead className="bg-[#F6F5F0] text-[10px] uppercase text-[#5B6478]"><tr><th className="px-3 py-3 text-left">Matière</th><th className="px-3 py-3 text-left">Sous-groupe</th><th className="px-3 py-3 text-center">Classe</th><th className="px-3 py-3 text-center">Examen</th><th className="px-3 py-3 text-center">Moyenne</th><th className="px-3 py-3 text-center">Coef.</th><th className="px-3 py-3 text-right">Points</th></tr></thead>
+              <tbody className="divide-y divide-[#ECEAE2]">
+                {matieres.length ? matieres.map((m, i) => <tr key={`${m.matiereId || m.matiereNom || "matiere"}-${i}`}><td className="px-3 py-3 font-semibold">{m.matiereNom || m.nom || "—"}</td><td className="px-3 py-3 text-[#5B6478]">{m.sousGroupeNom || "—"}</td><td className="px-3 py-3 text-center">{fmt(m.noteClasse ?? m.nClass)}</td><td className="px-3 py-3 text-center">{fmt(m.noteExamen ?? m.nExem)}</td><td className="px-3 py-3 text-center font-bold">{fmt(m.moyenne)}</td><td className="px-3 py-3 text-center">{m.coefficient ?? "—"}</td><td className="px-3 py-3 text-right font-bold">{fmt(m.points)}</td></tr>) : <tr><td colSpan={7} className="px-3 py-10 text-center text-[#8A93A5]">Aucun détail de matière disponible.</td></tr>}
+              </tbody>
+              <tfoot className="border-t-2 bg-[#F6F5F0] font-bold"><tr><td colSpan={5} className="px-3 py-3 text-right">Totaux</td><td className="px-3 py-3 text-center">{bulletin.totalCoefficients ?? "—"}</td><td className="px-3 py-3 text-right">{fmt(bulletin.totalPoints)}</td></tr></tfoot>
+            </table>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-[#E8D8AF] bg-[#FBF7EA] p-4"><p className="text-xs text-[#8B681E]">Moyenne générale</p><p className="mt-2 text-2xl font-bold text-[#8B681E]">{fmt(bulletin.moyenneGenerale ?? resultat.moyenneGenerale)} <span className="text-xs">/20</span></p></div>
+            <div className="rounded-xl border border-[#D8DEEA] bg-[#F5F7FB] p-4"><p className="text-xs text-[#5B6478]">Rang dans la classe</p><p className="mt-2 text-2xl font-bold">{bulletin.rang ?? resultat.rang ?? "—"}</p></div>
+            <div className="rounded-xl border border-[#DEDCD0] p-4"><p className="mb-3 text-xs text-[#5B6478]">Appréciation</p><AppreciationBadge value={bulletin.appreciation ?? resultat.appreciation} /></div>
+          </div>
         </div>
-
-        <p
-          className="
-            text-[9px]
-            font-bold
-            uppercase
-            tracking-wider
-            text-[#8A93A5]
-          "
-        >
-          {label}
-        </p>
-
+        <footer className="flex flex-wrap justify-end gap-2 border-t bg-[#F8F7F2] p-4 print:hidden">
+          <button type="button" className={`${buttonClass} border bg-white`} onClick={onClose}>Fermer</button>
+          <button type="button" className={`${buttonClass} bg-[#2C8C82] text-white`} disabled={sending} onClick={() => onSend(resultat)}>{sending ? <Spinner /> : <Send size={15} />} Envoyer aux parents</button>
+          <button type="button" className={`${buttonClass} border bg-white text-[#101B33]`} disabled={downloading} onClick={() => onDownload(resultat)}>{downloading ? <Spinner /> : <Download size={15} />} PDF officiel</button>
+          <button type="button" className={`${buttonClass} bg-[#101B33] text-white`} onClick={() => window.print()}><Printer size={15} /> Imprimer l’aperçu</button>
+        </footer>
       </div>
-
-      <div className="mt-2 flex items-baseline gap-1">
-
-        <span
-          className={`
-            font-mono
-            text-2xl
-            font-bold
-            ${s.value}
-          `}
-        >
-          {value}
-        </span>
-
-        <span
-          className="
-            text-[9px]
-            text-[#8A93A5]
-          "
-        >
-          {suffix}
-        </span>
-
-      </div>
-
     </div>
   );
 }
 
-// =========================================================
-// PAGE RESULTATS
-// =========================================================
+function BulletinPdfModal({ pdfUrl, resultat, mois, onClose, onDownload, onSend, sending, downloading }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#101B33]/80 p-2 backdrop-blur-sm sm:p-5 print:hidden" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Aperçu du bulletin primaire" onClick={(e) => e.stopPropagation()} className="flex h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#DEDCD0] px-4 py-3 sm:px-6">
+          <div className="min-w-0"><h2 className="flex items-center gap-2 text-base font-bold sm:text-lg"><GraduationCap size={21} className="shrink-0 text-[#C89B3C]" /> Bulletin mensuel</h2><p className="mt-1 truncate text-xs text-[#5B6478]">{resultat.prenom} {resultat.nom} · {resultat.classeNom} · {mois}</p></div>
+          <button type="button" onClick={onClose} aria-label="Fermer l'aperçu" className="rounded-lg p-2 text-[#5B6478] hover:bg-slate-100"><X size={20} /></button>
+        </header>
+        <div className="min-h-0 flex-1 bg-[#E8E9EC] p-2 sm:p-4"><iframe src={pdfUrl} title={`Bulletin de ${resultat.prenom} ${resultat.nom}`} className="h-full w-full rounded-lg border-0 bg-white shadow-sm" /></div>
+        <footer className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[#DEDCD0] bg-[#F8F7F2] p-3 sm:p-4">
+          <button type="button" onClick={onClose} className={`${buttonClass} border border-[#DEDCD0] bg-white`}>Fermer</button>
+          <button type="button" onClick={() => onSend(resultat)} disabled={sending} className={`${buttonClass} bg-[#2C8C82] text-white`}>{sending ? <Spinner /> : <Send size={15} />} Envoyer aux parents</button>
+          <button type="button" onClick={() => onDownload(resultat)} disabled={downloading} className={`${buttonClass} border border-[#DEDCD0] bg-white`}>{downloading ? <Spinner /> : <Download size={15} />} Télécharger</button>
+          <button type="button" onClick={() => window.open(pdfUrl, "_blank", "noopener,noreferrer")} className={`${buttonClass} bg-[#101B33] text-white`} title="Ouvre le PDF dans un nouvel onglet pour l'imprimer"><Printer size={15} /> Ouvrir / Imprimer</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
 
 export default function ResultatsPage() {
   const { user } = useAuth();
-
   const ecoleId = user?.ecole?.id;
-
   const [cycles, setCycles] = useState([]);
   const [classes, setClasses] = useState([]);
   const [annees, setAnnees] = useState([]);
+  const [filtres, setFiltres] = useState({ cycleId: "", classeId: "", anneeScolaireId: "", periode: "" });
   const [resultats, setResultats] = useState([]);
-
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [apercu, setApercu] = useState(null);
-  const [loadingBulletinId, setLoadingBulletinId] =
-    useState(null);
-
-  // Id (inscriptionId) du bulletin en cours d'envoi par mail
+  const [apercuPdf, setApercuPdf] = useState(null);
+  const pdfUrlRef = useRef(null);
+  const [loadingBulletinId, setLoadingBulletinId] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
   const [sendingId, setSendingId] = useState(null);
-  // Envoi groupé pour toute la classe affichée
-  const [sendingClasse, setSendingClasse] =
-    useState(false);
+  const [sendingClasse, setSendingClasse] = useState(false);
 
-  const [filtres, setFiltres] = useState({
-    cycleId: "",
-    classeId: "",
-    anneeScolaireId: "",
-    periode: "",
-  });
+  useEffect(() => {
+    return () => { if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current); };
+  }, []);
 
-  // =========================================================
-  // INIT
-  // =========================================================
+  const fermerApercuPdf = () => {
+    setApercuPdf(null);
+    if (pdfUrlRef.current) {
+      URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (!ecoleId) return;
-
-    api
-      .get(`/cycles/ecole/${ecoleId}`)
-      .then((r) => setCycles(r.data || []));
-
-    api
-      .get(`/classes/ecole/${ecoleId}`)
-      .then((r) => setClasses(r.data || []));
-
-    api
-      .get(`/annees/ecole/${ecoleId}`)
-      .then((r) => {
-        setAnnees(r.data || []);
-
-        const active = (r.data || []).find(
-          (a) => a.active
-        );
-
-        if (active) {
-          setFiltres((prev) => ({
-            ...prev,
-            anneeScolaireId:
-              active.id.toString(),
-          }));
-        }
-      });
+    let alive = true;
+    Promise.all([
+      api.get(`/cycles/ecole/${ecoleId}`),
+      api.get(`/classes/ecole/${ecoleId}`),
+      api.get(`/annees/ecole/${ecoleId}`),
+    ]).then(([cy, cl, an]) => {
+      if (!alive) return;
+      setCycles(Array.isArray(cy.data) ? cy.data : []);
+      setClasses(Array.isArray(cl.data) ? cl.data : []);
+      const years = Array.isArray(an.data) ? an.data : [];
+      setAnnees(years);
+      const active = years.find((a) => a.active);
+      if (active) setFiltres((prev) => ({ ...prev, anneeScolaireId: String(active.id) }));
+    }).catch((err) => { if (alive) setError(`Chargement des filtres : ${apiError(err)}`); });
+    return () => { alive = false; };
   }, [ecoleId]);
 
-  // =========================================================
-  // CLASSES PAR CYCLE
-  // =========================================================
+  const cycleSelectionne = cycles.find((c) => String(c.id) === filtres.cycleId);
+  const classeSelectionnee = classes.find((c) => String(c.id) === filtres.classeId);
+  const typeSelectionne = filtres.classeId
+    ? kindForCycle(classeSelectionnee?.niveau?.cycle?.nom)
+    : cycleSelectionne ? kindForCycle(cycleSelectionne.nom) : null;
+  const classesDuCycle = useMemo(() => classes.filter((c) => !filtres.cycleId || String(c.niveau?.cycle?.id) === filtres.cycleId), [classes, filtres.cycleId]);
+  const optionsPeriode = typeSelectionne === "primaire" ? MOIS : typeSelectionne === "secondaire" ? PERIODES : [];
+  const selectedYear = annees.find((a) => String(a.id) === filtres.anneeScolaireId);
 
-  const classesDuCycle = useMemo(() => {
-    if (!filtres.cycleId) return classes;
-
-    return classes.filter(
-      (c) =>
-        c.niveau?.cycle?.id ===
-        Number(filtres.cycleId)
-    );
-  }, [classes, filtres.cycleId]);
-
-  // =========================================================
-  // FILTRES
-  // =========================================================
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
+  const handleChange = (event) => {
+    const { name, value } = event.target;
     setFiltres((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === "cycleId"
-        ? { classeId: "" }
-        : {}),
+      ...(name === "cycleId" ? { classeId: "", periode: "" } : {}),
+      ...(name === "classeId" ? { periode: "" } : {}),
     }));
-  };
-
-  // =========================================================
-  // CHARGEMENT RESULTATS
-  // =========================================================
-
-  const loadResultats = async () => {
-    const {
-      classeId,
-      anneeScolaireId,
-      periode,
-    } = filtres;
-
-    setLoading(true);
-
-    try {
-      if (classeId) {
-        const res = await api.get(
-          `/resultats/classe/${classeId}`,
-          {
-            params: {
-              anneeScolaireId,
-              periode,
-            },
-          }
-        );
-
-        setResultats(res.data || []);
-      } else if (
-        ecoleId &&
-        anneeScolaireId &&
-        periode
-      ) {
-        const res = await api.get(
-          `/resultats/ecole/${ecoleId}`,
-          {
-            params: {
-              anneeScolaireId,
-              periode,
-            },
-          }
-        );
-
-        setResultats(res.data || []);
-      } else {
-        setResultats([]);
-      }
-    } catch (err) {
-      console.error(err);
-      setResultats([]);
-    } finally {
-      setLoading(false);
-    }
+    setApercu(null);
+    fermerApercuPdf();
   };
 
   useEffect(() => {
-    if (
-      filtres.anneeScolaireId &&
-      filtres.periode
-    ) {
-      loadResultats();
-    } else {
+    if (!ecoleId || !filtres.anneeScolaireId || !filtres.periode || !typeSelectionne) {
       setResultats([]);
+      setLoading(false);
+      return;
     }
-  }, [
-    filtres.classeId,
-    filtres.anneeScolaireId,
-    filtres.periode,
-    ecoleId,
-  ]);
-
-  const PERIODES = [
-  "1ère Periode",
-  "2ème Periode",
-  "3ème Periode",
-  "4ème Periode",
-  "5ème Periode",
-  "6ème Periode",
-  "7ème Periode",
-  "8ème Periode",
-  "9ème Periode",
-];
-
-  // =========================================================
-  // TRI / RECHERCHE
-  // =========================================================
+    let alive = true;
+    const type = typeSelectionne;
+    const route = filtres.classeId ? ROUTES[type].classe(filtres.classeId) : ROUTES[type].ecole(ecoleId);
+    setLoading(true);
+    setError("");
+    setResultats([]);
+    api.get(route, { params: { anneeScolaireId: filtres.anneeScolaireId, ...(type === "primaire" ? { mois: filtres.periode } : { periode: filtres.periode }) } })
+      .then(({ data }) => {
+        if (!alive) return;
+        setResultats((Array.isArray(data) ? data : []).filter((r) => !filtres.cycleId || classes.some((c) => c.nomComplet === r.classeNom && String(c.niveau?.cycle?.id) === filtres.cycleId)));
+      })
+      .catch((err) => { if (alive) { setError(`Impossible de charger les résultats : ${apiError(err)}`); setResultats([]); } })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [ecoleId, filtres.classeId, filtres.cycleId, filtres.anneeScolaireId, filtres.periode, typeSelectionne, classes]);
 
   const resultatsTries = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return [...resultats]
-      .filter((r) => {
-        const nomComplet =
-          `${r.nom} ${r.prenom} ${r.matricule}`.toLowerCase();
-
-        return !q || nomComplet.includes(q);
-      })
-      .sort((a, b) => {
-        const cycleCompare =
-          (a.cycleNom || "").localeCompare(
-            b.cycleNom || ""
-          );
-
-        if (cycleCompare !== 0) {
-          return cycleCompare;
-        }
-
-        const classeCompare =
-          (a.classeNom || "").localeCompare(
-            b.classeNom || ""
-          );
-
-        if (classeCompare !== 0) {
-          return classeCompare;
-        }
-
-        return (
-          (a.rang || 999) -
-          (b.rang || 999)
-        );
-      });
+    const q = search.trim().toLocaleLowerCase("fr");
+    return resultats.filter((r) => `${r.nom || ""} ${r.prenom || ""} ${r.matricule || ""}`.toLocaleLowerCase("fr").includes(q))
+      .sort((a, b) => (a.classeNom || "").localeCompare(b.classeNom || "", "fr") || (a.rang ?? 9999) - (b.rang ?? 9999) || (b.moyenneGenerale ?? -1) - (a.moyenneGenerale ?? -1));
   }, [resultats, search]);
 
-  // =========================================================
-  // BULLETIN
-  // =========================================================
+  const getClasseId = (r) => filtres.classeId || r.classeId || classes.find((c) => c.nomComplet === r.classeNom && (!filtres.cycleId || String(c.niveau?.cycle?.id) === filtres.cycleId))?.id;
+  const getType = (r) => {
+    const classe = classes.find((c) => String(c.id) === String(getClasseId(r)));
+    return kindForCycle(r.cycleNom || classe?.niveau?.cycle?.nom || cycleSelectionne?.nom || "");
+  };
 
-  const ouvrirBulletin = async (resultat) => {
-    setLoadingBulletinId(
-      resultat.inscriptionId
-    );
-
+  const ouvrirBulletin = async (r) => {
+    const classeId = getClasseId(r);
+    if (!classeId) { setError("Classe introuvable pour cet élève."); return; }
+    if (!filtres.anneeScolaireId || !filtres.periode) { setError("Sélectionne une année scolaire et une période."); return; }
+    const type = getType(r);
+    setLoadingBulletinId(r.inscriptionId);
+    setError("");
     try {
-      const res = await api.get(
-        `/resultats/eleve/${resultat.inscriptionId}`,
-        {
-          params: {
-            periode: filtres.periode,
-          },
-        }
-      );
-
-      setApercu(res.data);
+      if (type === "primaire") {
+        const url = ROUTES.primaire.pdfEleve({ classeId, anneeId: filtres.anneeScolaireId, inscriptionId: r.inscriptionId, mois: filtres.periode });
+        const response = await api.get(url, { responseType: "blob" });
+        const blob = await readPdf(response);
+        const pdfUrl = URL.createObjectURL(blob);
+        fermerApercuPdf();
+        pdfUrlRef.current = pdfUrl;
+        setApercu(null);
+        setApercuPdf({ pdfUrl, resultat: r, mois: filtres.periode });
+      } else {
+        const { data } = await api.get(ROUTES.secondaire.eleve(r.inscriptionId), { params: { periode: filtres.periode } });
+        if (!data) throw new Error("Aucun bulletin disponible pour cet élève.");
+        fermerApercuPdf();
+        setApercu({ bulletin: data, resultat: r, type: "secondaire" });
+      }
     } catch (err) {
-      console.error(
-        "❌ ERREUR CHARGEMENT BULLETIN"
-      );
-      console.error(
-        "Status :",
-        err.response?.status
-      );
-      console.error(
-        "Data :",
-        err.response?.data
-      );
-      console.error(
-        "Message :",
-        err.message
-      );
-
-      alert(
-        "Erreur lors du chargement du bulletin."
-      );
+      console.error("Erreur aperçu bulletin :", err);
+      setError(`Impossible d'afficher le bulletin : ${apiError(err)}`);
     } finally {
       setLoadingBulletinId(null);
     }
   };
 
-  // =========================================================
-  // PDF
-  // =========================================================
-
-  const telechargerPdf = async (resultat) => {
+  const telechargerPdf = async (r) => {
+    const classeId = getClasseId(r);
+    if (!classeId) { setError("Classe introuvable pour le téléchargement."); return; }
+    const type = getType(r);
+    setDownloadingId(r.inscriptionId);
+    setError("");
     try {
-      const res = await api.get(
-        "/bulletins/generate",
-        {
-          params: {
-            inscriptionId:
-              resultat.inscriptionId,
-
-            classeId: classes.find(
-              (c) =>
-                c.nomComplet ===
-                resultat.classeNom
-            )?.id,
-
-            anneeId:
-              filtres.anneeScolaireId,
-
-            periode: filtres.periode,
-          },
-
-          responseType: "blob",
-        }
-      );
-
-      const url =
-        window.URL.createObjectURL(
-          new Blob([res.data])
-        );
-
-      const a =
-        document.createElement("a");
-
-      a.href = url;
-      a.download = `bulletin_${resultat.matricule}.pdf`;
-
-      a.click();
-
-      window.URL.revokeObjectURL(url);
+      const response = type === "primaire"
+        ? await api.get(ROUTES.primaire.pdfEleve({ classeId, anneeId: filtres.anneeScolaireId, inscriptionId: r.inscriptionId, mois: filtres.periode }), { responseType: "blob" })
+        : await api.get(ROUTES.secondaire.pdf, { params: { inscriptionId: r.inscriptionId, classeId, anneeId: filtres.anneeScolaireId, periode: filtres.periode }, responseType: "blob" });
+      const blob = await readPdf(response);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `bulletin_${r.matricule || r.inscriptionId}_${filtres.periode}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
-      console.error(err);
-
-      alert(
-        "Erreur lors du téléchargement du PDF"
-      );
+      console.error("Erreur téléchargement PDF :", err);
+      setError(`Téléchargement impossible : ${apiError(err)}`);
+    } finally {
+      setDownloadingId(null);
     }
   };
 
-  // =========================================================
-  // ENVOI DU BULLETIN AUX PARENTS (PAR EMAIL)
-  //
-  // ⚠️ Hypothèse : le backend expose un endpoint
-  //   POST /bulletins/envoyer-parent
-  // avec les mêmes paramètres que /bulletins/generate
-  // (inscriptionId, classeId, anneeId, periode), qui génère
-  // le PDF et l'envoie à l'email du tuteur enregistré pour
-  // cet élève. Adapte le chemin/les paramètres si ton
-  // contrôleur backend utilise un nom différent.
-  // =========================================================
-
-  const envoyerAuxParents = async (resultat) => {
-    setSendingId(resultat.inscriptionId);
-
+  const envoyerAuxParents = async (r) => {
+    const type = getType(r);
+    const classeId = getClasseId(r);
+    if (!classeId) { setError("Classe introuvable pour cet élève."); return; }
+    const route = ROUTES[type]?.envoyer;
+    if (!route) { setError("L'envoi n'est pas configuré pour ce niveau."); return; }
+    const nomEleve = `${r.prenom || ""} ${r.nom || ""}`.trim();
+    const periodeLabel = type === "primaire" ? `le mois de ${filtres.periode}` : `la période ${filtres.periode}`;
+    if (!window.confirm(`Envoyer le bulletin de ${nomEleve} pour ${periodeLabel} aux parents ?`)) return;
+    setSendingId(r.inscriptionId);
+    setError("");
     try {
-      const classeId = classes.find(
-        (c) => c.nomComplet === resultat.classeNom
-      )?.id;
-
-      await api.post(
-        "/bulletins/envoyer-parent",
-        null,
-        {
-          params: {
-            inscriptionId: resultat.inscriptionId,
-            classeId,
-            anneeId: filtres.anneeScolaireId,
-            periode: filtres.periode,
-          },
-        }
-      );
-
-      alert(
-        `Bulletin envoyé au(x) parent(s) de ${resultat.prenom} ${resultat.nom}.`
-      );
+      await api.post(route, null, { params: { inscriptionId: r.inscriptionId, classeId, anneeId: filtres.anneeScolaireId, ...(type === "primaire" ? { mois: filtres.periode } : { periode: filtres.periode }) } });
+      window.alert(`Bulletin envoyé aux parents de ${nomEleve}.`);
     } catch (err) {
-      console.error(
-        "Erreur envoi bulletin parent :",
-        err
-      );
-
-      alert(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Erreur lors de l'envoi du bulletin au parent."
-      );
+      console.error("Erreur envoi bulletin :", err);
+      setError(`Envoi impossible : ${apiError(err)}`);
     } finally {
       setSendingId(null);
     }
   };
 
-  // Envoi groupé : tous les bulletins de la classe/période affichée
-  const envoyerTousLesBulletins = async () => {
-    if (
-      !filtres.classeId ||
-      !filtres.anneeScolaireId ||
-      !filtres.periode
-    ) {
-      alert(
-        "Sélectionnez une classe, une année et une période avant l'envoi groupé."
-      );
-      return;
-    }
-
-    const confirmation = window.confirm(
-      `Envoyer les bulletins de ${resultatsTries.length} élève(s) à leurs parents ?`
-    );
-
-    if (!confirmation) return;
-
+  const envoyerTous = async () => {
+    if (!filtres.classeId || !typeSelectionne || !resultats.length) return;
+    const route = ROUTES[typeSelectionne]?.envoyerClasse;
+    if (!route) { setError("L'envoi groupé n'est pas configuré pour ce niveau."); return; }
+    const periodeLabel = typeSelectionne === "primaire" ? `le mois de ${filtres.periode}` : `la période ${filtres.periode}`;
+    if (!window.confirm(`Envoyer les bulletins de toute la classe pour ${periodeLabel} aux parents ?`)) return;
     setSendingClasse(true);
-
+    setError("");
     try {
-      await api.post(
-        "/bulletins/envoyer-parent-classe",
-        null,
-        {
-          params: {
-            classeId: filtres.classeId,
-            anneeId: filtres.anneeScolaireId,
-            periode: filtres.periode,
-          },
-        }
-      );
-
-      alert(
-        "Les bulletins de la classe ont été envoyés aux parents."
-      );
+      await api.post(route, null, { params: { classeId: filtres.classeId, anneeId: filtres.anneeScolaireId, ...(typeSelectionne === "primaire" ? { mois: filtres.periode } : { periode: filtres.periode }) } });
+      window.alert("La demande d'envoi des bulletins de la classe a été traitée.");
     } catch (err) {
-      console.error(
-        "Erreur envoi groupé bulletins :",
-        err
-      );
-
-      alert(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Erreur lors de l'envoi groupé des bulletins."
-      );
+      console.error("Erreur envoi groupé :", err);
+      setError(`Envoi groupé impossible : ${apiError(err)}`);
     } finally {
       setSendingClasse(false);
     }
   };
 
-  // =========================================================
-  // IMPRESSION
-  // =========================================================
-
-  const imprimerTableau = () => {
-    window.print();
-  };
-
-  // =========================================================
-  // RENDER
-  // =========================================================
+  const actions = (r) => (
+    <div className="flex items-center justify-end gap-1.5 print:hidden">
+      <button type="button" title="Voir le bulletin" aria-label="Voir le bulletin" disabled={loadingBulletinId === r.inscriptionId} onClick={() => ouvrirBulletin(r)} className={`${buttonClass} bg-[#F1F2F5] text-[#101B33]`}>{loadingBulletinId === r.inscriptionId ? <Spinner /> : <Eye size={15} />}</button>
+      <button type="button" title="Télécharger le PDF" aria-label="Télécharger le PDF" disabled={downloadingId === r.inscriptionId} onClick={() => telechargerPdf(r)} className={`${buttonClass} bg-[#FBF7EA] text-[#9B7428]`}>{downloadingId === r.inscriptionId ? <Spinner /> : <Download size={15} />}</button>
+      <button type="button" title="Envoyer aux parents" aria-label="Envoyer aux parents" disabled={sendingId === r.inscriptionId} onClick={() => envoyerAuxParents(r)} className={`${buttonClass} bg-[#DCEDEA] text-[#236F68]`}>{sendingId === r.inscriptionId ? <Spinner /> : <Send size={15} />}</button>
+    </div>
+  );
 
   return (
-    <div className="space-y-5 pb-8">
-
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-
-      <div
-        className="
-          flex
-          flex-col
-          gap-4
-          sm:flex-row
-          sm:items-center
-          sm:justify-between
-          print:hidden
-        "
-      >
-
-        <div>
-
-          <div className="flex items-center gap-2">
-
-            <div
-              className="
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-xl
-                bg-[#101B33]
-                text-[#E4B655]
-              "
-            >
-              <Award size={18} />
-            </div>
-
-            <h1
-              className="
-                font-display
-                text-2xl
-                font-bold
-                tracking-tight
-                text-[#101B33]
-              "
-            >
-              Résultats
-            </h1>
-
-          </div>
-
-          <p
-            className="
-              mt-1
-              pl-11
-              text-xs
-              text-[#5B6478]
-              sm:text-sm
-            "
-          >
-            Moyennes générales et appréciations
-            par élève.
-          </p>
-
+    <div className="space-y-5 pb-8 text-[#101B33]">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center print:hidden">
+        <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Award className="text-[#C89B3C]" /> Résultats scolaires</h1><p className="mt-1 text-xs text-[#5B6478]">Moyennes et classements du primaire et du secondaire.</p></div>
+        <div className="flex flex-wrap gap-2">
+          {typeSelectionne && <button type="button" onClick={envoyerTous} disabled={!filtres.classeId || !resultats.length || sendingClasse || loading} className={`${buttonClass} bg-[#2C8C82] text-white`}>{sendingClasse ? <Spinner /> : <Mail size={15} />} Envoyer à la classe</button>}
+          <button type="button" onClick={() => window.print()} disabled={!resultatsTries.length || loading} className={`${buttonClass} bg-[#101B33] text-white`}><Printer size={15} /> Imprimer la liste</button>
         </div>
-
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-
-          <button
-            onClick={envoyerTousLesBulletins}
-            disabled={
-              sendingClasse ||
-              !filtres.classeId ||
-              resultatsTries.length === 0
-            }
-            title={
-              !filtres.classeId
-                ? "Sélectionnez une classe pour l'envoi groupé"
-                : "Envoyer les bulletins de la classe aux parents"
-            }
-            className="
-              inline-flex
-              w-full
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              bg-[#2C8C82]
-              px-4
-              py-2.5
-              text-xs
-              font-semibold
-              text-white
-              shadow-sm
-              transition
-              hover:bg-[#236F68]
-              disabled:cursor-not-allowed
-              disabled:opacity-40
-              sm:w-auto
-            "
-          >
-            {sendingClasse ? (
-              <span
-                className="
-                  h-3.5
-                  w-3.5
-                  animate-spin
-                  rounded-full
-                  border-2
-                  border-white/30
-                  border-t-white
-                "
-              />
-            ) : (
-              <Mail size={15} />
-            )}
-            {sendingClasse
-              ? "Envoi..."
-              : "Envoyer à la classe"}
-          </button>
-
-          <button
-            onClick={imprimerTableau}
-            disabled={
-              resultatsTries.length === 0
-            }
-            className="
-              inline-flex
-              w-full
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              bg-[#101B33]
-              px-4
-              py-2.5
-              text-xs
-              font-semibold
-              text-white
-              shadow-sm
-              transition
-              hover:bg-[#182746]
-              disabled:cursor-not-allowed
-              disabled:opacity-40
-              sm:w-auto
-            "
-          >
-            <Printer size={15} />
-            Imprimer la liste
-          </button>
-
-        </div>
-
       </div>
-
-      {/* =====================================================
-          FILTRES
-      ===================================================== */}
-
-      <div
-        className="
-          rounded-2xl
-          border
-          border-[#DEDCD0]
-          bg-white
-          p-3
-          shadow-sm
-          sm:p-4
-          print:hidden
-        "
-      >
-
-        <div className="mb-3 flex items-center justify-between">
-
-          <div>
-
-            <p
-              className="
-                text-[10px]
-                font-bold
-                uppercase
-                tracking-[1.2px]
-                text-[#8A93A5]
-              "
-            >
-              Filtres
-            </p>
-
-            <p className="mt-0.5 text-xs text-[#5B6478]">
-              Sélectionnez une période pour
-              afficher les résultats.
-            </p>
-
-          </div>
-
+      <section className="rounded-2xl border border-[#DEDCD0] bg-white p-4 shadow-sm print:hidden">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#8A93A5]">Filtres</h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <select name="cycleId" value={filtres.cycleId} onChange={handleChange} className={selectClass}><option value="">Sélectionner un cycle</option>{cycles.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}</select>
+          <select name="classeId" value={filtres.classeId} onChange={handleChange} className={selectClass}><option value="">Toutes les classes du cycle</option>{classesDuCycle.map((c) => <option key={c.id} value={c.id}>{c.nomComplet}</option>)}</select>
+          <select name="anneeScolaireId" value={filtres.anneeScolaireId} onChange={handleChange} className={selectClass}><option value="">Année scolaire</option>{annees.map((a) => <option key={a.id} value={a.id}>{a.nom}</option>)}</select>
+          <select name="periode" value={filtres.periode} onChange={handleChange} disabled={!typeSelectionne} className={selectClass}><option value="">{typeSelectionne === "primaire" ? "Sélectionner un mois" : "Sélectionner une période"}</option>{optionsPeriode.map((p) => <option key={p} value={p}>{p}</option>)}</select>
         </div>
-
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-2
-            sm:grid-cols-2
-            lg:grid-cols-4
-          "
-        >
-
-          <select
-            name="cycleId"
-            value={filtres.cycleId}
-            onChange={handleChange}
-            className="
-              h-10
-              w-full
-              rounded-lg
-              border
-              border-[#DEDCD0]
-              bg-[#FAFAF7]
-              px-3
-              text-xs
-              font-medium
-              text-[#1B2333]
-              outline-none
-              transition
-              focus:border-[#C89B3C]
-              focus:ring-2
-              focus:ring-[#C89B3C]/10
-            "
-          >
-            <option value="">
-              Tous les cycles
-            </option>
-
-            {cycles.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nom}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="classeId"
-            value={filtres.classeId}
-            onChange={handleChange}
-            className="
-              h-10
-              w-full
-              rounded-lg
-              border
-              border-[#DEDCD0]
-              bg-[#FAFAF7]
-              px-3
-              text-xs
-              font-medium
-              text-[#1B2333]
-              outline-none
-              transition
-              focus:border-[#C89B3C]
-              focus:ring-2
-              focus:ring-[#C89B3C]/10
-            "
-          >
-            <option value="">
-              Toutes les classes
-            </option>
-
-            {classesDuCycle.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nomComplet}
-              </option>
-            ))}
-          </select>
-
-          <select
-            name="anneeScolaireId"
-            value={filtres.anneeScolaireId}
-            onChange={handleChange}
-            className="
-              h-10
-              w-full
-              rounded-lg
-              border
-              border-[#DEDCD0]
-              bg-[#FAFAF7]
-              px-3
-              text-xs
-              font-medium
-              text-[#1B2333]
-              outline-none
-              transition
-              focus:border-[#C89B3C]
-              focus:ring-2
-              focus:ring-[#C89B3C]/10
-            "
-          >
-            <option value="">
-              Année scolaire
-            </option>
-
-            {annees.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nom}
-              </option>
-            ))}
-          </select>
-
-          <select
-  name="periode"
-  value={filtres.periode}
-  onChange={handleChange}
->
-  <option value="">
-    Période
-  </option>
-
-  {PERIODES.map((periode) => (
-    <option key={periode} value={periode}>
-      {periode}
-    </option>
-  ))}
-</select>
-        </div>
-
-        {/* RECHERCHE */}
-
-        <div className="relative mt-2">
-
-          <Search
-            size={15}
-            className="
-              absolute
-              left-3
-              top-1/2
-              -translate-y-1/2
-              text-[#8A93A5]
-            "
-          />
-
-          <input
-            type="text"
-            placeholder="Rechercher un élève, matricule..."
-            value={search}
-            onChange={(e) =>
-              setSearch(e.target.value)
-            }
-            className="
-              h-10
-              w-full
-              rounded-lg
-              border
-              border-[#DEDCD0]
-              bg-[#FAFAF7]
-              py-2
-              pl-9
-              pr-3
-              text-xs
-              text-[#1B2333]
-              outline-none
-              transition
-              placeholder:text-[#9AA2B2]
-              focus:border-[#C89B3C]
-              focus:ring-2
-              focus:ring-[#C89B3C]/10
-            "
-          />
-
-        </div>
-
+        <div className="relative mt-3"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A93A5]" size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un élève ou un matricule..." className={`${selectClass} pl-9`} /></div>
+        <p className="mt-2 text-xs text-[#8A93A5]">{typeSelectionne ? `Barème : /${typeSelectionne === "primaire" ? 10 : 20} · ${typeSelectionne === "primaire" ? "résultats mensuels" : "résultats par période"}` : "Sélectionnez d’abord un cycle pour choisir un mois ou une période."}</p>
+      </section>
+      {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 print:hidden"><AlertCircle size={18} className="shrink-0" /><span className="flex-1">{error}</span><button type="button" aria-label="Fermer l’erreur" onClick={() => setError("")}><X size={16} /></button></div>}
+      <div className="hidden overflow-x-auto rounded-2xl border border-[#DEDCD0] bg-white shadow-sm lg:block print:block print:border-0 print:shadow-none">
+        <div className="hidden p-4 print:block"><h2 className="text-lg font-bold">Résultats — {cycleSelectionne?.nom || ""}</h2><p>{selectedYear?.nom} · {filtres.periode}</p></div>
+        <table className="w-full text-left text-xs">
+          <thead className="border-b bg-[#F8F7F2] text-[10px] uppercase tracking-wider text-[#8A93A5]"><tr>{["Matricule", "Élève", "Cycle", "Classe", "Rang", "Moyenne", "Appréciation", "Actions"].map((h) => <th key={h} className={`whitespace-nowrap px-4 py-3 ${h === "Actions" ? "print:hidden" : ""}`}>{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-[#F0EFEA]">
+            {!loading && resultatsTries.map((r) => <tr key={r.inscriptionId} className="hover:bg-[#FAFAF7]"><td className="px-4 py-3 font-mono text-[#5B6478]">{r.matricule || "—"}</td><td className="px-4 py-3 font-semibold">{r.prenom} {r.nom}</td><td className="px-4 py-3">{r.cycleNom || "—"}</td><td className="px-4 py-3">{r.classeNom || "—"}</td><td className="px-4 py-3 text-center font-bold">{r.rang ?? "—"}</td><td className="px-4 py-3 text-center font-mono font-bold">{fmt(r.moyenneGenerale)} <span className="text-[10px] font-normal text-[#8A93A5]">/{getType(r) === "primaire" ? 10 : 20}</span></td><td className="px-4 py-3"><AppreciationBadge value={r.appreciation} /></td><td className="px-4 py-3">{actions(r)}</td></tr>)}
+            {(loading || !resultatsTries.length) && <tr><td colSpan={8} className="px-4 py-14 text-center text-[#8A93A5]">{loading ? "Chargement des résultats..." : "Aucun résultat pour les filtres sélectionnés."}</td></tr>}
+          </tbody>
+        </table>
       </div>
-
-      {/* =====================================================
-          RESULTATS DESKTOP
-      ===================================================== */}
-
-      <div
-        className="
-          hidden
-          overflow-hidden
-          rounded-2xl
-          border
-          border-[#DEDCD0]
-          bg-white
-          shadow-sm
-          lg:block
-          print:block
-          print:border-0
-          print:shadow-none
-        "
-      >
-
-        <div className="overflow-x-auto">
-
-          <table className="w-full text-left text-sm">
-
-            <thead>
-
-              <tr
-                className="
-                  border-b
-                  border-[#DEDCD0]
-                  bg-[#F8F7F2]
-                "
-              >
-
-                {[
-                  "Matricule",
-                  "Élève",
-                  "Cycle",
-                  "Classe",
-                  "Rang",
-                  "Moyenne",
-                  "Appréciation",
-                  "Action",
-                ].map((label) => (
-                  <th
-                    key={label}
-                    className="
-                      whitespace-nowrap
-                      px-4
-                      py-3
-                      text-[9px]
-                      font-bold
-                      uppercase
-                      tracking-wider
-                      text-[#8A93A5]
-                    "
-                  >
-                    {label}
-                  </th>
-                ))}
-
-              </tr>
-
-            </thead>
-
-            <tbody className="divide-y divide-[#F0EFEA]">
-
-              {loading && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="
-                      px-4
-                      py-14
-                      text-center
-                    "
-                  >
-                    <LoadingState />
-                  </td>
-                </tr>
-              )}
-
-              {!loading &&
-                resultatsTries.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="
-                        px-4
-                        py-14
-                        text-center
-                      "
-                    >
-                      <EmptyState />
-                    </td>
-                  </tr>
-                )}
-
-              {!loading &&
-                resultatsTries.map((r) => (
-                  <tr
-                    key={r.inscriptionId}
-                    className="
-                      transition
-                      hover:bg-[#FAFAF7]
-                    "
-                  >
-
-                    <td className="px-4 py-3 text-xs font-mono text-[#5B6478]">
-                      {r.matricule || "—"}
-                    </td>
-
-                    <td className="px-4 py-3">
-
-                      <div className="flex items-center gap-2.5">
-
-                        <div
-                          className="
-                            flex
-                            h-8
-                            w-8
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-full
-                            bg-[#E7E3F8]
-                            text-[10px]
-                            font-bold
-                            text-[#6E5DC6]
-                          "
-                        >
-                          {`${r.prenom?.[0] || ""}${
-                            r.nom?.[0] || ""
-                          }`.toUpperCase()}
-                        </div>
-
-                        <span className="text-xs font-semibold text-[#1B2333]">
-                          {r.prenom} {r.nom}
-                        </span>
-
-                      </div>
-
-                    </td>
-
-                    <td className="px-4 py-3 text-xs text-[#5B6478]">
-                      {r.cycleNom || "—"}
-                    </td>
-
-                    <td className="px-4 py-3 text-xs font-medium text-[#1B2333]">
-                      {r.classeNom || "—"}
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-
-                      <span
-                        className="
-                          inline-flex
-                          min-w-7
-                          items-center
-                          justify-center
-                          rounded-md
-                          bg-[#F8F7F2]
-                          px-2
-                          py-1
-                          font-mono
-                          text-xs
-                          font-bold
-                          text-[#101B33]
-                        "
-                      >
-                        {r.rang || "—"}
-                      </span>
-
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-
-                      <span
-                        className="
-                          font-mono
-                          text-sm
-                          font-bold
-                          text-[#101B33]
-                        "
-                      >
-                        {r.moyenneGenerale != null
-                          ? Number(
-                              r.moyenneGenerale
-                            ).toFixed(2)
-                          : "—"}
-                      </span>
-
-                    </td>
-
-                    <td className="px-4 py-3">
-
-                      <AppreciationBadge
-                        appreciation={
-                          r.appreciation
-                        }
-                      />
-
-                    </td>
-
-                    <td className="px-4 py-3 text-right print:hidden">
-
-                      <ActionButtons
-                        resultat={r}
-                        loadingBulletinId={
-                          loadingBulletinId
-                        }
-                        sendingId={sendingId}
-                        onView={
-                          ouvrirBulletin
-                        }
-                        onDownload={
-                          telechargerPdf
-                        }
-                        onSend={
-                          envoyerAuxParents
-                        }
-                      />
-
-                    </td>
-
-                  </tr>
-                ))}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
-      </div>
-
-      {/* =====================================================
-          RESULTATS MOBILE
-      ===================================================== */}
-
       <div className="space-y-2 lg:hidden print:hidden">
-
-        {loading && <LoadingState />}
-
-        {!loading &&
-          resultatsTries.length === 0 && (
-            <EmptyState />
-          )}
-
-        {!loading &&
-          resultatsTries.map((r) => (
-
-            <div
-              key={r.inscriptionId}
-              className="
-                rounded-2xl
-                border
-                border-[#DEDCD0]
-                bg-white
-                p-3
-                shadow-sm
-              "
-            >
-
-              {/* HEADER CARTE */}
-
-              <div className="flex items-start justify-between gap-3">
-
-                <div className="flex min-w-0 items-center gap-2.5">
-
-                  <div
-                    className="
-                      flex
-                      h-10
-                      w-10
-                      shrink-0
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-[#E7E3F8]
-                      text-xs
-                      font-bold
-                      text-[#6E5DC6]
-                    "
-                  >
-                    {`${r.prenom?.[0] || ""}${
-                      r.nom?.[0] || ""
-                    }`.toUpperCase()}
-                  </div>
-
-                  <div className="min-w-0">
-
-                    <p className="truncate text-sm font-bold text-[#101B33]">
-                      {r.prenom} {r.nom}
-                    </p>
-
-                    <p className="mt-0.5 truncate font-mono text-[10px] text-[#8A93A5]">
-                      {r.matricule || "Sans matricule"}
-                    </p>
-
-                  </div>
-
-                </div>
-
-                <div
-                  className="
-                    shrink-0
-                    rounded-lg
-                    bg-[#FBF7EA]
-                    px-2.5
-                    py-1.5
-                    text-center
-                  "
-                >
-
-                  <p className="font-mono text-base font-bold text-[#8B681E]">
-                    {r.moyenneGenerale != null
-                      ? Number(
-                          r.moyenneGenerale
-                        ).toFixed(2)
-                      : "—"}
-                  </p>
-
-                  <p className="text-[8px] text-[#9B8144]">
-                    /20
-                  </p>
-
-                </div>
-
-              </div>
-
-              {/* INFOS */}
-
-              <div
-                className="
-                  mt-3
-                  grid
-                  grid-cols-2
-                  gap-2
-                "
-              >
-
-                <MobileInfo
-                  label="Cycle"
-                  value={r.cycleNom || "—"}
-                />
-
-                <MobileInfo
-                  label="Classe"
-                  value={r.classeNom || "—"}
-                />
-
-                <MobileInfo
-                  label="Rang"
-                  value={
-                    r.rang
-                      ? `${r.rang}ᵉ`
-                      : "—"
-                  }
-                />
-
-                <div
-                  className="
-                    rounded-lg
-                    bg-[#F8F7F2]
-                    px-2.5
-                    py-2
-                  "
-                >
-
-                  <p className="text-[8px] font-bold uppercase tracking-wide text-[#8A93A5]">
-                    Appréciation
-                  </p>
-
-                  <div className="mt-1.5">
-                    <AppreciationBadge
-                      appreciation={
-                        r.appreciation
-                      }
-                    />
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* ACTIONS */}
-
-              <div
-                className="
-                  mt-3
-                  flex
-                  gap-2
-                  border-t
-                  border-[#F0EFEA]
-                  pt-3
-                "
-              >
-
-                <button
-                  onClick={() =>
-                    ouvrirBulletin(r)
-                  }
-                  disabled={
-                    loadingBulletinId ===
-                    r.inscriptionId
-                  }
-                  className="
-                    flex
-                    flex-1
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-lg
-                    bg-[#101B33]
-                    px-3
-                    py-2
-                    text-[11px]
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-[#182746]
-                    disabled:opacity-50
-                  "
-                >
-
-                  {loadingBulletinId ===
-                  r.inscriptionId ? (
-                    <span
-                      className="
-                        h-3.5
-                        w-3.5
-                        animate-spin
-                        rounded-full
-                        border-2
-                        border-white/30
-                        border-t-white
-                      "
-                    />
-                  ) : (
-                    <Eye size={14} />
-                  )}
-
-                  Voir le bulletin
-
-                </button>
-
-                <button
-                  onClick={() =>
-                    telechargerPdf(r)
-                  }
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    rounded-lg
-                    border
-                    border-[#DEDCD0]
-                    bg-white
-                    px-3
-                    text-[#101B33]
-                    transition
-                    hover:bg-[#F8F7F2]
-                  "
-                  title="Télécharger PDF"
-                >
-                  <Download size={15} />
-                </button>
-
-                <button
-                  onClick={() =>
-                    envoyerAuxParents(r)
-                  }
-                  disabled={
-                    sendingId ===
-                    r.inscriptionId
-                  }
-                  className="
-                    flex
-                    items-center
-                    justify-center
-                    rounded-lg
-                    border
-                    border-[#DEDCD0]
-                    bg-white
-                    px-3
-                    text-[#2C8C82]
-                    transition
-                    hover:bg-[#F8F7F2]
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
-                  title="Envoyer aux parents"
-                >
-                  {sendingId ===
-                  r.inscriptionId ? (
-                    <span
-                      className="
-                        h-3.5
-                        w-3.5
-                        animate-spin
-                        rounded-full
-                        border-2
-                        border-[#2C8C82]/30
-                        border-t-[#2C8C82]
-                      "
-                    />
-                  ) : (
-                    <Send size={15} />
-                  )}
-                </button>
-
-              </div>
-
-            </div>
-
-          ))}
-
+        {loading ? <div className="py-12 text-center"><Spinner /><p className="mt-2 text-xs">Chargement des résultats...</p></div> : !resultatsTries.length ? <div className="rounded-2xl border border-dashed bg-white px-5 py-12 text-center text-sm text-[#8A93A5]"><GraduationCap className="mx-auto mb-3" /> Aucun résultat. Sélectionnez un cycle, une année et une période.</div> : resultatsTries.map((r) => <article key={r.inscriptionId} className="rounded-2xl border border-[#DEDCD0] bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-sm font-bold">{r.prenom} {r.nom}</h3><p className="mt-1 font-mono text-[10px] text-[#8A93A5]">{r.matricule || "Sans matricule"}</p><p className="mt-1 text-xs text-[#5B6478]">{r.classeNom}</p></div><div className="rounded-lg bg-[#FBF7EA] px-3 py-2 text-center"><p className="font-mono text-lg font-bold text-[#8B681E]">{fmt(r.moyenneGenerale)}</p><p className="text-[10px] text-[#9B8144]">/{getType(r) === "primaire" ? 10 : 20}</p></div></div><div className="mt-3 flex items-center justify-between gap-2"><span className="text-xs text-[#5B6478]">Rang : <strong>{r.rang ?? "—"}</strong></span><AppreciationBadge value={r.appreciation} /></div><div className="mt-3 border-t pt-3">{actions(r)}</div></article>)}
       </div>
-
-      {/* =====================================================
-          MODAL
-      ===================================================== */}
-
-      {apercu && (
-        <ModalApercu
-          resultat={apercu}
-          onClose={() => setApercu(null)}
-          onSend={envoyerAuxParents}
-          sendingId={sendingId}
-        />
-      )}
-
-    </div>
-  );
-}
-
-// =========================================================
-// ACTION BUTTONS
-// =========================================================
-
-function ActionButtons({
-  resultat,
-  loadingBulletinId,
-  sendingId,
-  onView,
-  onDownload,
-  onSend,
-}) {
-  const loading =
-    loadingBulletinId ===
-    resultat.inscriptionId;
-
-  const envoiEnCours =
-    sendingId === resultat.inscriptionId;
-
-  return (
-    <div className="flex justify-end gap-1.5">
-
-      <button
-        onClick={() => onView(resultat)}
-        disabled={loading}
-        title="Voir le bulletin"
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#F1F2F5]
-          text-[#5B6478]
-          transition
-          hover:bg-[#E7E3F8]
-          hover:text-[#6E5DC6]
-          disabled:cursor-not-allowed
-          disabled:opacity-50
-        "
-      >
-
-        {loading ? (
-          <span
-            className="
-              h-3.5
-              w-3.5
-              animate-spin
-              rounded-full
-              border-2
-              border-slate-300
-              border-t-[#101B33]
-            "
-          />
-        ) : (
-          <Eye size={14} />
-        )}
-
-      </button>
-
-      <button
-        onClick={() => onDownload(resultat)}
-        title="Télécharger PDF"
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#FBF7EA]
-          text-[#9B7428]
-          transition
-          hover:bg-[#F3E7C7]
-        "
-      >
-        <Download size={14} />
-      </button>
-
-      <button
-        onClick={() => onSend(resultat)}
-        disabled={envoiEnCours}
-        title="Envoyer aux parents"
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-lg
-          bg-[#DCEDEA]
-          text-[#236F68]
-          transition
-          hover:bg-[#C7E4DF]
-          disabled:cursor-not-allowed
-          disabled:opacity-50
-        "
-      >
-
-        {envoiEnCours ? (
-          <span
-            className="
-              h-3.5
-              w-3.5
-              animate-spin
-              rounded-full
-              border-2
-              border-[#236F68]/30
-              border-t-[#236F68]
-            "
-          />
-        ) : (
-          <Send size={14} />
-        )}
-
-      </button>
-
-      <button
-        onClick={() => onView(resultat)}
-        title="Ouvrir"
-        className="
-          flex
-          h-8
-          w-8
-          items-center
-          justify-center
-          rounded-lg
-          text-[#8A93A5]
-          transition
-          hover:bg-[#F8F7F2]
-          hover:text-[#101B33]
-        "
-      >
-        <ChevronRight size={15} />
-      </button>
-
-    </div>
-  );
-}
-
-// =========================================================
-// MOBILE INFO
-// =========================================================
-
-function MobileInfo({ label, value }) {
-  return (
-    <div
-      className="
-        rounded-lg
-        bg-[#F8F7F2]
-        px-2.5
-        py-2
-      "
-    >
-
-      <p
-        className="
-          text-[8px]
-          font-bold
-          uppercase
-          tracking-wide
-          text-[#8A93A5]
-        "
-      >
-        {label}
-      </p>
-
-      <p
-        className="
-          mt-0.5
-          truncate
-          text-[11px]
-          font-semibold
-          text-[#1B2333]
-        "
-      >
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-// =========================================================
-// LOADING
-// =========================================================
-
-function LoadingState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-12">
-
-      <div
-        className="
-          h-7
-          w-7
-          animate-spin
-          rounded-full
-          border-2
-          border-[#DEDCD0]
-          border-t-[#C89B3C]
-        "
-      />
-
-      <p className="mt-3 text-xs text-[#8A93A5]">
-        Chargement des résultats...
-      </p>
-
-    </div>
-  );
-}
-
-// =========================================================
-// EMPTY
-// =========================================================
-
-function EmptyState() {
-  return (
-    <div
-      className="
-        flex
-        flex-col
-        items-center
-        justify-center
-        rounded-2xl
-        border
-        border-dashed
-        border-[#DEDCD0]
-        bg-white
-        px-5
-        py-12
-        text-center
-      "
-    >
-
-      <div
-        className="
-          flex
-          h-12
-          w-12
-          items-center
-          justify-center
-          rounded-full
-          bg-[#F8F7F2]
-          text-[#8A93A5]
-        "
-      >
-        <GraduationCap size={22} />
-      </div>
-
-      <p className="mt-3 text-sm font-semibold text-[#1B2333]">
-        Aucun résultat
-      </p>
-
-      <p className="mt-1 max-w-xs text-xs text-[#8A93A5]">
-        Choisissez une année scolaire et une
-        période pour afficher les résultats.
-      </p>
-
+      {apercu && <BulletinModal bulletin={apercu.bulletin} resultat={apercu.resultat} periode={filtres.periode} annee={selectedYear?.nom || "Année scolaire"} onClose={() => setApercu(null)} onDownload={telechargerPdf} onSend={envoyerAuxParents} sending={sendingId === apercu.resultat.inscriptionId} downloading={downloadingId === apercu.resultat.inscriptionId} />}
+      {apercuPdf && <BulletinPdfModal pdfUrl={apercuPdf.pdfUrl} resultat={apercuPdf.resultat} mois={apercuPdf.mois} onClose={fermerApercuPdf} onDownload={telechargerPdf} onSend={envoyerAuxParents} sending={sendingId === apercuPdf.resultat.inscriptionId} downloading={downloadingId === apercuPdf.resultat.inscriptionId} />}
     </div>
   );
 }
