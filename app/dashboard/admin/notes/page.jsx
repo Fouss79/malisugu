@@ -138,6 +138,8 @@ export default function NotesPage() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [erreur, setErreur] = useState("");
   const [toast, setToast] = useState(null);
+  const [generatingFichePrimaire, setGeneratingFichePrimaire] =
+  useState(false);
 
   const afficherToast = useCallback((message) => {
     setToast(message);
@@ -902,6 +904,81 @@ export default function NotesPage() {
     }
   };
 
+  const downloadFicheViergePrimaire = async () => {
+  if (!estPrimaire || !classeId || !anneeId || !moisPrimaire) {
+    afficherErreur(
+      "Sélectionnez une classe primaire, l'année scolaire et le mois."
+    );
+    return;
+  }
+
+  setGeneratingFichePrimaire(true);
+  setErreur("");
+
+  try {
+    const response = await api.get(
+      `/releves-notes/primaire/classe/${classeId}/vierge/pdf`,
+      {
+        params: {
+          anneeId: Number(anneeId),
+          mois: moisPrimaire,
+        },
+        responseType: "blob",
+      }
+    );
+
+    const blob = response.data;
+
+    if (!blob?.size) {
+      throw new Error("Le serveur a retourné un fichier vide.");
+    }
+
+    if (
+      blob.type &&
+      !blob.type.includes("pdf") &&
+      blob.type !== "application/octet-stream"
+    ) {
+      throw new Error("Le serveur n'a pas retourné un PDF.");
+    }
+
+    const url = URL.createObjectURL(
+      new Blob([blob], { type: "application/pdf" })
+    );
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      `fiche-vierge-${classeId}-${moisPrimaire.toLowerCase()}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    afficherToast("✓ Fiche vierge téléchargée avec succès.");
+  } catch (error) {
+    console.error("Erreur téléchargement fiche primaire :", error);
+
+    let message = "Impossible de télécharger la fiche vierge.";
+
+    if (error.response?.data instanceof Blob) {
+      try {
+        const data = JSON.parse(await error.response.data.text());
+        message = data.message || data.error || message;
+      } catch {
+        // Réponse non JSON.
+      }
+    } else {
+      message = error.response?.data?.message || error.message || message;
+    }
+
+    afficherErreur(message);
+  } finally {
+    setGeneratingFichePrimaire(false);
+  }
+};
+
   // Bulletins mensuels du premier cycle : même API que la page Bulletins mensuels.
   const downloadBulletinsPrimaire = async () => {
     if (!estPrimaire || !classeId || !anneeId || !moisPrimaire) {
@@ -1507,6 +1584,29 @@ export default function NotesPage() {
     <BarChart3 size={17} />
     Voir les résultats
   </button>
+  {estPrimaire && (
+  <button
+    type="button"
+    onClick={downloadFicheViergePrimaire}
+    disabled={
+      !classeId ||
+      !anneeId ||
+      !moisPrimaire ||
+      generatingFichePrimaire
+    }
+    className={`${STYLES.button.primary} bg-[#2C8C82] shadow-sm hover:bg-[#236F68]`}
+  >
+    {generatingFichePrimaire ? (
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+    ) : (
+      <FileText size={17} />
+    )}
+
+    {generatingFichePrimaire
+      ? "Génération..."
+      : "Fiche vierge de notes"}
+  </button>
+)}
 
   {/* Actions réservées au secondaire */}
   {!estPrimaire && (
