@@ -1,154 +1,32 @@
 "use client";
-
 import { useState, useEffect } from "react";
+
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Fraunces, Inter } from "next/font/google";
+
 
 import {
   Menu,
-  X,
+   X,
   Users,
   UserCheck,
   CalendarCheck,
   Clock,
   CreditCard,
   LayoutDashboard,
-  Check,
 } from "lucide-react";
 
-/* =========================================================
-   TYPOGRAPHIE
-   Fraunces (serif à caractère) pour les titres, Inter pour
-   le texte courant — ni le duo "serif chaud + terracotta"
-   par défaut, ni une police display générique.
-========================================================= */
-
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-display",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-});
-
-/* =========================================================
-   PALETTE — reprise de l'application (dashboard) :
-   encre navy, or, sarcelle. Évoque le ruban de diplôme et
-   le tampon d'approbation plutôt qu'un bleu SaaS générique.
-========================================================= */
-
-const INK = "#101B33";
-const INK_SOFT = "#5B6478";
-const GOLD = "#C89B3C";
-const GOLD_2 = "#E4B655";
-const TEAL = "#2C8C82";
-const CREAM = "#F8F6EF";
-
-/* =========================================================
-   DONNÉES
-========================================================= */
-
-const STATS = [
+export default function LandingPage() {
+const stats = [
   { label: "Pays", value: 20 },
   { label: "Fonctionnalités", value: 250 },
   { label: "Établissements", value: 300 },
 ];
 
-const FEATURES = [
-  {
-    label: "Gestion des élèves",
-    description:
-      "Dossiers, inscriptions et historiques centralisés, du premier cycle au lycée.",
-    icon: Users,
-  },
-  {
-    label: "Gestion des enseignants",
-    description:
-      "Contrats, affectations et salaires suivis sans tableur ni paperasse.",
-    icon: UserCheck,
-  },
-  {
-    label: "Suivi des présences",
-    description:
-      "Émargement en quelques secondes, visible par la direction en temps réel.",
-    icon: CalendarCheck,
-  },
-  {
-    label: "Emploi du temps",
-    description:
-      "Cours, salles et enseignants organisés sans conflit d'horaire.",
-    icon: Clock,
-  },
-  {
-    label: "Paiements & abonnements",
-    description:
-      "Scolarité, bulletins de salaire et reçus générés automatiquement.",
-    icon: CreditCard,
-  },
-  {
-    label: "Tableau de bord",
-    description:
-      "Une vue d'ensemble claire pour la direction, classe par classe.",
-    icon: LayoutDashboard,
-  },
-];
 
-const PLANS = [
-  {
-    name: "Basic",
-    price: "5 000",
-    desc: "Pour les petites écoles qui démarrent",
-    features: ["Jusqu'à 50 élèves", "Gestion enseignants", "Présences"],
-    highlight: false,
-  },
-  {
-    name: "Pro",
-    price: "10 000",
-    desc: "Pour les écoles en croissance",
-    features: [
-      "Jusqu'à 200 élèves",
-      "Paiements & bulletins",
-      "Tableau de bord complet",
-      "Support prioritaire",
-    ],
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Sur mesure",
-    desc: "Pour les grands établissements et groupes scolaires",
-    features: ["Élèves illimités", "Multi-établissements", "Support dédié"],
-    highlight: false,
-  },
-];
 
-const TEMOIGNAGES = [
-  {
-    name: "Directeur d'école",
-    text: "Danischool nous a permis de digitaliser toute notre gestion scolaire en quelques jours. Un gain de temps énorme.",
-  },
-  {
-    name: "Professeur",
-    text: "Je fais l'appel et je saisis les notes directement depuis mon téléphone, entre deux cours.",
-  },
-  {
-    name: "Administrateur",
-    text: "Interface simple et rapide. Nos paiements de scolarité sont enfin bien organisés.",
-  },
-];
 
-const IMAGES_APERCU = ["/Capture d’écran 2026-09-29 012344.png","/Capture d’écran 2026-09-29 005449.png", "/Capture d’écran 2026-09-29 010505.png","/Capture d’écran 2026-09-29 003616.png","/Capture d’écran 2026-09-29 012344.png"];
-
-/* =========================================================
-   COMPTEUR ANIMÉ — sorti du composant de page pour ne pas
-   être redéfini (et redémarré) à chaque rendu.
-========================================================= */
-
-function Counter({ end }) {
+function Counter({ end }: { end: number }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
@@ -173,569 +51,538 @@ function Counter({ end }) {
   return <span>{count}+</span>;
 }
 
-/* =========================================================
-   CARROUSEL D'APERÇU — même correction : sorti du composant
-   de page, ne se réinitialise plus à chaque rendu du parent.
-========================================================= */
+const [open, setOpen] = useState(false);
 
-function ApercuCarousel() {
+const plans = [
+  {
+    name: "Basic",
+    price: "5 000 FCFA",
+    desc: "Pour petites écoles",
+    features: ["50 élèves", "Gestion enseignants", "Présences"],
+    highlight: false,
+    color: "yellow-600"
+  },
+  {
+    name: "Pro",
+    price: "10 000 FCFA",
+    desc: "Pour écoles en croissance",
+    features: ["200 élèves", "Paiements", "Tableau de bord", "Support"],
+    highlight: true,
+    color:"white",
+  },
+  {
+    name: "Enterprise",
+    price: "Sur mesure",
+    desc: "Pour grandes écoles",
+    features: ["Illimité", "Multi-utilisateurs", "Support premium"],
+    highlight: false,
+    color:"yellow-600"
+  },
+];
+
+  const features = [
+    { label: "Gestion des élèves", icon: Users, color: "from-blue-500 to-blue-700" },
+    { label: "Gestion des enseignants", icon: UserCheck, color: "from-green-500 to-green-700" },
+    { label: "Suivi des présences", icon: CalendarCheck, color: "from-purple-500 to-purple-700" },
+    { label: "Emploi du temps", icon: Clock, color: "from-orange-500 to-orange-700" },
+    { label: "Paiements & abonnements", icon: CreditCard, color: "from-pink-500 to-pink-700" },
+    { label: "Tableau de bord", icon: LayoutDashboard, color: "from-indigo-500 to-indigo-700" },
+  ];
+const ImageSlider = () => {
+  const images = ["/Dshboard.png", "/Abs.png", "/Note.png"];
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % IMAGES_APERCU.length);
-    }, 3500);
-
+      setIndex((prev) => (prev + 1) % images.length);
+    }, 3000);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="relative w-full max-w-xl">
-      <div
-        className="overflow-hidden rounded-2xl border shadow-2xl"
-        style={{ borderColor: "#DEDCD0", background: "#fff" }}
-      >
-        <div className="flex items-center gap-1.5 px-4 py-3">
-          <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: TEAL }} />
+    <div className="w-full flex justify-center">
+      <div className="relative w-full max-w-4xl">
+
+        {/* 💻 MacBook frame */}
+        <div className="bg-white rounded-2xl shadow-2xl ">
+
+          {/* Top bar (Mac style) */}
+          <div className="flex items-center gap-2 px-3 py-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full" />
+            <div className="w-3 h-3 bg-yellow-400 rounded-full" />
+            <div className="w-3 h-3 bg-green-500 rounded-full" />
+          </div>
+
+          {/* Screen */}
+          <div className="relative bg-white rounded-xl overflow-hidden h-[350px] md:h-[450px]">
+            {images.map((img, i) => (
+              <motion.img
+                key={i}
+                src={img}
+                alt="Dashboard"
+                className="absolute inset-0 w-full h-full object-contain p-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: i === index ? 1 : 0 }}
+                transition={{ duration: 0.8 }}
+              />
+            ))}
+
+          </div>
         </div>
 
-        <div className="relative h-[280px] bg-[#F8F6EF] sm:h-[360px]">
-          {IMAGES_APERCU.map((src, i) => (
-            <motion.img
-              key={src}
-              src={src}
-              alt="Aperçu Danischool"
-              className="absolute inset-0 h-full w-full object-contain p-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: i === index ? 1 : 0 }}
-              transition={{ duration: 0.7 }}
-            />
-          ))}
-        </div>
+        {/* Shadow glow */}
+        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-3/4 h-6 bg-black/20 blur-xl rounded-full" />
+
       </div>
-
-      <div
-        className="absolute -bottom-4 left-1/2 h-8 w-3/4 -translate-x-1/2 rounded-full blur-2xl"
-        style={{ background: `${INK}22` }}
-      />
     </div>
   );
-}
-
-/* =========================================================
-   PAGE
-========================================================= */
-
-export default function LandingPage() {
-  const [open, setOpen] = useState(false);
-
+};
   return (
-    <div
-      className={`${fraunces.variable} ${inter.variable} min-h-screen`}
-      style={{
-        background: CREAM,
-        color: INK,
-        fontFamily: "var(--font-body), sans-serif",
-      }}
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+
+      {/* HEADER */}
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm bg-gradient-to-r from-yellow-50 to-white">
+  <div className="flex justify-between items-center px-4 md:px-6 py-3 max-w-7xl mx-auto">
+
+    {/* LOGO */}
+    <h1 className="text-xl md:text-2xl font-bold italic text-gray-700">
+      Kalan<span className="text-yellow-600">SO</span>
+    </h1>
+
+    {/* MENU DESKTOP */}
+    <nav className="hidden md:flex items-center gap-6 text-gray-600 font-medium">
+      <a href="#features" className="hover:text-yellow-600 transition">Fonctionnalités</a>
+      <a href="#pricing" className="hover:text-yellow-600 transition">Tarifs</a>
+      <a href="#stats" className="hover:text-yellow-600 transition">Statistiques</a>
+    </nav>
+
+    {/* ACTIONS DESKTOP */}
+    <div className="hidden md:flex items-center gap-3">
+      <Link href="/login">
+        <button className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
+          Se connecter
+        </button>
+      </Link>
+      <Link href="/inscrire">
+       <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition shadow">
+        S'inscrire
+      </button></Link>
+     
+    </div>
+    
+
+    {/* BURGER MOBILE */}
+    <button
+      className="md:hidden"
+      onClick={() => setOpen(!open)}
     >
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
+      {open ? <X size={28} /> : <Menu size={28} />}
+    </button>
+  </div>
 
-      <header
-        className="sticky top-0 z-50 border-b backdrop-blur-md"
-        style={{ borderColor: "#E4E1D6", background: "rgba(248,246,239,0.9)" }}
-      >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 md:px-6">
+  {/* MENU MOBILE */}
+  {open && (
+    <div className="md:hidden bg-white border-t px-4 py-4 space-y-4 shadow-md">
+      
+      <a href="#features" className="block text-gray-600 hover:text-yellow-600">
+        Fonctionnalités
+      </a>
 
-          <span
-            className="text-xl font-semibold tracking-tight md:text-2xl"
-            style={{ fontFamily: "var(--font-display), serif" }}
-          >
-            Dani<span style={{ color: GOLD }}>school</span>
-          </span>
+      <a href="#pricing" className="block text-gray-600 hover:text-yellow-600">
+        Tarifs
+      </a>
 
-          <nav className="hidden items-center gap-8 text-sm font-medium md:flex" style={{ color: INK_SOFT }}>
-            <a href="#features" className="transition hover:text-current" style={{ "--hover": INK }}>
-              Fonctionnalités
-            </a>
-            <a href="#pricing" className="transition hover:opacity-100">
-              Tarifs
-            </a>
-            <a href="#stats" className="transition hover:opacity-100">
-              Statistiques
-            </a>
-          </nav>
+      <a href="#stats" className="block text-gray-600 hover:text-yellow-600">
+        Statistiques
+      </a>
 
-          <div className="hidden items-center gap-3 md:flex">
-            <Link href="/login">
-              <button
-                className="rounded-lg border px-4 py-2 text-sm font-medium transition hover:bg-white"
-                style={{ borderColor: "#DEDCD0", color: INK }}
-              >
-                Se connecter
-              </button>
-            </Link>
-            <Link href="/inscrire">
-              <button
-                className="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
-                style={{ background: INK }}
-              >
-                S&apos;inscrire
-              </button>
-            </Link>
-          </div>
+      <Link href="/login">
+        <button className="w-full px-4 py-2 border rounded-lg">
+          Se connecter
+        </button>
+      </Link>
 
-          <button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Menu">
-            {open ? <X size={26} /> : <Menu size={26} />}
-          </button>
-        </div>
+      <button className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-lg">
+        S'inscrire
+      </button>
 
-        {open && (
-          <div className="space-y-4 border-t px-4 py-4 md:hidden" style={{ borderColor: "#E4E1D6" }}>
-            <a href="#features" className="block text-sm font-medium" style={{ color: INK_SOFT }}>
-              Fonctionnalités
-            </a>
-            <a href="#pricing" className="block text-sm font-medium" style={{ color: INK_SOFT }}>
-              Tarifs
-            </a>
-            <a href="#stats" className="block text-sm font-medium" style={{ color: INK_SOFT }}>
-              Statistiques
-            </a>
+    </div>
+  )}
+</header>
+      {/* HERO */}
+     <section className="grid md:grid-cols-2 items-center gap-8 md:gap-12 px-4 md:px-6 py-10 md:py-12 max-w-7xl mx-auto relative  bg-gradient-to-br from-gray-50 to-white overflow-hidden">
+       {/* Background décoratif */}
+  <div className="absolute -top-20 -left-20 w-72 h-72 bg-yellow-200 rounded-full blur-3xl opacity-30"></div>
+  <div className="absolute -bottom-20 -right-20 w-72 h-72 bg-blue-200 rounded-full blur-3xl opacity-30"></div>
 
-            <Link href="/login">
-              <button className="w-full rounded-lg border px-4 py-2 text-sm" style={{ borderColor: "#DEDCD0" }}>
-                Se connecter
-              </button>
-            </Link>
+        {/* LEFT */}
+        <div>
+          {/* TITLE */}
+      <h2 className="text-3xl md:text-5xl font-extrabold leading-tight text-gray-900">
+        Gérez votre école <br />
+        <span className="bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
+          partout, à tout moment
+        </span>
+      </h2>
 
-            <Link href="/inscrire">
-              <button
-                className="w-full rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                style={{ background: INK }}
-              >
-                S&apos;inscrire
-              </button>
-            </Link>
-          </div>
-        )}
-      </header>
 
-      {/* =====================================================
-          HERO
-      ===================================================== */}
-
-      <section className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-14 md:grid-cols-2 md:px-6 md:py-20">
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h1
-            className="text-4xl font-medium leading-[1.08] tracking-tight md:text-5xl lg:text-[3.4rem]"
-            style={{ fontFamily: "var(--font-display), serif" }}
-          >
-            La gestion de votre école,
-            <br />
-            <span style={{ color: GOLD }}>partout, à tout moment.</span>
-          </h1>
-
-          <p className="mt-6 max-w-md text-lg" style={{ color: INK_SOFT }}>
-            Élèves, enseignants, présences et paiements réunis dans un seul
-            outil, pensé pour les établissements francophones.
+          <p className="text-gray-600 mb-6 text-lg">
+            Une solution moderne pour gérer élèves, enseignants,
+            présences et paiements en toute simplicité.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              className="rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110"
-              style={{ background: INK }}
-            >
+          <div className="flex gap-4">
+            <button className="bg-gray-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-lg">
               Essayer gratuitement
             </button>
 
-            <button
-              className="rounded-xl border px-6 py-3 text-sm font-semibold transition hover:bg-white"
-              style={{ borderColor: "#DEDCD0" }}
-            >
-              Voir la démo
+            <button className="border px-6 py-3 rounded-xl hover:bg-gray-100 transition">
+              Voir démo
             </button>
           </div>
 
-          <p className="mt-5 text-sm" style={{ color: INK_SOFT }}>
-            Déjà plus de 50 écoles utilisent Danischool.
+          {/* Badge */}
+          <p className="text-sm text-gray-400 mt-4">
+            +50 écoles utilisent déjà KalanSO
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          className="flex justify-center md:justify-end"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-        >
-          <ApercuCarousel />
-        </motion.div>
+        {/* RIGHT */}
+          <div
+            className=" h-[250px] md:h-[550px] bg-cover bg-center "
+            style={{ backgroundImage: "url('/gest.png')" }}
+          ></div>
       </section>
 
-      {/* =====================================================
-          STATS
-      ===================================================== */}
+ 
 
-      <section id="stats" className="border-y" style={{ borderColor: "#E4E1D6" }}>
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-14 text-center sm:grid-cols-3 md:px-6 md:py-20">
-          {STATS.map((stat, i) => (
-            <div key={stat.label} className="relative flex flex-col items-center">
-              <span
-                className="text-4xl font-medium sm:text-5xl md:text-6xl"
-                style={{ fontFamily: "var(--font-display), serif", color: INK }}
-              >
-                <Counter end={stat.value} />
-              </span>
+     {/* STATS */}
+<section className="py-16 md:py-24 px-4 md:px-6 ">
+  <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 text-center gap-8">
 
-              <p className="mt-2 text-sm" style={{ color: INK_SOFT }}>
-                {stat.label}
-              </p>
+    {stats.map((stat, i) => (
+      <div key={i} className="relative flex flex-col items-center">
 
-              {i !== STATS.length - 1 && (
-                <div
-                  className="absolute right-0 top-1/2 hidden h-14 w-px -translate-y-1/2 sm:block"
-                  style={{ background: "#DEDCD0" }}
-                />
-              )}
+        <motion.h2 className="text-3xl sm:text-4xl md:text-6xl font-bold text-yellow-600">
+          <Counter end={stat.value} />
+        </motion.h2>
+
+        <p className="text-gray-500 mt-2">{stat.label}</p>
+
+        {/* Séparateur vertical (desktop uniquement) */}
+        {i !== stats.length - 1 && (
+          <div className="hidden sm:block absolute right-0 top-1/2 -translate-y-1/2 h-16 w-[1px] bg-gray-300"></div>
+        )}
+      </div>
+    ))}
+
+  </div>
+</section>
+<div>
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-4xl text-center md:text-4xl font-bold mb-6 leading-tight italic "
+          >
+            Un logiciel de gestion scolaire adapté aux écoles, CFA et universités
+       <br />
+                   </motion.h1>
+
+          <p className="text-gray-600 mb-6 text-center text-lg">
+            Une solution moderne pour gérer élèves, enseignants,
+            présences et paiements en toute simplicité.
+          </p>
+          <p className="text-600 text-center text-lg">
+            Application bilingue utilisée dans plus de 20 pays, notre solution tout-en-un facilite la gestion scolaire à l’international
+          </p>
+
+
+        
+        </div>
+
+
+
+{/* FEATURES */}
+<section className="py-24 px-6 bg-white">
+  <h2 className="text-2xl md:text-5xl font-bold text-gray-600 text-center mb-8 md:mb-12 italic">
+    Fonctionnalités principales
+  </h2>
+
+ <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-10 max-w-6xl mx-auto">  {features.map((feature, i) => {
+      const Icon = feature.icon;
+
+      return (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -8, scale: 1.03 }}
+          transition={{ duration: 0.4 }}
+          className="group bg-gray-200 border border-gray-100 p-6 rounded-2xl shadow-sm hover:shadow-2xl transition"
+        >
+          {/* ICON */}
+          <div
+            className={`w-14 h-14 flex items-center justify-center rounded-xl bg-gradient-to-r ${feature.color} text-white mb-4 group-hover:scale-110 transition`}
+          >
+            <Icon size={26} />
+          </div>
+
+          {/* TITLE */}
+          <h3 className="font-semibold text-lg mb-2 group-hover:text-blue-600 transition">
+            {feature.label}
+          </h3>
+
+          {/* DESCRIPTION */}
+          <p className="text-gray-500 text-sm">
+            Une gestion simple et efficace pour améliorer votre organisation scolaire.
+          </p>
+        </motion.div>
+      );
+    })}
+  </div>
+</section>
+ <section className="flex flex-col md:flex-row">
+          <div className="w-full md:w-1/2 h-auto md:h-[400px]  md:p-10  flex flex-col ">
+          <p className="text-gray-600 text-lg leading-relaxed max-w-xl">KalanSo est une solution de gestion scolaire multiplateforme compatible avec ordinateurs,
+             tablettes et smartphones. Grâce à son application mobile disponible sur iOS et Android,
+              accédez à votre établissement où que vous soyez.</p>
+              <p className="text-gray-400 mt-4">Depuis votre téléphone, gérez facilement votre établissement en quelques clics :</p>
+               <div className="space-y-4">
+        {[
+          "Effectuez l’appel en temps réel",
+          "Saisissez les notes rapidement",
+          "Partagez cours et devoirs facilement",
+        ].map((item, i) => (
+          <div key={i} className="flex items-center gap-4 group">
+            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-yellow-100 text-yellow-600 group-hover:scale-110 transition">
+              ✔
             </div>
+            <p className="text-gray-700 font-medium">{item}</p>
+          </div>
+        ))}
+      </div>
+
+          </div>
+          <div
+            className="w-full md:w-1/2 h-[250px] md:h-[400px] bg-cover bg-center "
+            style={{ backgroundImage: "url('/eleve1.jpg')" }}
+          ></div>
+        </section>
+{/* PRICING */}
+
+<section id="pricing" className="py-24 px-6 bg-gray-50">
+  <h2 className="text-2xl md:text-5xl font-bold text-gray-600 text-center mb-12">
+    Nos abonnements
+  </h2>
+
+  <div className="grid md:grid-cols-3 gap-10 max-w-6xl mx-auto">
+    {plans.map((plan, i) => (
+      <motion.div
+        key={i}
+
+        /* 👇 animation comme features */
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: i * 0.2 }}
+
+        /* 👇 hover fluide */
+        whileHover={{ y: -10, scale: 1.04 }}
+
+        className={`group relative rounded-2xl p-6 border transition duration-300 ${
+          plan.highlight
+            ? "bg-gradient-to-br bg-gray-600 text-white shadow-2xl scale-105"
+            : "bg-white hover:shadow-2xl"
+        }`}
+      >
+
+        {/* BADGE PRO */}
+        {plan.highlight && (
+          <span className="absolute top-4 right-4 text-xs bg-white text-yellow-600 px-3 py-1 rounded-full font-semibold shadow">
+            Populaire
+          </span>
+        )}
+
+        {/* NAME */}
+        <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+
+        {/* PRICE */}
+        <p
+          className={`text-3xl font-extrabold mb-4 ${
+            plan.highlight ? "text-white" : "text-yellow-600"
+          }`}
+        >
+          {plan.price}
+        </p>
+
+        {/* DESC */}
+        <p
+          className={`mb-6 ${
+            plan.highlight ? "text-white/80" : "text-gray-500"
+          }`}
+        >
+          {plan.desc}
+        </p>
+
+        {/* FEATURES */}
+        <ul className="space-y-3 mb-6">
+          {plan.features.map((f, idx) => (
+            <li key={idx} className="flex items-center gap-3">
+              <span
+                className={`w-6 h-6 flex items-center justify-center rounded-full text-sm ${
+                  plan.highlight
+                    ? "bg-white text-yellow-600"
+                    : "bg-yellow-100 text-yellow-600"
+                }`}
+              >
+                ✔
+              </span>
+              {f}
+            </li>
+          ))}
+        </ul>
+
+        {/* BUTTON */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className={`w-full py-3 rounded-xl font-semibold transition ${
+            plan.highlight
+              ? "bg-white text-yellow-600 hover:bg-gray-100"
+              : "bg-gray-600 text-white hover:bg-yellow-700"
+          }`}
+        >
+          Choisir ce plan
+        </motion.button>
+      </motion.div>
+    ))}
+  </div>
+</section>
+<section>
+  <ImageSlider/>
+</section>
+        <section className="py-20 px-6 bg-white text-yellow-500 text-center">
+  <h2 className="text-3xl md:text-4xl font-bold mb-4">
+    Commencez dès aujourd’hui 
+  </h2>
+
+  <p className="mb-6 text-lg">
+    Rejoignez les écoles qui utilisent déjà KalanSO
+  </p>
+
+  <button className="bg-white text-yellow-600 px-8 py-4 rounded-xl font-semibold hover:bg-gray-100 transition shadow-lg">
+    Créer un compte gratuitement
+  </button>
+</section>
+{/* TESTIMONIALS */}
+<section className="py-24 px-6 bg-gray-100">
+  <h2 className="text-2xl md:text-5xl font-bold text-center mb-12 text-gray-700">
+    Ce que disent nos utilisateurs
+  </h2>
+
+  <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+
+    {[
+      {
+        name: "Directeur école",
+        text: "KalanSO nous a permis de digitaliser toute notre gestion scolaire en quelques jours. Un gain de temps énorme !",
+      },
+      {
+        name: "Professeur",
+        text: "Je peux faire l’appel et saisir les notes directement depuis mon téléphone. C’est juste parfait.",
+      },
+      {
+        name: "Administrateur",
+        text: "Interface simple, rapide et efficace. Nos paiements sont désormais bien organisés.",
+      },
+    ].map((item, i) => (
+      <motion.div
+        key={i}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        whileHover={{ scale: 1.03 }}
+        transition={{ duration: 0.4 }}
+        className="bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition"
+      >
+        {/* ⭐ STARS */}
+        <div className="flex mb-4 text-yellow-400">
+          {"★★★★★".split("").map((star, index) => (
+            <span key={index}>{star}</span>
           ))}
         </div>
-      </section>
 
-      {/* =====================================================
-          INTRO / POSITIONNEMENT
-      ===================================================== */}
-
-      <section className="mx-auto max-w-3xl px-4 py-16 text-center md:px-6">
-        <h2
-          className="text-2xl font-medium leading-snug md:text-4xl"
-          style={{ fontFamily: "var(--font-display), serif" }}
-        >
-          Un logiciel de gestion scolaire pensé pour les écoles, les CFA et
-          les universités.
-        </h2>
-
-        <p className="mt-5 text-lg" style={{ color: INK_SOFT }}>
-          Bilingue et déployée dans plus de 20 pays, Danischool réunit tout ce
-          dont une direction a besoin pour piloter son établissement au
-          quotidien.
-        </p>
-      </section>
-
-      {/* =====================================================
-          FEATURES — liste éditoriale, pas une grille de cartes
-          identiques.
-      ===================================================== */}
-
-      <section id="features" className="px-4 py-16 md:px-6 md:py-24" style={{ background: "#fff" }}>
-        <div className="mx-auto max-w-5xl">
-          <h2
-            className="mb-12 text-2xl font-medium md:text-4xl"
-            style={{ fontFamily: "var(--font-display), serif" }}
-          >
-            Ce que Danischool gère pour vous
-          </h2>
-
-          <div className="divide-y" style={{ borderColor: "#E4E1D6" }}>
-            {FEATURES.map((feature) => {
-              const Icon = feature.icon;
-
-              return (
-                <div
-                  key={feature.label}
-                  className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:gap-8"
-                  style={{ borderColor: "#E4E1D6" }}
-                >
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: `${TEAL}14`, color: TEAL }}
-                  >
-                    <Icon size={20} />
-                  </div>
-
-                  <div className="sm:flex sm:flex-1 sm:items-baseline sm:justify-between sm:gap-6">
-                    <h3 className="text-base font-semibold sm:w-64 sm:shrink-0">
-                      {feature.label}
-                    </h3>
-
-                    <p className="mt-1 text-sm sm:mt-0" style={{ color: INK_SOFT }}>
-                      {feature.description}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* =====================================================
-          MOBILE — image + liste d'usages courts
-      ===================================================== */}
-
-      <section className="flex flex-col md:flex-row">
-        <div
-          className="order-2 flex w-full flex-col justify-center px-4 py-12 md:order-1 md:w-1/2 md:px-12 md:py-20"
-          style={{ background: INK }}
-        >
-          <p className="max-w-md text-lg leading-relaxed text-white/80">
-            Danischool fonctionne sur ordinateur, tablette et smartphone.
-            Grâce à l&apos;application mobile, gérez votre établissement où
-            que vous soyez.
-          </p>
-
-          <div className="mt-8 space-y-4">
-            {[
-              "Effectuer l'appel en temps réel",
-              "Saisir les notes rapidement",
-              "Partager cours et devoirs facilement",
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-3.5">
-                <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                  style={{ background: `${GOLD_2}20`, color: GOLD_2 }}
-                >
-                  <Check size={16} />
-                </span>
-                <p className="text-white/90">{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div
-          className="order-1 h-[220px] w-full bg-cover bg-center md:order-2 md:h-auto md:w-1/2"
-          style={{ backgroundImage: "url('/eleve1.jpg')" }}
-        />
-      </section>
-
-      {/* =====================================================
-          PRICING — asymétrique : le plan Pro est mis en avant,
-          pas trois cartes identiques.
-      ===================================================== */}
-
-      <section id="pricing" className="px-4 py-16 md:px-6 md:py-24">
-        <div className="mx-auto max-w-5xl">
-          <h2
-            className="mb-3 text-center text-2xl font-medium md:text-4xl"
-            style={{ fontFamily: "var(--font-display), serif" }}
-          >
-            Des abonnements simples
-          </h2>
-
-          <p className="mx-auto mb-12 max-w-md text-center" style={{ color: INK_SOFT }}>
-            Choisissez selon la taille de votre établissement. Changez de
-            formule à tout moment.
-          </p>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`flex flex-col rounded-2xl border p-7 ${
-                  plan.highlight ? "md:-mt-4 md:mb-4 md:shadow-xl" : "shadow-sm"
-                }`}
-                style={{
-                  borderColor: plan.highlight ? INK : "#E4E1D6",
-                  background: plan.highlight ? INK : "#fff",
-                  color: plan.highlight ? "#fff" : INK,
-                }}
-              >
-                {plan.highlight && (
-                  <span
-                    className="mb-4 w-fit rounded-full px-3 py-1 text-xs font-semibold"
-                    style={{ background: GOLD_2, color: INK }}
-                  >
-                    Le plus choisi
-                  </span>
-                )}
-
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-
-                <p
-                  className="mt-3 text-3xl font-medium"
-                  style={{ fontFamily: "var(--font-display), serif" }}
-                >
-                  {plan.price}
-                  {plan.price !== "Sur mesure" && (
-                    <span
-                      className="ml-1 text-sm font-normal"
-                      style={{ color: plan.highlight ? "rgba(255,255,255,0.6)" : INK_SOFT }}
-                    >
-                      FCFA / mois
-                    </span>
-                  )}
-                </p>
-
-                <p
-                  className="mt-2 text-sm"
-                  style={{ color: plan.highlight ? "rgba(255,255,255,0.7)" : INK_SOFT }}
-                >
-                  {plan.desc}
-                </p>
-
-                <ul className="mt-6 flex-1 space-y-3">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-sm">
-                      <span
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                        style={{
-                          background: plan.highlight ? "rgba(255,255,255,0.15)" : `${TEAL}14`,
-                          color: plan.highlight ? GOLD_2 : TEAL,
-                        }}
-                      >
-                        <Check size={12} />
-                      </span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  className="mt-8 w-full rounded-xl py-3 text-sm font-semibold transition hover:brightness-110"
-                  style={
-                    plan.highlight
-                      ? { background: GOLD_2, color: INK }
-                      : { background: CREAM, color: INK, border: "1px solid #E4E1D6" }
-                  }
-                >
-                  Choisir {plan.name}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* =====================================================
-          CTA
-      ===================================================== */}
-
-      <section className="px-4 py-20 text-center md:px-6" style={{ background: INK }}>
-        <h2
-          className="text-2xl font-medium text-white md:text-4xl"
-          style={{ fontFamily: "var(--font-display), serif" }}
-        >
-          Commencez dès aujourd&apos;hui
-        </h2>
-
-        <p className="mt-3 text-white/70">
-          Rejoignez les écoles qui utilisent déjà Danischool.
+        {/* TEXT */}
+        <p className="text-gray-600 italic mb-4">
+          “{item.text}”
         </p>
 
-        <button
-          className="mt-7 rounded-xl px-8 py-3.5 font-semibold shadow-lg transition hover:brightness-110"
-          style={{ background: GOLD_2, color: INK }}
-        >
-          Créer un compte gratuitement
-        </button>
-      </section>
+        {/* USER */}
+        <div className="flex items-center gap-3 mt-4">
+          <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center font-bold text-gray-700">
+            {item.name.charAt(0)}
+          </div>
 
-      {/* =====================================================
-          TÉMOIGNAGES
-      ===================================================== */}
-
-      <section className="px-4 py-16 md:px-6 md:py-24" style={{ background: "#fff" }}>
-        <div className="mx-auto max-w-5xl">
-          <h2
-            className="mb-12 text-2xl font-medium md:text-4xl"
-            style={{ fontFamily: "var(--font-display), serif" }}
-          >
-            Ce que disent nos utilisateurs
-          </h2>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {TEMOIGNAGES.map((item) => (
-              <div key={item.name} className="border-l-2 pl-5" style={{ borderColor: GOLD }}>
-                <p className="italic leading-relaxed" style={{ color: INK }}>
-                  &ldquo;{item.text}&rdquo;
-                </p>
-
-                <div className="mt-4 flex items-center gap-3">
-                  <div
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold"
-                    style={{ background: `${TEAL}14`, color: TEAL }}
-                  >
-                    {item.name.charAt(0)}
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold">{item.name}</p>
-                    <p className="text-xs" style={{ color: INK_SOFT }}>
-                      Utilisateur Danischool
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div>
+            <p className="font-semibold text-gray-800">{item.name}</p>
+            <p className="text-sm text-gray-400">Utilisateur KalanSO</p>
           </div>
         </div>
-      </section>
+      </motion.div>
+    ))}
 
-      {/* =====================================================
-          FOOTER
-      ===================================================== */}
+  </div>
+</section>
+      {/* FOOTER */}
+     <footer className="bg-gray-900 text-gray-300 px-6 py-12 mt-10">
+  <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-10">
 
-      <footer className="px-4 py-14 md:px-6" style={{ background: INK, color: "rgba(255,255,255,0.7)" }}>
-        <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-4">
+    {/* LOGO + DESC */}
+    <div>
+      <h2 className="text-2xl font-bold text-white mb-4">
+        Kalan<span className="text-yellow-500">SO</span>
+      </h2>
+      <p className="text-gray-400 text-sm">
+        Une solution moderne pour digitaliser la gestion scolaire.
+      </p>
+    </div>
 
-          <div>
-            <span
-              className="text-xl font-semibold text-white"
-              style={{ fontFamily: "var(--font-display), serif" }}
-            >
-              Dani<span style={{ color: GOLD_2 }}>school</span>
-            </span>
-            <p className="mt-3 text-sm">
-              Une solution moderne pour digitaliser la gestion scolaire.
-            </p>
-          </div>
+    {/* LIENS */}
+    <div>
+      <h3 className="text-white font-semibold mb-3">Produit</h3>
+      <ul className="space-y-2 text-sm">
+        <li><a href="#features" className="hover:text-white">Fonctionnalités</a></li>
+        <li><a href="#pricing" className="hover:text-white">Tarifs</a></li>
+        <li><a href="#" className="hover:text-white">Démo</a></li>
+      </ul>
+    </div>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-white">Produit</h3>
-            <ul className="space-y-2 text-sm">
-              <li><a href="#features" className="hover:text-white">Fonctionnalités</a></li>
-              <li><a href="#pricing" className="hover:text-white">Tarifs</a></li>
-              <li><a href="#" className="hover:text-white">Démo</a></li>
-            </ul>
-          </div>
+    {/* SUPPORT */}
+    <div>
+      <h3 className="text-white font-semibold mb-3">Support</h3>
+      <ul className="space-y-2 text-sm">
+        <li><a href="#" className="hover:text-white">Contact</a></li>
+        <li><a href="#" className="hover:text-white">FAQ</a></li>
+        <li><a href="#" className="hover:text-white">Assistance</a></li>
+      </ul>
+    </div>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-white">Support</h3>
-            <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:text-white">Contact</a></li>
-              <li><a href="#" className="hover:text-white">FAQ</a></li>
-              <li><a href="#" className="hover:text-white">Assistance</a></li>
-            </ul>
-          </div>
+    {/* CTA */}
+    <div>
+      <h3 className="text-white font-semibold mb-3">Commencer</h3>
+      <p className="text-sm text-gray-400 mb-4">
+        Essayez gratuitement KalanSO dès aujourd’hui.
+      </p>
+      <button className="bg-yellow-500 text-white px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 w-full">
+        Créer un compte
+      </button>
+    </div>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-white">Commencer</h3>
-            <p className="mb-4 text-sm">Essayez gratuitement Danischool dès aujourd&apos;hui.</p>
-            <button
-              className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold"
-              style={{ background: GOLD_2, color: INK }}
-            >
-              Créer un compte
-            </button>
-          </div>
+  </div>
 
-        </div>
-
-        <div
-          className="mx-auto mt-10 max-w-7xl border-t pt-6 text-center text-xs"
-          style={{ borderColor: "rgba(255,255,255,0.12)" }}
-        >
-          © {new Date().getFullYear()} Danischool — Tous droits réservés
-        </div>
-      </footer>
+  {/* BAS */}
+  <div className="border-t border-gray-700 mt-10 pt-6 text-center text-sm text-gray-500">
+    © {new Date().getFullYear()} KalanSO — Tous droits réservés
+  </div>
+</footer>
     </div>
   );
 }
