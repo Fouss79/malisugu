@@ -1,10 +1,10 @@
 "use client";
-
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../../lib/api";
 import {
   Download,
+  Upload,
   Save,
   BarChart3,
   AlertCircle,
@@ -140,7 +140,7 @@ export default function NotesPage() {
   const [toast, setToast] = useState(null);
   const [generatingFichePrimaire, setGeneratingFichePrimaire] =
   useState(false);
-
+ 
   const afficherToast = useCallback((message) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
@@ -212,7 +212,260 @@ export default function NotesPage() {
   const [moisPrimaire, setMoisPrimaire] = useState("");
   const [coefficientMatiereId, setCoefficientMatiereId] = useState("");
   const [periode, setPeriode] = useState("");
+  // ============================================================
+// EXCEL — IMPORT / EXPORT DES NOTES
+// ============================================================
 
+const inputExcelRef = useRef(null);
+
+const [importingExcel, setImportingExcel] = useState(false);
+const [exportingExcel, setExportingExcel] = useState(false);
+
+const excelDisponible = useMemo(() => {
+  if (!classeId || !anneeId) return false;
+
+  // Primaire : classe + année + mois
+  if (estPrimaire) {
+    return Boolean(moisPrimaire);
+  }
+
+  // Secondaire : classe + année + matière + période
+  return Boolean(coefficientMatiereId && periode);
+}, [
+  classeId,
+  anneeId,
+  estPrimaire,
+  moisPrimaire,
+  coefficientMatiereId,
+  periode,
+]);
+const telechargerExcel = async () => {
+  if (!excelDisponible) {
+    afficherErreur(
+      estPrimaire
+        ? "Sélectionnez la classe, l'année scolaire et le mois."
+        : "Sélectionnez la classe, la matière et la période."
+    );
+    return;
+  }
+
+  setExportingExcel(true);
+  setErreur("");
+
+  try {
+    const params = {
+      classeId: Number(classeId),
+      anneeId: Number(anneeId),
+    };
+
+    if (estPrimaire) {
+      params.mois = moisPrimaire;
+    } else {
+      params.coefficientMatiereId = Number(coefficientMatiereId);
+      params.periode = periode;
+    }
+
+    console.log("📤 Export Excel - paramètres :", params);
+
+    const response = await api.get("/notes/excel/export", {
+      params,
+      responseType: "blob",
+    });
+
+    console.log("✅ Export Excel réussi :", response.status);
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+
+    const classeNom =
+      classeChoisie?.nom?.replace(/\s+/g, "-") || "classe";
+
+    const matiereNom =
+      matiereChoisie?.nom?.replace(/\s+/g, "-") || "notes";
+
+    const periodeNom = estPrimaire
+      ? moisPrimaire
+      : periode.replace(/\s+/g, "-");
+
+    link.download = `notes-${classeNom}-${matiereNom}-${periodeNom}.xlsx`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+
+    afficherToast("✓ Fichier Excel téléchargé.");
+  } catch (error) {
+    console.error("❌ Erreur export Excel :", error);
+
+    const status = error.response?.status;
+    const data = error.response?.data;
+
+    console.error("📊 Status :", status);
+    console.error("📦 Réponse backend :", data);
+
+    // Le backend renvoie probablement une erreur sous forme de Blob
+    // puisque responseType = "blob".
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text();
+
+        console.error("📄 Réponse backend brute :", text);
+
+        let message = "Erreur serveur lors de l'export Excel.";
+
+        try {
+          const json = JSON.parse(text);
+
+          message =
+            json.message ||
+            json.error ||
+            json.detail ||
+            message;
+        } catch {
+          // La réponse n'est pas du JSON
+          if (text?.trim()) {
+            message = text;
+          }
+        }
+
+        afficherErreur(message);
+      } catch (blobError) {
+        console.error(
+          "❌ Impossible de lire l'erreur Blob :",
+          blobError
+        );
+
+        afficherErreur(
+          "Erreur serveur lors de l'export Excel."
+        );
+      }
+
+      return;
+    }
+
+    // Erreur Axios classique
+    const message =
+      data?.message ||
+      data?.error ||
+      data?.detail ||
+      error.message ||
+      "Erreur serveur lors de l'export Excel.";
+
+    afficherErreur(message);
+  } finally {
+    setExportingExcel(false);
+  }
+};
+const ouvrirImportExcel = () => {
+  if (!excelDisponible) {
+    afficherErreur(
+      estPrimaire
+        ? "Sélectionnez la classe, l'année scolaire et le mois."
+        : "Sélectionnez la classe, la matière et la période."
+    );
+    return;
+  }
+
+  inputExcelRef.current?.click();
+};
+
+const importerExcel = async (event) => {
+  const fichier = event.target.files?.[0];
+
+  // Permet de sélectionner à nouveau le même fichier
+  event.target.value = "";
+
+  if (!fichier) return;
+
+  if (!fichier.name.toLowerCase().endsWith(".xlsx")) {
+    afficherErreur("Veuillez sélectionner un fichier Excel (.xlsx).");
+    return;
+  }
+
+  if (!excelDisponible) {
+    afficherErreur(
+      estPrimaire
+        ? "Sélectionnez la classe, l'année scolaire et le mois."
+        : "Sélectionnez la classe, la matière et la période."
+    );
+    return;
+  }
+
+  setImportingExcel(true);
+  setErreur("");
+
+  try {
+    const formData = new FormData();
+
+    formData.append("file", fichier);
+    formData.append("classeId", String(classeId));
+    formData.append("anneeId", String(anneeId));
+
+    if (estPrimaire) {
+      formData.append("mois", moisPrimaire);
+    } else {
+      formData.append(
+        "coefficientMatiereId",
+        String(coefficientMatiereId)
+      );
+
+      formData.append("periode", periode);
+    }
+
+    const response = await api.post(
+      "/notes/excel/import",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    const data = response.data;
+
+    const message =
+      data?.message ||
+      data?.detail ||
+      "✓ Les notes Excel ont été importées avec succès.";
+
+    afficherToast(message);
+
+    // Recharge les notes affichées
+    if (estPrimaire) {
+      await chargerNotesPrimaire();
+    } else {
+      await chargerNotesExistantesSecondaire();
+    }
+  } catch (error) {
+    console.error("Erreur import Excel :", error);
+
+    const data = error.response?.data;
+
+    let message =
+      "Impossible d'importer le fichier Excel.";
+
+    if (typeof data === "string") {
+      message = data;
+    } else if (data?.message) {
+      message = data.message;
+    } else if (data?.error) {
+      message = data.error;
+    }
+
+    afficherErreur(message);
+  } finally {
+    setImportingExcel(false);
+  }
+};
   useEffect(() => {
     setMoisPrimaire("");
     setCoefficientMatiereId("");
@@ -1305,6 +1558,7 @@ export default function NotesPage() {
                     {estClassePrimaire(classe) ? " (Primaire)" : ""}
                   </option>
                 ))}
+              
               </select>
             </label>
 
@@ -1415,6 +1669,76 @@ export default function NotesPage() {
             )}
 
           </div>
+          {/* ============================================================
+    IMPORT / EXPORT EXCEL
+============================================================ */}
+
+<div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#DEDCD0] bg-[#F8F7F2] p-3 sm:flex-row sm:items-center sm:justify-between">
+
+  <div className="flex items-start gap-3">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#DCEDEA] text-[#2C8C82]">
+      <FileText size={18} />
+    </div>
+
+    <div>
+      <p className="text-sm font-bold text-[#101B33]">
+        Gestion Excel des notes
+      </p>
+
+      <p className="mt-0.5 text-xs text-[#7A8190]">
+        Téléchargez le modèle de la sélection actuelle ou importez
+        les notes saisies par un enseignant.
+      </p>
+    </div>
+  </div>
+
+  <div className="flex flex-col gap-2 sm:flex-row">
+
+    {/* INPUT EXCEL CACHÉ */}
+    <input
+      ref={inputExcelRef}
+      type="file"
+      accept=".xlsx"
+      onChange={importerExcel}
+      className="hidden"
+    />
+
+    {/* IMPORT */}
+    <button
+      type="button"
+      onClick={ouvrirImportExcel}
+      disabled={!excelDisponible || importingExcel || exportingExcel}
+      className={`${STYLES.button.secondary} border border-[#2C8C82] bg-white text-[#236F68] hover:bg-[#DCEDEA]`}
+    >
+      <Upload
+        size={17}
+        className={importingExcel ? "animate-bounce" : ""}
+      />
+
+      {importingExcel
+        ? "Importation..."
+        : "Importer Excel"}
+    </button>
+
+    {/* EXPORT */}
+    <button
+      type="button"
+      onClick={telechargerExcel}
+      disabled={!excelDisponible || exportingExcel || importingExcel}
+      className={`${STYLES.button.primary} bg-[#101B33] hover:bg-[#182746]`}
+    >
+      <Download
+        size={17}
+        className={exportingExcel ? "animate-bounce" : ""}
+      />
+
+      {exportingExcel
+        ? "Téléchargement..."
+        : "Télécharger Excel"}
+    </button>
+
+  </div>
+</div>
 
           {/* ==================================================
               INFORMATIONS PROGRAMME (secondaire uniquement)
