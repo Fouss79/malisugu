@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "app/layout.jsx", "app/dashboard/admin/emploisdutemps/page.jsx"  ],
+, "app/layout.jsx", "app/dashboard/admin/emploisdutemps/page.jsx", "lib/client.jsx", "lib/examens.jsx", "app/dashboard/admin/examens/nouveau/page.jsx", "app/dashboard/admin/examens/[id]/ExamenTabs.jsx", "app/dashboard/admin/examens/[id]/page.jsx", "app/dashboard/admin/examens/page.jsx", "lib/examens-api.js"  ],
   "exclude": ["node_modules"]
 }

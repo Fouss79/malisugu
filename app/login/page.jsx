@@ -4,15 +4,59 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import Link from "next/link";
-import { X, Menu } from "lucide-react";
+import { Fraunces, Inter } from "next/font/google";
 import api from "../../lib/api";
+
+/* =========================================================
+   TYPOGRAPHIE / PALETTE — identiques aux autres pages
+========================================================= */
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+});
+
+const INK = "#101B33";
+const INK_SOFT = "#5B6478";
+const GOLD = "#C89B3C";
+const GOLD_2 = "#E4B655";
+const TEAL = "#2C8C82";
+const CREAM = "#F8F6EF";
+
+/* =========================================================
+   CHAMP — même composant que RegisterPage
+========================================================= */
+
+function Champ({ label, required, ...props }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium" style={{ color: INK_SOFT }}>
+        {label}
+        {required && <span style={{ color: GOLD }}> *</span>}
+      </span>
+
+      <input
+        {...props}
+        required={required}
+        className="w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-2"
+        style={{ borderColor: "#DEDCD0", color: INK }}
+        onFocus={(e) => (e.target.style.borderColor = GOLD)}
+        onBlur={(e) => (e.target.style.borderColor = "#DEDCD0")}
+      />
+    </label>
+  );
+}
 
 export default function LoginPage() {
 
   const { login } = useAuth();
   const router = useRouter();
-
-  const [open, setOpen] = useState(false);
 
   const [form, setForm] = useState({
     email: "",
@@ -118,161 +162,120 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div
+      className={`${fraunces.variable} ${inter.variable} flex min-h-screen`}
+      style={{ fontFamily: "var(--font-body), sans-serif" }}
+    >
 
       {/* =====================================================
-          HEADER
+          PANNEAU DE MARQUE (masqué sur mobile)
       ===================================================== */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-sm">
 
-        <div className="flex justify-between items-center px-4 md:px-6 py-3 max-w-7xl mx-auto">
+      <div
+        className="relative hidden w-[42%] flex-col justify-between overflow-hidden px-12 py-14 lg:flex"
+        style={{ background: INK }}
+      >
+        <div
+          className="absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl"
+          style={{ background: `${TEAL}22` }}
+        />
+        <div
+          className="absolute -bottom-24 -left-16 h-72 w-72 rounded-full blur-3xl"
+          style={{ background: `${GOLD}22` }}
+        />
 
-          {/* LOGO */}
-          <Link href="/">
-            <h1 className="text-xl md:text-2xl font-bold italic text-gray-700">
-              Kalan<span className="text-yellow-600">SO</span>
-            </h1>
-          </Link>
+        <Link
+          href="/"
+          className="relative text-2xl font-semibold text-white"
+          style={{ fontFamily: "var(--font-display), serif" }}
+        >
+          Dani<span style={{ color: GOLD_2 }}>school</span>
+        </Link>
 
-          {/* MENU DESKTOP */}
-          <nav className="hidden md:flex items-center gap-6 text-gray-600 font-medium">
-
-            <a
-              href="#features"
-              className="hover:text-yellow-600 transition"
-            >
-              Fonctionnalités
-            </a>
-
-            <a
-              href="#pricing"
-              className="hover:text-yellow-600 transition"
-            >
-              Tarifs
-            </a>
-
-            <a
-              href="#stats"
-              className="hover:text-yellow-600 transition"
-            >
-              Statistiques
-            </a>
-
-          </nav>
-
-          {/* ACTIONS DESKTOP */}
-          <div className="hidden md:flex items-center gap-3">
-
-            <Link href="/login">
-              <button className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
-                Se connecter
-              </button>
-            </Link>
-
-            <button className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition shadow">
-              S'inscrire
-            </button>
-
-          </div>
-
-          {/* BURGER MOBILE */}
-          <button
-            className="md:hidden"
-            onClick={() => setOpen(!open)}
-            aria-label="Menu"
+        <div className="relative max-w-sm">
+          <h2
+            className="text-3xl font-medium leading-tight text-white"
+            style={{ fontFamily: "var(--font-display), serif" }}
           >
-            {open ? <X size={28} /> : <Menu size={28} />}
-          </button>
+            Retrouvez votre école en un instant.
+          </h2>
 
+          <p className="mt-4 text-white/70">
+            Élèves, enseignants, présences et paiements — tout est déjà là,
+            là où vous l&apos;avez laissé.
+          </p>
         </div>
 
-        {/* =====================================================
-            MENU MOBILE
-        ===================================================== */}
-        {open && (
-          <div className="md:hidden bg-white border-t px-4 py-4 space-y-4 shadow-md">
-
-            <a
-              href="#features"
-              className="block text-gray-600 hover:text-yellow-600"
-              onClick={() => setOpen(false)}
-            >
-              Fonctionnalités
-            </a>
-
-            <a
-              href="#pricing"
-              className="block text-gray-600 hover:text-yellow-600"
-              onClick={() => setOpen(false)}
-            >
-              Tarifs
-            </a>
-
-            <a
-              href="#stats"
-              className="block text-gray-600 hover:text-yellow-600"
-              onClick={() => setOpen(false)}
-            >
-              Statistiques
-            </a>
-
-            <Link href="/login">
-              <button className="w-full px-4 py-2 border rounded-lg">
-                Se connecter
-              </button>
-            </Link>
-
-            <button className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg">
-              S'inscrire
-            </button>
-
-          </div>
-        )}
-
-      </header>
+        <p className="relative text-xs text-white/50">
+          © {new Date().getFullYear()} Danischool
+        </p>
+      </div>
 
       {/* =====================================================
-          LOGIN
+          FORMULAIRE
       ===================================================== */}
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
 
+      <div
+        className="flex flex-1 items-center justify-center p-4 sm:p-8"
+        style={{ background: CREAM }}
+      >
         <form
           onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-xl shadow-md w-full max-w-md space-y-4"
+          className="w-full max-w-sm space-y-5 rounded-2xl border bg-white p-6 shadow-sm sm:p-8"
+          style={{ borderColor: "#E4E1D6" }}
         >
 
-          <h2 className="text-2xl font-bold text-center">
-            Connexion
-          </h2>
+          <div className="mb-2 lg:hidden">
+            <Link
+              href="/"
+              className="text-xl font-semibold"
+              style={{ fontFamily: "var(--font-display), serif", color: INK }}
+            >
+              Dani<span style={{ color: GOLD }}>school</span>
+            </Link>
+          </div>
+
+          <div>
+            <h1
+              className="text-2xl font-medium"
+              style={{ fontFamily: "var(--font-display), serif", color: INK }}
+            >
+              Connexion
+            </h1>
+            <p className="mt-1 text-sm" style={{ color: INK_SOFT }}>
+              Entrez vos identifiants pour accéder à votre espace.
+            </p>
+          </div>
 
           {/* ERREUR */}
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm">
+            <p
+              className="rounded-lg border px-3 py-2.5 text-sm"
+              style={{ borderColor: "#F3C9BE", background: "#FBEEEA", color: "#9D3929" }}
+            >
               {error}
-            </div>
+            </p>
           )}
 
           {/* EMAIL */}
-          <input
+          <Champ
+            label="Email"
+            required
             type="email"
             name="email"
-            placeholder="Email"
             value={form.email}
             onChange={handleChange}
-            className="w-full border p-2 rounded"
-            required
             autoComplete="email"
           />
 
           {/* MOT DE PASSE */}
-          <input
+          <Champ
+            label="Mot de passe"
+            required
             type="password"
             name="password"
-            placeholder="Mot de passe"
             value={form.password}
             onChange={handleChange}
-            className="w-full border p-2 rounded"
-            required
             autoComplete="current-password"
           />
 
@@ -280,15 +283,21 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-yellow-600 text-white py-2 rounded hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: INK }}
           >
             {loading ? "Connexion..." : "Se connecter"}
           </button>
 
+          <p className="text-center text-sm" style={{ color: INK_SOFT }}>
+            Pas encore de compte ?{" "}
+            <Link href="/inscrire" className="font-semibold" style={{ color: GOLD }}>
+              Créer une école
+            </Link>
+          </p>
+
         </form>
-
       </div>
-
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import "./globals.css";
 import React from "react";
 import { AuthProvider } from "./context/AuthContext";
+
 export const metadata = {
   title: "KalanSO - Logiciel de gestion scolaire",
   description:

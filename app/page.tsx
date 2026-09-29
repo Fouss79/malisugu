@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-
+import { redirect } from "next/navigation";
 
 import {
   Menu,
@@ -23,7 +23,7 @@ const stats = [
   { label: "Établissements", value: 300 },
 ];
 
-
+ redirect("/accueil");
 
 
 function Counter({ end }: { end: number }) {
