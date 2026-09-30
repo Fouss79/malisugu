@@ -14,6 +14,7 @@ import {
   FileText,
   Download,
   Loader2,
+  IdCard,
 } from "lucide-react";
 import Link from "next/link";
 import EleveForm from "../Component/ElevePage";
@@ -542,7 +543,65 @@ export default function ElevesPage() {
   const [eleveEnEdition, setEleveEnEdition] = useState(null);
   const [generatingFormulaire, setGeneratingFormulaire] = useState(false);
   const [generatingListeClasse, setGeneratingListeClasse] = useState(false);
+  const [generatingCarteId, setGeneratingCarteId] = useState(null);
+const telechargerCarteScolaire = async (eleve) => {
+  if (!eleve?.id) {
+    alert("Impossible de générer la carte : inscription introuvable.");
+    return;
+  }
 
+  setGeneratingCarteId(eleve.id);
+
+  try {
+    const response = await api.get(
+      `/cartes-scolaires/eleve/${eleve.id}/pdf`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `carte-scolaire-${eleve.matricule || eleve.id}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Erreur génération carte scolaire :", error);
+
+    if (error?.response?.data instanceof Blob) {
+      try {
+        const texte = await error.response.data.text();
+        const json = JSON.parse(texte);
+
+        alert(
+          json?.message ||
+            json?.error ||
+            "Impossible de générer la carte scolaire."
+        );
+      } catch {
+        alert("Impossible de générer la carte scolaire.");
+      }
+    } else {
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "Impossible de générer la carte scolaire."
+      );
+    }
+  } finally {
+    setGeneratingCarteId(null);
+  }
+};
   const telechargerFormulaireVierge = async () => {
     setGeneratingFormulaire(true);
 
@@ -870,44 +929,69 @@ export default function ElevesPage() {
               </div>
 
               <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3">
-                <button
-                  onClick={() => setEleveDetail(e)}
-                  title="Voir détails"
-                  className="rounded-lg p-2 transition hover:brightness-95"
-                  style={{ background: "#F1F5F9", color: "#475569" }}
-                >
-                  <Eye size={16} />
-                </button>
 
-                <button
-                  onClick={() => setEleveEnEdition(e.id)}
-                  title="Modifier"
-                  className="rounded-lg p-2 text-white transition hover:brightness-110"
-                  style={{ background: GOLD }}
-                >
-                  <Pencil size={16} />
-                </button>
+  {/* Carte scolaire */}
+  <button
+    onClick={() => telechargerCarteScolaire(e)}
+    disabled={generatingCarteId === e.id}
+    title="Télécharger la carte scolaire"
+    className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+    style={{ background: INK }}
+  >
+    {generatingCarteId === e.id ? (
+      <Loader2 size={16} className="animate-spin" />
+    ) : (
+      <IdCard size={16} />
+    )}
+  </button>
 
-                <button
-                  onClick={() => changerStatut(e.id, "valider")}
-                  disabled={busyId === e.id || e.statut === "INSCRIT" || e.statut === "VALIDE"}
-                  title="Inscrire"
-                  className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{ background: TEAL }}
-                >
-                  <Check size={16} />
-                </button>
+  {/* Détails */}
+  <button
+    onClick={() => setEleveDetail(e)}
+    title="Voir détails"
+    className="rounded-lg p-2 transition hover:brightness-95"
+    style={{ background: "#F1F5F9", color: "#475569" }}
+  >
+    <Eye size={16} />
+  </button>
 
-                <button
-                  onClick={() => changerStatut(e.id, "rejeter")}
-                  disabled={busyId === e.id || e.statut === "REJETE"}
-                  title="Rejeter"
-                  className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{ background: CORAL }}
-                >
-                  <XCircle size={16} />
-                </button>
-              </div>
+  {/* Modifier */}
+  <button
+    onClick={() => setEleveEnEdition(e.id)}
+    title="Modifier"
+    className="rounded-lg p-2 text-white transition hover:brightness-110"
+    style={{ background: GOLD }}
+  >
+    <Pencil size={16} />
+  </button>
+
+  {/* Inscrire */}
+  <button
+    onClick={() => changerStatut(e.id, "valider")}
+    disabled={
+      busyId === e.id ||
+      e.statut === "INSCRIT" ||
+      e.statut === "VALIDE"
+    }
+    title="Inscrire"
+    className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+    style={{ background: TEAL }}
+  >
+    <Check size={16} />
+  </button>
+
+  {/* Rejeter */}
+  <button
+    onClick={() => changerStatut(e.id, "rejeter")}
+    disabled={busyId === e.id || e.statut === "REJETE"}
+    title="Rejeter"
+    className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+    style={{ background: CORAL }}
+  >
+    <XCircle size={16} />
+  </button>
+
+</div>
             </div>
           ))}
       </div>
@@ -988,48 +1072,69 @@ export default function ElevesPage() {
 
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap justify-end gap-2">
-                        {/* Détails */}
-                        <button
-                          onClick={() => setEleveDetail(e)}
-                          title="Voir détails"
-                          className="rounded-lg p-2 transition hover:brightness-95"
-                          style={{ background: "#F1F5F9", color: "#475569" }}
-                        >
-                          <Eye size={16} />
-                        </button>
 
-                        {/* Modifier */}
-                        <button
-                          onClick={() => setEleveEnEdition(e.id)}
-                          title="Modifier"
-                          className="rounded-lg p-2 text-white transition hover:brightness-110"
-                          style={{ background: GOLD }}
-                        >
-                          <Pencil size={16} />
-                        </button>
+  {/* Carte scolaire */}
+  <button
+    onClick={() => telechargerCarteScolaire(e)}
+    disabled={generatingCarteId === e.id}
+    title="Télécharger la carte scolaire"
+    className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+    style={{ background: INK }}
+  >
+    {generatingCarteId === e.id ? (
+      <Loader2 size={16} className="animate-spin" />
+    ) : (
+      <IdCard size={16} />
+    )}
+  </button>
 
-                        {/* Inscrire */}
-                        <button
-                          onClick={() => changerStatut(e.id, "valider")}
-                          disabled={busyId === e.id || e.statut === "INSCRIT" || e.statut === "VALIDE"}
-                          title="Inscrire"
-                          className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                          style={{ background: TEAL }}
-                        >
-                          <Check size={16} />
-                        </button>
+  {/* Détails */}
+  <button
+    onClick={() => setEleveDetail(e)}
+    title="Voir détails"
+    className="rounded-lg p-2 transition hover:brightness-95"
+    style={{ background: "#F1F5F9", color: "#475569" }}
+  >
+    <Eye size={16} />
+  </button>
 
-                        {/* Rejeter */}
-                        <button
-                          onClick={() => changerStatut(e.id, "rejeter")}
-                          disabled={busyId === e.id || e.statut === "REJETE"}
-                          title="Rejeter"
-                          className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                          style={{ background: CORAL }}
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </div>
+  {/* Modifier */}
+  <button
+    onClick={() => setEleveEnEdition(e.id)}
+    title="Modifier"
+    className="rounded-lg p-2 text-white transition hover:brightness-110"
+    style={{ background: GOLD }}
+  >
+    <Pencil size={16} />
+  </button>
+
+  {/* Inscrire */}
+  <button
+    onClick={() => changerStatut(e.id, "valider")}
+    disabled={
+      busyId === e.id ||
+      e.statut === "INSCRIT" ||
+      e.statut === "VALIDE"
+    }
+    title="Inscrire"
+    className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+    style={{ background: TEAL }}
+  >
+    <Check size={16} />
+  </button>
+
+  {/* Rejeter */}
+  <button
+    onClick={() => changerStatut(e.id, "rejeter")}
+    disabled={busyId === e.id || e.statut === "REJETE"}
+    title="Rejeter"
+    className="rounded-lg p-2 text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+    style={{ background: CORAL }}
+  >
+    <XCircle size={16} />
+  </button>
+
+</div>
                     </td>
                   </tr>
                 ))}
