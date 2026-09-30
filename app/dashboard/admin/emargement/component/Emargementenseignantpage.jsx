@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { History, Check, X } from "lucide-react";
+import { History, Check, X, FileText, Download } from "lucide-react";
 
 import { useAuth } from "../../../../context/AuthContext";
 import api from "../../../../../lib/api";
@@ -13,6 +13,7 @@ const TEAL = "#2C8C82";
 const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
+
 const NOMS_MOIS = [
   "Janvier",
   "Février",
@@ -48,27 +49,42 @@ function getAnneeCivile(anneeScolaire, mois) {
   const premiereAnnee = Number(match[1]);
   const deuxiemeAnnee = Number(match[2]);
 
-  // Septembre -> Décembre = première année
-  // Janvier -> Août = deuxième année
   return ["09", "10", "11", "12"].includes(mois)
     ? premiereAnnee
     : deuxiemeAnnee;
 }
 
-function getPeriodeMois(anneeScolaire, mois) {
-  const annee = getAnneeCivile(anneeScolaire, mois);
+function formaterMinutes(minutes) {
+  const valeur = Number(minutes) || 0;
 
-  const debut = `${annee}-${mois}-01`;
+  const heures = Math.floor(valeur / 60);
+  const mins = valeur % 60;
 
-  const dernierJour = new Date(
-    annee,
-    Number(mois),
-    0
-  ).getDate();
+  if (heures > 0 && mins > 0) {
+    return `${heures}h${String(mins).padStart(2, "0")}`;
+  }
 
-  const fin = `${annee}-${mois}-${String(dernierJour).padStart(2, "0")}`;
+  if (heures > 0) {
+    return `${heures}h`;
+  }
 
-  return { debut, fin };
+  return `${mins} min`;
+}
+
+function formaterHeure(minutes) {
+  const valeur = Number(minutes);
+
+  if (Number.isNaN(valeur)) {
+    return "-";
+  }
+
+  const heures = Math.floor(valeur / 60);
+  const mins = valeur % 60;
+
+  return `${String(heures).padStart(2, "0")}:${String(mins).padStart(
+    2,
+    "0"
+  )}`;
 }
 
 export default function EmargementEnseignantPage({
@@ -89,278 +105,533 @@ export default function EmargementEnseignantPage({
 
   const [emargements, setEmargements] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [telechargement, setTelechargement] = useState(false);
 
-  // ================= ANNEE SCOLAIRE SELECTIONNEE =================
+  // ============================================================
+  // ANNEE SCOLAIRE
+  // ============================================================
+
   const anneeSelectionnee = useMemo(() => {
-    return annees.find((a) => String(a.id) === String(anneeId));
+    return annees.find(
+      (a) => String(a.id) === String(anneeId)
+    );
   }, [annees, anneeId]);
 
-  // ================= CALCUL PERIODE =================
-const { debut, fin } = useMemo(() => {
-  if (!anneeSelectionnee || !mois) {
-    return { debut: "", fin: "" };
-  }
+  // ============================================================
+  // PERIODE
+  // ============================================================
 
-  const [annee, moisNumber] = mois.split("-").map(Number);
+  const { debut, fin } = useMemo(() => {
+    if (!anneeSelectionnee || !mois) {
+      return {
+        debut: "",
+        fin: "",
+      };
+    }
 
-  if (!annee || !moisNumber) {
-    return { debut: "", fin: "" };
-  }
+    const [annee, moisNumber] = mois
+      .split("-")
+      .map(Number);
 
-  const premierJour = new Date(
-    annee,
-    moisNumber - 1,
-    1
-  );
+    if (!annee || !moisNumber) {
+      return {
+        debut: "",
+        fin: "",
+      };
+    }
 
-  const dernierJour = new Date(
-    annee,
-    moisNumber,
-    0
-  );
+    const premierJour = new Date(
+      annee,
+      moisNumber - 1,
+      1
+    );
 
-  const formatDate = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
+    const dernierJour = new Date(
+      annee,
+      moisNumber,
+      0
+    );
 
-    return `${y}-${m}-${d}`;
-  };
+    const formatDate = (date) => {
+      const y = date.getFullYear();
+      const m = String(
+        date.getMonth() + 1
+      ).padStart(2, "0");
+      const d = String(
+        date.getDate()
+      ).padStart(2, "0");
 
-  let dateDebutMois = formatDate(premierJour);
-  let dateFinMois = formatDate(dernierJour);
+      return `${y}-${m}-${d}`;
+    };
 
-  // Ne jamais dépasser les limites de l'année scolaire
-  if (
-    anneeSelectionnee.dateDebut &&
-    dateDebutMois < anneeSelectionnee.dateDebut
-  ) {
-    dateDebutMois = anneeSelectionnee.dateDebut;
-  }
+    let dateDebutMois =
+      formatDate(premierJour);
 
-  if (
-    anneeSelectionnee.dateFin &&
-    dateFinMois > anneeSelectionnee.dateFin
-  ) {
-    dateFinMois = anneeSelectionnee.dateFin;
-  }
+    let dateFinMois =
+      formatDate(dernierJour);
 
-  return {
-    debut: dateDebutMois,
-    fin: dateFinMois,
-  };
-}, [anneeSelectionnee, mois]);
-// ================= LOAD ANNEES =================
+    if (
+      anneeSelectionnee.dateDebut &&
+      dateDebutMois <
+        anneeSelectionnee.dateDebut
+    ) {
+      dateDebutMois =
+        anneeSelectionnee.dateDebut;
+    }
+
+    if (
+      anneeSelectionnee.dateFin &&
+      dateFinMois >
+        anneeSelectionnee.dateFin
+    ) {
+      dateFinMois =
+        anneeSelectionnee.dateFin;
+    }
+
+    return {
+      debut: dateDebutMois,
+      fin: dateFinMois,
+    };
+  }, [anneeSelectionnee, mois]);
+
+  // ============================================================
+  // CHARGEMENT ANNEES
+  // ============================================================
+
   useEffect(() => {
     const loadAnnees = async () => {
       if (!user?.ecole?.id) return;
 
       try {
-        const res = await api.get(`/annees/ecole/${user.ecole.id}`);
+        const res = await api.get(
+          `/annees/ecole/${user.ecole.id}`
+        );
 
-        const anneesData = Array.isArray(res.data)
-          ? res.data
-          : [];
+        const anneesData =
+          Array.isArray(res.data)
+            ? res.data
+            : [];
 
         setAnnees(anneesData);
 
-        const anneeActive = anneesData.find((a) => a.active);
+        const anneeActive =
+          anneesData.find(
+            (a) => a.active
+          );
 
         if (anneeActive) {
-          setAnneeId(String(anneeActive.id));
-        } else if (anneesData.length > 0) {
-          setAnneeId(String(anneesData[0].id));
+          setAnneeId(
+            String(anneeActive.id)
+          );
+        } else if (
+          anneesData.length > 0
+        ) {
+          setAnneeId(
+            String(anneesData[0].id)
+          );
         }
       } catch (err) {
-        console.error("Erreur chargement années scolaires :", err);
+        console.error(
+          "Erreur chargement années scolaires :",
+          err
+        );
       }
     };
 
     loadAnnees();
   }, [user]);
-useEffect(() => {
-  if (!anneeSelectionnee) {
-    setMoisDisponibles([]);
-    setMois("");
-    return;
-  }
 
-  const { dateDebut, dateFin } = anneeSelectionnee;
+  // ============================================================
+  // MOIS DISPONIBLES
+  // ============================================================
 
-  if (!dateDebut || !dateFin) {
-    setMoisDisponibles([]);
-    setMois("");
-    return;
-  }
-
-  const debutDate = new Date(`${dateDebut}T00:00:00`);
-  const finDate = new Date(`${dateFin}T00:00:00`);
-
-  if (
-    Number.isNaN(debutDate.getTime()) ||
-    Number.isNaN(finDate.getTime())
-  ) {
-    setMoisDisponibles([]);
-    setMois("");
-    return;
-  }
-
-  const liste = [];
-
-  let courant = new Date(
-    debutDate.getFullYear(),
-    debutDate.getMonth(),
-    1
-  );
-
-  const limite = new Date(
-    finDate.getFullYear(),
-    finDate.getMonth(),
-    1
-  );
-
-  while (courant <= limite) {
-    const annee = courant.getFullYear();
-    const moisNumber = courant.getMonth() + 1;
-
-    liste.push({
-      value: `${annee}-${String(moisNumber).padStart(2, "0")}`,
-      label: `${NOMS_MOIS[moisNumber - 1]} ${annee}`,
-      annee,
-      mois: moisNumber,
-    });
-
-    courant = new Date(
-      annee,
-      courant.getMonth() + 1,
-      1
-    );
-  }
-
-  setMoisDisponibles(liste);
-
-  // Garder le mois actuel s'il existe encore
-  const moisExiste = liste.some(
-    (m) => m.value === mois
-  );
-
-  // Sinon prendre le premier mois de l'année scolaire
-  if (!moisExiste) {
-    setMois(liste[0]?.value || "");
-  }
-}, [anneeSelectionnee]);
-  // ================= LOAD EMARGEMENTS =================
-  const load = useCallback(async () => {
-    if (!enseignantId || !anneeId || !debut || !fin) {
+  useEffect(() => {
+    if (!anneeSelectionnee) {
+      setMoisDisponibles([]);
+      setMois("");
       return;
     }
 
-    try {
-      setLoading(true);
+    const {
+      dateDebut,
+      dateFin,
+    } = anneeSelectionnee;
 
-      const res = await api.get(
-        `/emargement/enseignant/${enseignantId}`,
-        {
-          params: {
-            debut,
-            fin,
-            anneeId,
-          },
-        }
-      );
-
-      setEmargements(
-        Array.isArray(res.data)
-          ? res.data
-          : []
-      );
-    } catch (err) {
-      console.error("Erreur chargement émargements :", err);
-      setEmargements([]);
-    } finally {
-      setLoading(false);
+    if (!dateDebut || !dateFin) {
+      setMoisDisponibles([]);
+      setMois("");
+      return;
     }
-  }, [enseignantId, debut, fin, anneeId]);
+
+    const debutDate = new Date(
+      `${dateDebut}T00:00:00`
+    );
+
+    const finDate = new Date(
+      `${dateFin}T00:00:00`
+    );
+
+    if (
+      Number.isNaN(
+        debutDate.getTime()
+      ) ||
+      Number.isNaN(
+        finDate.getTime()
+      )
+    ) {
+      setMoisDisponibles([]);
+      setMois("");
+      return;
+    }
+
+    const liste = [];
+
+    let courant = new Date(
+      debutDate.getFullYear(),
+      debutDate.getMonth(),
+      1
+    );
+
+    const limite = new Date(
+      finDate.getFullYear(),
+      finDate.getMonth(),
+      1
+    );
+
+    while (courant <= limite) {
+      const annee =
+        courant.getFullYear();
+
+      const moisNumber =
+        courant.getMonth() + 1;
+
+      liste.push({
+        value: `${annee}-${String(
+          moisNumber
+        ).padStart(2, "0")}`,
+
+        label: `${NOMS_MOIS[
+          moisNumber - 1
+        ]} ${annee}`,
+
+        annee,
+
+        mois: moisNumber,
+      });
+
+      courant = new Date(
+        annee,
+        courant.getMonth() + 1,
+        1
+      );
+    }
+
+    setMoisDisponibles(liste);
+
+    const moisExiste =
+      liste.some(
+        (m) => m.value === mois
+      );
+
+    if (!moisExiste) {
+      setMois(
+        liste[0]?.value || ""
+      );
+    }
+  }, [anneeSelectionnee]);
+
+  // ============================================================
+  // CHARGER EMARGEMENTS
+  // ============================================================
+
+  const load = useCallback(
+    async () => {
+      if (
+        !enseignantId ||
+        !anneeId ||
+        !debut ||
+        !fin
+      ) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const res = await api.get(
+          `/emargement/enseignant/${enseignantId}`,
+          {
+            params: {
+              debut,
+              fin,
+              anneeId,
+            },
+          }
+        );
+
+        setEmargements(
+          Array.isArray(res.data)
+            ? res.data
+            : []
+        );
+      } catch (err) {
+        console.error(
+          "Erreur chargement émargements :",
+          err
+        );
+
+        setEmargements([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      enseignantId,
+      debut,
+      fin,
+      anneeId,
+    ]
+  );
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // ============================================================
+  // TELECHARGEMENT PDF
+  // ============================================================
+
+  const telechargerPdf = async () => {
+  if (!enseignantId || !anneeId || !mois) return;
+
+  try {
+    setTelechargement(true);
+
+    const [annee, moisNumber] = mois.split("-").map(Number);
+
+    const res = await api.get(
+      `/emargements/vacataire/${enseignantId}/pdf`,
+      {
+        params: {
+          anneeId,
+          mois: moisNumber,
+          annee,
+        },
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([res.data], {
+      type: "application/pdf",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      `emargements-vacataire-${mois}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(
+      "Erreur téléchargement PDF :",
+      err
+    );
+
+    alert(
+      "Impossible de générer le PDF des émargements."
+    );
+  } finally {
+    setTelechargement(false);
+  }
+};
+  // ============================================================
+  // TOTALS
+  // ============================================================
+
+  const totalMinutes = useMemo(() => {
+    return emargements.reduce(
+      (total, em) =>
+        total + (Number(em.duree) || 0),
+      0
+    );
+  }, [emargements]);
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="space-y-5 p-4">
+
       {/* HEADER */}
-      <div className="flex items-center gap-3">
-        <span
-          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+      <div className="flex flex-wrap items-center justify-between gap-4">
+
+        <div className="flex items-center gap-3">
+
+          <span
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{
+              background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`,
+              color: INK,
+            }}
+          >
+            <History size={20} />
+          </span>
+
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Historique{" "}
+              {enseignantNom
+                ? `— ${enseignantNom}`
+                : ""}
+            </h1>
+
+            <p className="text-sm text-slate-500">
+              Séances émargées sur le mois sélectionné.
+            </p>
+          </div>
+
+        </div>
+
+        {/* BOUTON PDF */}
+        <button
+          type="button"
+          onClick={telechargerPdf}
+          disabled={
+            telechargement ||
+            !anneeId ||
+            !mois ||
+            loading
+          }
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           style={{
-            background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`,
-            color: INK,
+            background: INK,
           }}
         >
-          <History size={20} />
-        </span>
+          {telechargement ? (
+            <>
+              <Download
+                size={16}
+                className="animate-pulse"
+              />
+              Génération...
+            </>
+          ) : (
+            <>
+              <FileText size={16} />
+              Télécharger la feuille
+            </>
+          )}
+        </button>
 
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Historique{" "}
-            {enseignantNom ? `— ${enseignantNom}` : ""}
-          </h1>
-
-          <p className="text-sm text-slate-500">
-            Séances émargées sur le mois sélectionné.
-          </p>
-        </div>
       </div>
 
       {/* FILTRES */}
       <div className="flex flex-wrap items-center gap-3">
+
         {/* ANNEE SCOLAIRE */}
         <select
           value={anneeId}
-          onChange={(e) => setAnneeId(e.target.value)}
+          onChange={(e) =>
+            setAnneeId(e.target.value)
+          }
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
         >
           {annees.map((a) => (
-            <option key={a.id} value={a.id}>
+            <option
+              key={a.id}
+              value={a.id}
+            >
               {a.nom}
             </option>
           ))}
         </select>
 
         {/* MOIS */}
-       <select
-  value={mois}
-  onChange={(e) => setMois(e.target.value)}
-  disabled={moisDisponibles.length === 0}
-  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-slate-100"
->
-  {moisDisponibles.length === 0 && (
-    <option value="">
-      Aucun mois disponible
-    </option>
-  )}
+        <select
+          value={mois}
+          onChange={(e) =>
+            setMois(e.target.value)
+          }
+          disabled={
+            moisDisponibles.length === 0
+          }
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-slate-100"
+        >
+          {moisDisponibles.length ===
+            0 && (
+            <option value="">
+              Aucun mois disponible
+            </option>
+          )}
 
-  {moisDisponibles.map((m) => (
-    <option key={m.value} value={m.value}>
-      {m.label}
-    </option>
-  ))}
-</select>
+          {moisDisponibles.map((m) => (
+            <option
+              key={m.value}
+              value={m.value}
+            >
+              {m.label}
+            </option>
+          ))}
+        </select>
 
-        {/* PERIODE CALCULEE */}
+        {/* PERIODE */}
         <span className="text-sm text-slate-400">
           {debut} → {fin}
         </span>
+
       </div>
+
+      {/* RESUME */}
+      {!loading &&
+        emargements.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+
+            <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+              <div className="text-xs text-slate-400">
+                Séances
+              </div>
+
+              <div className="text-lg font-bold text-slate-900">
+                {emargements.length}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
+              <div className="text-xs text-slate-400">
+                Total heures
+              </div>
+
+              <div className="text-lg font-bold text-slate-900">
+                {formaterMinutes(
+                  totalMinutes
+                )}
+              </div>
+            </div>
+
+          </div>
+        )}
 
       {/* TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40">
+
         <div className="overflow-x-auto">
+
           <table className="w-full text-left text-sm">
+
             <thead>
               <tr
                 className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400"
-                style={{ background: "#F8F7F2" }}
+                style={{
+                  background: "#F8F7F2",
+                }}
               >
                 <th className="px-4 py-3 font-medium">
                   Date
@@ -393,16 +664,18 @@ useEffect(() => {
             </thead>
 
             <tbody className="divide-y divide-slate-50">
-              {!loading && emargements.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-10 text-center text-slate-400"
-                  >
-                    Aucun émargement sur cette période.
-                  </td>
-                </tr>
-              )}
+
+              {!loading &&
+                emargements.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-4 py-10 text-center text-slate-400"
+                    >
+                      Aucun émargement sur cette période.
+                    </td>
+                  </tr>
+                )}
 
               {loading && (
                 <tr>
@@ -420,6 +693,7 @@ useEffect(() => {
                   key={em.id}
                   className="transition hover:bg-slate-50/70"
                 >
+
                   <td className="px-4 py-3 font-medium text-slate-800">
                     {em.dateHeure}
                   </td>
@@ -437,28 +711,40 @@ useEffect(() => {
                   </td>
 
                   <td className="px-4 py-3 text-slate-600">
-                    {em.heureDebut}h - {em.heureFin}h
+                    {formaterHeure(
+                      em.heureDebut
+                    )}
+                    {" - "}
+                    {formaterHeure(
+                      em.heureFin
+                    )}
                   </td>
 
                   <td className="px-4 py-3 text-slate-600">
-                    {em.duree}h
+                    {formaterMinutes(
+                      em.duree
+                    )}
                   </td>
 
                   <td className="px-4 py-3">
+
                     <span
                       className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
                       style={
                         em.present
                           ? {
-                              background: TEAL_SOFT,
+                              background:
+                                TEAL_SOFT,
                               color: TEAL,
                             }
                           : {
-                              background: CORAL_SOFT,
+                              background:
+                                CORAL_SOFT,
                               color: CORAL,
                             }
                       }
                     >
+
                       {em.present ? (
                         <Check size={12} />
                       ) : (
@@ -468,13 +754,20 @@ useEffect(() => {
                       {em.present
                         ? "Présent"
                         : "Absent"}
+
                     </span>
+
                   </td>
+
                 </tr>
               ))}
+
             </tbody>
+
           </table>
+
         </div>
+
       </div>
     </div>
   );
