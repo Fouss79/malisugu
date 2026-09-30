@@ -175,8 +175,8 @@ function ModalEdition({ eleveId, onClose, onSaved }) {
 // --- Modal détail élève ---
 function EleveDetailModal({ eleve, onClose }) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [generatingFiche, setGeneratingFiche] = useState(false);
-
+const [generatingFiche, setGeneratingFiche] = useState(false);
+const [generatingCertificat, setGeneratingCertificat] = useState(false);
   useEffect(() => {
     const onEsc = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onEsc);
@@ -238,6 +238,40 @@ function EleveDetailModal({ eleve, onClose }) {
       setGeneratingPdf(false);
     }
   };
+  const genererCertificatScolarite = async () => {
+  if (!eleve?.id) {
+    alert(
+      "Impossible de générer le certificat : inscription introuvable."
+    );
+    return;
+  }
+
+  setGeneratingCertificat(true);
+
+  try {
+    const response = await api.get(
+      `/inscriptions/${eleve.id}/certificat-scolarite`,
+      {
+        responseType: "blob",
+      }
+    );
+
+    telechargerBlob(
+      response,
+      `certificat-scolarite-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`
+    );
+
+  } catch (error) {
+
+    await gererErreurPdf(
+      error,
+      "Impossible de générer le certificat de scolarité."
+    );
+
+  } finally {
+    setGeneratingCertificat(false);
+  }
+};
 
   const genererFicheRenseignement = async () => {
     // "eleve.id" est ici l'id de l'INSCRIPTION (données issues de
@@ -468,6 +502,26 @@ function EleveDetailModal({ eleve, onClose }) {
                 </>
               )}
             </button>
+            <button
+  onClick={genererCertificatScolarite}
+  disabled={generatingCertificat}
+  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+  style={{
+    background: `linear-gradient(135deg, ${INK}, #182746)`,
+  }}
+>
+  {generatingCertificat ? (
+    <>
+      <Loader2 size={16} className="animate-spin" />
+      Génération du certificat...
+    </>
+  ) : (
+    <>
+      <FileText size={16} />
+      Certificat de scolarité
+    </>
+  )}
+</button>
           </div>
 
           {/* =================================================
