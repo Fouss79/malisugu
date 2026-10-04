@@ -119,8 +119,8 @@ const menuList = [
   },
 ].filter(Boolean);
   return (
-   <aside
-  className={`flex flex-col justify-between  bg-[#101B33] text-white h-screen p-2 transition-all duration-300 ${
+  <aside
+  className={`flex flex-col justify-between bg-white text-[#101B33] h-screen p-2 transition-all duration-300 ${
     collapsed ? "w-15" : "w-52"
   }`}
 >   <div>
@@ -220,14 +220,14 @@ const menuList = [
                     )}
                   </div>
                 ) : (
-                <Link
+            <Link
   href={menu.link}
   className={`flex items-center ${
     collapsed ? "justify-center" : "gap-3"
   } px-4 py-2 rounded-lg ${
     pathname === menu.link
-      ? "bg-[#9FB9C4] text-white"
-      : "hover:bg-gray-700 text-gray-300"
+      ? "bg-[#101B33] text-white"
+      : "text-[#101B33] hover:bg-[#101B33]/10"
   }`}
   title={collapsed ? menu.nom : ""}
 >
