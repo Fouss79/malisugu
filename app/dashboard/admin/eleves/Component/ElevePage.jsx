@@ -25,7 +25,8 @@ const initialForm = {
   adresseTuteur: "",
   classeId: "",
   anneeScolaire: "",
-  ecoleProvenance: ""
+  ecoleProvenance: "",
+  photo: null,
 };
 
 // --- Petits composants réutilisables ---
@@ -86,7 +87,7 @@ export default function EleveForm({
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
   const [loadingData, setLoadingData] = useState(!!eleveId);
-
+  const [photoPreview, setPhotoPreview] = useState(null);
 const isEdition = !!eleveId;
 useEffect(() => {
   if (!user?.ecole?.id) return;
@@ -192,7 +193,28 @@ useEffect(() => {
     }
     return true;
   };
+const handlePhotoChange = (e) => {
+  const file = e.target.files?.[0];
 
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    showToast("error", "Veuillez sélectionner une image.");
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    showToast("error", "La photo ne doit pas dépasser 5 Mo.");
+    return;
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    photo: file
+  }));
+
+  setPhotoPreview(URL.createObjectURL(file));
+};
   const handleSubmit = async (e) => {
   e.preventDefault();
 
@@ -201,29 +223,82 @@ useEffect(() => {
   setSubmitting(true);
 
   try {
+    const { photo, ...formData } = form;
+
     const payload = {
-      ...form,
-      ecoleId: Number(user.ecole.id)
+      ...formData,
+      ecoleId: Number(user.ecole.id),
     };
 
+    let currentEleveId = null;
+
     if (isEdition) {
-      await api.put(
+      // Modification d'une inscription existante
+      const response = await api.put(
         `/inscriptions/${eleveId}`,
         payload,
         {
           headers: {
-            "X-USER-EMAIL": user.email
-          }
+            "X-USER-EMAIL": user.email,
+          },
         }
       );
+
+      /*
+       * Ici eleveId correspond actuellement à l'ID de l'inscription
+       * car ton formulaire utilise /inscriptions/{id}.
+       *
+       * On récupère ensuite l'élève lié à cette inscription.
+       */
+      const inscriptionResponse = await api.get(
+        `/inscriptions/${eleveId}`,
+        {
+          headers: {
+            "X-USER-EMAIL": user.email,
+          },
+        }
+      );
+
+      /*
+       * Ton InscriptionResponseDTO doit idéalement contenir eleveId.
+       * Si ce n'est pas encore le cas, on pourra l'ajouter.
+       */
+      currentEleveId = inscriptionResponse.data.eleveId;
+
     } else {
-      await api.post(
+      // Création de l'inscription
+      const response = await api.post(
         "/inscriptions",
         payload,
         {
           headers: {
-            "X-USER-EMAIL": user.email
-          }
+            "X-USER-EMAIL": user.email,
+          },
+        }
+      );
+
+      const {
+        inscriptionId,
+        eleveId: newEleveId,
+      } = response.data;
+
+      currentEleveId = newEleveId;
+    }
+
+    // Upload de la photo vers Supabase
+    if (photo && currentEleveId) {
+      const photoData = new FormData();
+
+      photoData.append("file", photo);
+
+      await api.post(
+        `/eleves/${currentEleveId}/photo`,
+        photoData,
+        {
+          headers: {
+            "X-USER-EMAIL": user.email,
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
     }
@@ -237,15 +312,13 @@ useEffect(() => {
 
     if (!isEdition) {
       setForm(initialForm);
+      setPhotoPreview(null);
     }
 
     onSaved?.();
 
   } catch (error) {
-    console.error(
-      "Erreur inscription :",
-      error
-    );
+    console.error("Erreur inscription :", error);
 
     const message =
       error.response?.status === 403
@@ -317,6 +390,43 @@ useEffect(() => {
                 ))}
               </select>
             </Field>
+            <div className="sm:col-span-2">
+  <Field
+    label="Photo de l'élève"
+    hint="JPG, PNG ou WEBP — maximum 5 Mo"
+  >
+    <div className="flex items-center gap-4">
+
+      {photoPreview ? (
+        <img
+          src={photoPreview}
+          alt="Aperçu"
+          className="h-24 w-24 rounded-xl object-cover border border-slate-200"
+        />
+      ) : (
+        <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-400">
+          Aucune photo
+        </div>
+      )}
+
+      <div className="flex-1">
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handlePhotoChange}
+          className="w-full text-sm text-slate-500
+                     file:mr-3 file:rounded-lg
+                     file:border-0 file:bg-indigo-50
+                     file:px-4 file:py-2
+                     file:text-sm file:font-medium
+                     file:text-indigo-600
+                     hover:file:bg-indigo-100"
+        />
+      </div>
+
+    </div>
+  </Field>
+</div>
             <Field label="Téléphone élève" hint="Optionnel">
               <input name="telephone" value={form.telephone} onChange={handleChange} className={inputClass} />
             </Field>
