@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Wallet, CheckCircle2 } from "lucide-react";
+import { Wallet, CheckCircle2, Download } from "lucide-react";
 
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../../lib/api";
@@ -144,6 +144,7 @@ export default function PaiementEnseignantPage() {
 
   const [loadingPaiements, setLoadingPaiements] =
     useState(true);
+    const [telechargementId, setTelechargementId] = useState(null);
 
   const [generating, setGenerating] = useState(false);
   const [marquantPaye, setMarquantPaye] = useState(null);
@@ -428,7 +429,32 @@ export default function PaiementEnseignantPage() {
       setMarquantPaye(null);
     }
   };
+// ===== TÉLÉCHARGER LE BULLETIN =====
+  const telechargerBulletin = async (id) => {
+    setTelechargementId(id);
 
+    try {
+      const res = await api.get(`/paiements/${id}/bulletin`, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `bulletin-salaire-${id}.pdf`;
+      document.body.appendChild(link);
+       link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setErreur("Impossible de télécharger le bulletin.");
+    } finally {
+      setTelechargementId(null);
+      }  }
   // ============================================================
   // RENDER
   // ============================================================
@@ -811,29 +837,27 @@ export default function PaiementEnseignantPage() {
                     <td className="px-4 py-3">
 
                       <div className="flex items-center justify-end gap-2">
+  <button
+    onClick={() => telechargerBulletin(p.id)}
+    disabled={telechargementId === p.id}
+    className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+  >
+    <Download size={13} />
+    {telechargementId === p.id ? "..." : "Bulletin"}
+  </button>
 
-                        {p.statut !== "PAYE" && (
-                          <button
-                            onClick={() =>
-                              marquerPaye(p.id)
-                            }
-                            disabled={
-                              marquantPaye === p.id
-                            }
-                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
-                            style={{
-                              background: TEAL,
-                            }}
-                          >
-                            <CheckCircle2 size={13} />
-
-                            {marquantPaye === p.id
-                              ? "..."
-                              : "Marquer payé"}
-                          </button>
-                        )}
-
-                      </div>
+  {p.statut !== "PAYE" && (
+    <button
+      onClick={() => marquerPaye(p.id)}
+      disabled={marquantPaye === p.id}
+      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+      style={{ background: TEAL }}
+    >
+      <CheckCircle2 size={13} />
+      {marquantPaye === p.id ? "..." : "Marquer payé"}
+    </button>
+  )}
+</div>
                     </td>
 
                   </tr>
