@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useAuth } from "../../../context/AuthContext";
 import { useEffect, useState, useRef } from "react";
 import { LogOut, Settings, GraduationCap } from "lucide-react";
-import axios from "axios";
 
 import { Menu, PanelLeftClose } from "lucide-react";
 import api from "../../../../lib/api";
@@ -19,12 +18,36 @@ const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
 
+const PROFIL_LINK = "/dashboard/admin/monprofile";
+
+// Image utilisée quand l'utilisateur n'a pas de photo (fichier : public/avatar.png)
+const AVATAR_PAR_DEFAUT = "/avatar.png";
+
+function UserAvatar({ nom, photo, taille = 36 }) {
+  const [erreur, setErreur] = useState(false);
+  const src = photo && !erreur ? photo : AVATAR_PAR_DEFAUT;
+
+  return (
+    <img
+      src={src}
+      alt={nom || "Utilisateur"}
+      onError={() => setErreur(true)}
+      className="flex-shrink-0 rounded-full object-cover"
+      style={{ width: taille, height: taille }}
+    />
+  );
+}
+
 export default function Header({ collapsed, setCollapsed }) {
   const { user, isAuthenticated, logout } = useAuth();
 
   const [isClient, setIsClient] = useState(false);
   const [open, setOpen] = useState(false);
   const [anneeActive, setAnneeActive] = useState(null);
+
+  // Nom et photo à jour, chargés depuis /users/me
+  // (le user du AuthContext ne contient pas `photo`)
+  const [profil, setProfil] = useState(null);
 
   const menuRef = useRef(null);
 
@@ -48,6 +71,29 @@ export default function Header({ collapsed, setCollapsed }) {
 
     loadAnnee();
   }, [user]);
+
+  // Charger le profil (nom + photo)
+  useEffect(() => {
+    if (!user) return;
+
+    const chargerProfil = async () => {
+      try {
+        const res = await api.get("/users/me");
+        setProfil({ nom: res.data.nom, photo: res.data.photo });
+      } catch (err) {
+        console.error("Impossible de charger le profil :", err);
+      }
+    };
+
+    chargerProfil();
+
+    // Rafraîchit après une modification depuis la page "Mon profil"
+    window.addEventListener("profil-updated", chargerProfil);
+    return () => window.removeEventListener("profil-updated", chargerProfil);
+  }, [user]);
+
+  const nomAffiche = profil?.nom ?? user?.nom;
+  const photoAffichee = profil?.photo ?? user?.photo;
 
   // fermer dropdown si clic dehors
   useEffect(() => {
@@ -101,6 +147,19 @@ export default function Header({ collapsed, setCollapsed }) {
       <nav className="flex items-center gap-4">
         {isClient && isAuthenticated ? (
           <>
+            {/* PROFIL */}
+            <Link
+              href={PROFIL_LINK}
+              title="Mon profil"
+              className="rounded-full p-0.5 transition hover:bg-slate-100"
+            >
+              <UserAvatar
+                key={photoAffichee}
+                nom={nomAffiche}
+                photo={photoAffichee}
+              />
+            </Link>
+
             {/* SETTINGS */}
             {user?.role === "ADMIN" && (
               <div className="relative" ref={menuRef}>
