@@ -117,6 +117,12 @@ export default function Header({ collapsed, setCollapsed }) {
     { href: "/dashboard/admin/tarif", label: "Tarifs par classe" },
     { href: "/dashboard/admin/utilisateur", label: "Utilisateurs" },
   ];
+  const roleAffiche = user?.role
+  ? user.role
+      .toLowerCase()
+      .replace("_", " ")
+      .replace(/\b\w/g, (lettre) => lettre.toUpperCase())
+  : "Utilisateur";
 
   return (
     <header className="flex items-center justify-between bg-white px-6 py-2 shadow-md">
@@ -148,17 +154,31 @@ export default function Header({ collapsed, setCollapsed }) {
         {isClient && isAuthenticated ? (
           <>
             {/* PROFIL */}
-            <Link
-              href={PROFIL_LINK}
-              title="Mon profil"
-              className="rounded-full p-0.5 transition hover:bg-slate-100"
-            >
-              <UserAvatar
-                key={photoAffichee}
-                nom={nomAffiche}
-                photo={photoAffichee}
-              />
-            </Link>
+           {/* PROFIL + ROLE */}
+<Link
+  href={PROFIL_LINK}
+  title="Mon profil"
+  className="flex items-center gap-2 rounded-lg px-2 py-1 transition hover:bg-slate-50"
+>
+  <UserAvatar
+    key={photoAffichee}
+    nom={nomAffiche}
+    photo={photoAffichee}
+  />
+
+  <div className="flex flex-col leading-tight">
+    <span className="text-sm font-semibold" style={{ color: INK }}>
+      {nomAffiche || "Utilisateur"}
+    </span>
+
+    <span
+      className="text-xs font-medium"
+      style={{ color: TEAL }}
+    >
+      {roleAffiche}
+    </span>
+  </div>
+</Link>
 
             {/* SETTINGS */}
             {user?.role === "ADMIN" && (

@@ -121,36 +121,42 @@ export default function Sidebar({ collapsed }) {
       }`}
     >
       <div>
-        {/* ===== LOGO + ÉCOLE ===== */}
+        {/* ===== LOGO + NOM DE L'ÉTABLISSEMENT ===== */}
         <div
-          className={`flex items-center ${
-            collapsed ? "justify-center" : "gap-2"
+          className={`flex flex-col items-center ${
+            collapsed ? "justify-center" : ""
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-15 h-15 rounded-full bg-gray-300 mb-2 overflow-hidden flex items-center justify-center">
-              {user?.ecole?.logo ? (
-                <img
-                  src={getLogoUrl(user.ecole.logo)}
-                  alt={`Logo ${user?.ecole?.nom || "école"}`}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <span className="text-xs text-gray-500">Aucun logo</span>
-              )}
-            </div>
-
-            {!collapsed && (
-              <div>
-                <h2 className="font-semibold text-lg">{user?.role}</h2>
-                <h2>{user?.ecole?.nom}</h2>
-              </div>
+          <div
+            className={`${
+              collapsed ? "w-10 h-10" : "w-16 h-16"
+            } rounded-full bg-gray-100 overflow-hidden flex items-center justify-center`}
+          >
+            {user?.ecole?.logo ? (
+              <img
+                src={getLogoUrl(user.ecole.logo)}
+                alt={`Logo ${user?.ecole?.nom || "école"}`}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <span className="text-xs text-gray-500 text-center">
+                Aucun logo
+              </span>
             )}
           </div>
+
+          {!collapsed && (
+            <h2
+              className="mt-2 text-center font-semibold text-sm leading-tight px-1"
+              title={user?.ecole?.nom || ""}
+            >
+              {user?.ecole?.nom || "Mon établissement"}
+            </h2>
+          )}
         </div>
 
         {/* ===== MENU ===== */}
-        <ul className="space-y-1 mt-4">
+        <ul className="space-y-1 mt-5">
           {menuList.map((menu, index) => {
             const isOpen = openMenu === index;
 
@@ -223,7 +229,6 @@ export default function Sidebar({ collapsed }) {
           })}
         </ul>
       </div>
-
     </aside>
   );
 }
