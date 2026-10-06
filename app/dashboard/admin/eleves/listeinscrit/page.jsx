@@ -172,11 +172,75 @@ function ModalEdition({ eleveId, onClose, onSaved }) {
   );
 }
 
+/* =========================================================
+   À COLLER dans la page des élèves, en remplacement de l'ancien
+   EleveDetailModal. Les imports et composants existants (Avatar,
+   InfoRow, SectionTitle, StatutBadge, formatMontant, api, constantes
+   de couleurs) sont inchangés.
+========================================================= */
+
+// Le premier cycle suit ses absences via les bulletins mensuels (BulletinMensuelInfo)
+function estPremierCycle(eleve) {
+  const nom = String(eleve?.cycleNom ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // retire les accents
+    .toLowerCase();
+
+  return nom.includes("premier") || nom.includes("1er") || nom.includes("cycle 1");
+}
+
 // --- Modal détail élève ---
 function EleveDetailModal({ eleve, onClose }) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
-const [generatingFiche, setGeneratingFiche] = useState(false);
-const [generatingCertificat, setGeneratingCertificat] = useState(false);
+  const [generatingFiche, setGeneratingFiche] = useState(false);
+  const [generatingCertificat, setGeneratingCertificat] = useState(false);
+
+  const [absences, setAbsences] = useState(null); // { cours, jours }
+  const [absencesLoading, setAbsencesLoading] = useState(false);
+  const [absencesError, setAbsencesError] = useState(false);
+
+  const premierCycle = estPremierCycle(eleve);
+
+  // Assiduité : le premier cycle lit ses absences dans les bulletins mensuels,
+  // les autres cycles dans les présences par cours
+  useEffect(() => {
+    if (!eleve?.id) {
+      setAbsences(null);
+      setAbsencesLoading(false);
+      setAbsencesError(false);
+      return;
+    }
+
+    let annule = false;
+    setAbsencesLoading(true);
+    setAbsencesError(false);
+    setAbsences(null);
+
+    const url = premierCycle
+      ? `/presences/inscription/${eleve.id}/absences/premier-cycle`
+      : `/presences/inscription/${eleve.id}/absences/resume`;
+
+    api
+      .get(url)
+      .then((res) => {
+        if (!annule) setAbsences(res.data);
+      })
+      .catch(() => {
+        if (!annule) {
+          setAbsences(null);
+          setAbsencesError(true);
+        }
+      })
+      .finally(() => {
+        if (!annule) setAbsencesLoading(false);
+      });
+
+    return () => {
+      annule = true;
+    };
+  }, [eleve?.id, premierCycle]);
+
+  // Fermeture avec Échap
   useEffect(() => {
     const onEsc = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onEsc);
@@ -238,40 +302,27 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
       setGeneratingPdf(false);
     }
   };
+
   const genererCertificatScolarite = async () => {
-  if (!eleve?.id) {
-    alert(
-      "Impossible de générer le certificat : inscription introuvable."
-    );
-    return;
-  }
+    if (!eleve?.id) {
+      alert("Impossible de générer le certificat : inscription introuvable.");
+      return;
+    }
 
-  setGeneratingCertificat(true);
+    setGeneratingCertificat(true);
 
-  try {
-    const response = await api.get(
-      `/inscriptions/${eleve.id}/certificat-scolarite`,
-      {
+    try {
+      const response = await api.get(`/inscriptions/${eleve.id}/certificat-scolarite`, {
         responseType: "blob",
-      }
-    );
+      });
 
-    telechargerBlob(
-      response,
-      `certificat-scolarite-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`
-    );
-
-  } catch (error) {
-
-    await gererErreurPdf(
-      error,
-      "Impossible de générer le certificat de scolarité."
-    );
-
-  } finally {
-    setGeneratingCertificat(false);
-  }
-};
+      telechargerBlob(response, `certificat-scolarite-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`);
+    } catch (error) {
+      await gererErreurPdf(error, "Impossible de générer le certificat de scolarité.");
+    } finally {
+      setGeneratingCertificat(false);
+    }
+  };
 
   const genererFicheRenseignement = async () => {
     // "eleve.id" est ici l'id de l'INSCRIPTION (données issues de
@@ -311,21 +362,14 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
         ====================================================== */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
           <div className="flex items-center gap-3">
-            <Avatar
-              nom={eleve.nom}
-              prenom={eleve.prenom}
-              sexe={eleve.sexe}
-              size="h-11 w-11 text-sm"
-            />
+            <Avatar nom={eleve.nom} prenom={eleve.prenom} sexe={eleve.sexe} size="h-11 w-11 text-sm" />
 
             <div>
               <h2 className="font-semibold text-slate-900">
                 {eleve.prenom} {eleve.nom}
               </h2>
 
-              <p className="text-xs text-slate-400">
-                Matricule {eleve.matricule || "—"}
-              </p>
+              <p className="text-xs text-slate-400">Matricule {eleve.matricule || "—"}</p>
             </div>
           </div>
 
@@ -341,7 +385,6 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
             CONTENU
         ====================================================== */}
         <div className="space-y-6 p-5">
-
           {/* IDENTITÉ */}
           <div>
             <SectionTitle>Identité</SectionTitle>
@@ -349,50 +392,20 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <InfoRow label="Nom" value={eleve.nom} />
               <InfoRow label="Prénom" value={eleve.prenom} />
-
-              <InfoRow
-                label="Date de naissance"
-                value={eleve.dateNaissance}
-              />
-
-              <InfoRow
-                label="Lieu de naissance"
-                value={eleve.lieuNaissance}
-              />
-
-              <InfoRow
-                label="Sexe"
-                value={eleve.sexe === "F" ? "Fille" : "Garçon"}
-              />
-
-              <InfoRow
-                label="Nationalité"
-                value={eleve.nationalite}
-              />
-
-              <InfoRow
-                label="Matricule"
-                value={eleve.matricule}
-              />
-
-              <InfoRow
-                label="Groupe sanguin"
-                value={eleve.groupeSanguin}
-              />
+              <InfoRow label="Date de naissance" value={eleve.dateNaissance} />
+              <InfoRow label="Lieu de naissance" value={eleve.lieuNaissance} />
+              <InfoRow label="Sexe" value={eleve.sexe === "F" ? "Fille" : "Garçon"} />
+              <InfoRow label="Nationalité" value={eleve.nationalite} />
+              <InfoRow label="Matricule" value={eleve.matricule} />
+              <InfoRow label="Groupe sanguin" value={eleve.groupeSanguin} />
             </div>
 
             {eleve.allergiesMaladies && (
               <div
                 className="mt-3 rounded-lg p-3 text-sm"
-                style={{
-                  background: `${GOLD}1A`,
-                  color: "#8A6A21",
-                }}
+                style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
               >
-                <span className="font-medium">
-                  Allergies / maladies :{" "}
-                </span>
-
+                <span className="font-medium">Allergies / maladies : </span>
                 {eleve.allergiesMaladies}
               </div>
             )}
@@ -403,20 +416,9 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
             <SectionTitle>Contact élève</SectionTitle>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow
-                label="Adresse"
-                value={eleve.adresse}
-              />
-
-              <InfoRow
-                label="Téléphone"
-                value={eleve.telephone}
-              />
-
-              <InfoRow
-                label="Email"
-                value={eleve.email}
-              />
+              <InfoRow label="Adresse" value={eleve.adresse} />
+              <InfoRow label="Téléphone" value={eleve.telephone} />
+              <InfoRow label="Email" value={eleve.email} />
             </div>
           </div>
 
@@ -428,25 +430,11 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <InfoRow
                   label="Nom"
-                  value={`${eleve.prenomTuteur ?? ""} ${
-                    eleve.nomTuteur ?? ""
-                  }`.trim() || "—"}
+                  value={`${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim() || "—"}
                 />
-
-                <InfoRow
-                  label="Lien de parenté"
-                  value={eleve.lienParente}
-                />
-
-                <InfoRow
-                  label="Téléphone"
-                  value={eleve.telephoneTuteur}
-                />
-
-                <InfoRow
-                  label="Email"
-                  value={eleve.emailTuteur}
-                />
+                <InfoRow label="Lien de parenté" value={eleve.lienParente} />
+                <InfoRow label="Téléphone" value={eleve.telephoneTuteur} />
+                <InfoRow label="Email" value={eleve.emailTuteur} />
               </div>
             </div>
           )}
@@ -456,27 +444,13 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
             <SectionTitle>Scolarité</SectionTitle>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow
-                label="Classe"
-                value={eleve.classeNom}
-              />
-
-              <InfoRow
-                label="Année scolaire"
-                value={eleve.annee}
-              />
-
-              <InfoRow
-                label="Date d'inscription"
-                value={
-                  eleve.dateInscription?.substring(0, 10)
-                }
-              />
+              <InfoRow label="Classe" value={eleve.classeNom} />
+              <InfoRow label="Cycle" value={eleve.cycleNom} />
+              <InfoRow label="Année scolaire" value={eleve.annee} />
+              <InfoRow label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
 
               <div>
-                <p className="text-xs font-medium text-slate-400">
-                  Statut
-                </p>
+                <p className="text-xs font-medium text-slate-400">Statut</p>
 
                 <div className="mt-1">
                   <StatutBadge statut={eleve.statut} />
@@ -502,26 +476,65 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
                 </>
               )}
             </button>
+
+            {/* BOUTON CERTIFICAT DE SCOLARITÉ */}
             <button
-  onClick={genererCertificatScolarite}
-  disabled={generatingCertificat}
-  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-  style={{
-    background: `linear-gradient(135deg, ${INK}, #182746)`,
-  }}
->
-  {generatingCertificat ? (
-    <>
-      <Loader2 size={16} className="animate-spin" />
-      Génération du certificat...
-    </>
-  ) : (
-    <>
-      <FileText size={16} />
-      Certificat de scolarité
-    </>
-  )}
-</button>
+              onClick={genererCertificatScolarite}
+              disabled={generatingCertificat}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
+            >
+              {generatingCertificat ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Génération du certificat...
+                </>
+              ) : (
+                <>
+                  <FileText size={16} />
+                  Certificat de scolarité
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* ASSIDUITÉ */}
+          <div>
+            <SectionTitle>Assiduité</SectionTitle>
+
+            {premierCycle ? (
+              <>
+                <InfoRow
+                  label="Absences (bulletins mensuels)"
+                  value={absencesLoading ? "…" : absencesError ? "—" : absences?.total}
+                />
+
+                {!absencesLoading && !absencesError && absences?.parMois?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {absences.parMois.map((m) => (
+                      <span
+                        key={m.mois}
+                        className="rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{ background: "#F1F5F9", color: "#475569" }}
+                      >
+                        {m.mois} : {m.absences}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <InfoRow
+                  label="Cours manqués"
+                  value={absencesLoading ? "…" : absencesError ? "—" : absences?.cours}
+                />
+                <InfoRow
+                  label="Jours d'absence"
+                  value={absencesLoading ? "…" : absencesError ? "—" : absences?.jours}
+                />
+              </div>
+            )}
           </div>
 
           {/* =================================================
@@ -531,20 +544,9 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
             <SectionTitle>Paiement</SectionTitle>
 
             <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:grid-cols-3">
-              <InfoRow
-                label="Montant total"
-                value={formatMontant(eleve.montantTotal)}
-              />
-
-              <InfoRow
-                label="Payé"
-                value={formatMontant(eleve.montantPaye)}
-              />
-
-              <InfoRow
-                label="Reste à payer"
-                value={formatMontant(eleve.resteAPayer)}
-              />
+              <InfoRow label="Montant total" value={formatMontant(eleve.montantTotal)} />
+              <InfoRow label="Payé" value={formatMontant(eleve.montantPaye)} />
+              <InfoRow label="Reste à payer" value={formatMontant(eleve.resteAPayer)} />
             </div>
 
             {/* BOUTON RAPPORT */}
@@ -552,16 +554,11 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
               onClick={genererRapportPaiement}
               disabled={generatingPdf}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-              style={{
-                background: `linear-gradient(135deg, ${INK}, #182746)`,
-              }}
+              style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
             >
               {generatingPdf ? (
                 <>
-                  <div
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
-                  />
-
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   Génération du rapport...
                 </>
               ) : (
@@ -573,7 +570,7 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
             </button>
 
             <p className="mt-2 text-center text-xs text-slate-400">
-              Télécharger l'historique complet des paiements de cet élève
+              Télécharger l&apos;historique complet des paiements de cet élève
             </p>
           </div>
         </div>
@@ -581,7 +578,6 @@ const [generatingCertificat, setGeneratingCertificat] = useState(false);
     </div>
   );
 }
-
 const COLONNES = 9;
 
 export default function ElevesPage() {
