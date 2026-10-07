@@ -15,109 +15,184 @@ const TEAL_SOFT = "#DCEDEA";
 const CORAL = "#D2593F";
 const CORAL_SOFT = "#F7E2DB";
 
-const NOMS_MOIS = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
-];
-
 function tauxColor(taux) {
   if (taux >= 90) return { bg: TEAL_SOFT, text: TEAL };
   if (taux >= 70) return { bg: "#FDF3DC", text: "#A9791F" };
   return { bg: CORAL_SOFT, text: CORAL };
 }
 
-function formatDateLocal(date) {
-  return date.toISOString().split("T")[0];
-}
-
 export default function PresenceStatsClassePage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const classeIdDepuisUrl = searchParams.get("classeId");
 
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-  const [debut, setDebut] = useState(formatDateLocal(firstOfMonth));
-  const [fin, setFin] = useState(formatDateLocal(today));
-
-  const [moisSelectionne, setMoisSelectionne] = useState(today.getMonth() + 1);
-  const [anneeSelectionnee, setAnneeSelectionnee] = useState(today.getFullYear());
-
+  // ================= CLASSES =================
   const [classes, setClasses] = useState([]);
   const [classeId, setClasseId] = useState("");
 
+  // ================= ANNÉE SCOLAIRE =================
+  const [anneeScolaire, setAnneeScolaire] = useState(null);
+
+  // ================= PÉRIODES =================
+  const [periodes, setPeriodes] = useState([]);
+  const [periodeSelectionnee, setPeriodeSelectionnee] = useState("");
+
+  // ================= DATES =================
+  const [debut, setDebut] = useState("");
+  const [fin, setFin] = useState("");
+
+  // ================= STATS =================
   const [stats, setStats] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const anneesDisponibles = (() => {
-    const anneeCourante = today.getFullYear();
-    const liste = [];
-    for (let a = anneeCourante + 1; a >= anneeCourante - 4; a--) {
-      liste.push(a);
-    }
-    return liste;
-  })();
-
-  const appliquerMois = (mois, annee) => {
-    const debutMois = new Date(annee, mois - 1, 1);
-    const finMois = new Date(annee, mois, 0);
-
-    setMoisSelectionne(mois);
-    setAnneeSelectionnee(annee);
-    setDebut(formatDateLocal(debutMois));
-    setFin(formatDateLocal(finMois));
-  };
-
-  // ================= LOAD CLASSES (scope école) =================
+  // =========================================================
+  // LOAD CLASSES
+  // =========================================================
   useEffect(() => {
     const loadClasses = async () => {
       if (!user?.ecole?.id) return;
 
       try {
         const res = await api.get(`/classes/ecole/${user.ecole.id}`);
+
         const classesData = res.data || [];
 
         setClasses(classesData);
 
-        if (classeIdDepuisUrl && classesData.some((c) => String(c.id) === classeIdDepuisUrl)) {
+        if (
+          classeIdDepuisUrl &&
+          classesData.some(
+            (c) => String(c.id) === String(classeIdDepuisUrl)
+          )
+        ) {
           setClasseId(classeIdDepuisUrl);
         } else if (classesData.length > 0) {
-          setClasseId(classesData[0].id);
+          setClasseId(String(classesData[0].id));
         }
       } catch (err) {
-        console.error(err);
+        console.error("Erreur chargement classes :", err);
       }
     };
 
     loadClasses();
+  }, [user, classeIdDepuisUrl]);
+
+  // =========================================================
+  // LOAD ANNÉE SCOLAIRE ACTIVE
+  // =========================================================
+  useEffect(() => {
+    const loadAnneeActive = async () => {
+      if (!user?.ecole?.id) return;
+
+      try {
+        const res = await api.get(
+          `/annees/active/${user.ecole.id}`
+        );
+
+        setAnneeScolaire(res.data);
+      } catch (err) {
+        console.error(
+          "Erreur chargement année scolaire active :",
+          err
+        );
+
+        setAnneeScolaire(null);
+      }
+    };
+
+    loadAnneeActive();
   }, [user]);
 
-  // ================= LOAD STATS =================
+  // =========================================================
+  // LOAD PÉRIODES
+  // =========================================================
+  useEffect(() => {
+    const loadPeriodes = async () => {
+      if (!user?.ecole?.id || !anneeScolaire?.id) return;
+
+      try {
+        const res = await api.get(
+          `/periodes/ecole/${user.ecole.id}/annee/${anneeScolaire.id}`
+        );
+
+        const data = res.data || [];
+
+        // Le backend trie déjà avec OrderByOrdreAsc.
+        // On garde également un tri côté frontend
+        // comme sécurité supplémentaire.
+        const periodesTriees = [...data].sort(
+          (a, b) => (a.ordre ?? 999) - (b.ordre ?? 999)
+        );
+
+        setPeriodes(periodesTriees);
+
+        // Sélectionner automatiquement la première période
+        if (periodesTriees.length > 0) {
+          const premiere = periodesTriees[0];
+
+          setPeriodeSelectionnee(String(premiere.id));
+          setDebut(premiere.dateDebut || "");
+          setFin(premiere.dateFin || "");
+        } else {
+          setPeriodeSelectionnee("");
+          setDebut("");
+          setFin("");
+        }
+      } catch (err) {
+        console.error("Erreur chargement périodes :", err);
+
+        setPeriodes([]);
+        setPeriodeSelectionnee("");
+      }
+    };
+
+    loadPeriodes();
+  }, [user, anneeScolaire]);
+
+  // =========================================================
+  // CHANGER DE PÉRIODE
+  // =========================================================
+  const changerPeriode = (periodeId) => {
+    const periode = periodes.find(
+      (p) => String(p.id) === String(periodeId)
+    );
+
+    if (!periode) return;
+
+    setPeriodeSelectionnee(String(periode.id));
+
+    setDebut(periode.dateDebut || "");
+    setFin(periode.dateFin || "");
+  };
+
+  // =========================================================
+  // LOAD STATS
+  // =========================================================
   const load = useCallback(async () => {
-    if (!classeId || !debut || !fin) return;
+    if (!classeId || !debut || !fin) {
+      setStats([]);
+      return;
+    }
 
     try {
       setLoading(true);
 
-      const res = await api.get(`/presences/classe/${classeId}/stats-periode`, {
-        params: { debut, fin },
-      });
+      const res = await api.get(
+        `/presences/classe/${classeId}/stats-periode`,
+        {
+          params: {
+            debut,
+            fin,
+          },
+        }
+      );
 
       setStats(res.data || []);
     } catch (err) {
-      console.error(err);
+      console.error("Erreur chargement statistiques :", err);
+      setStats([]);
     } finally {
       setLoading(false);
     }
@@ -127,29 +202,56 @@ export default function PresenceStatsClassePage() {
     load();
   }, [load]);
 
+  // =========================================================
+  // ALLER SUR LA FICHE ÉLÈVE
+  // =========================================================
   const goToEleve = (inscriptionId, nom) => {
-    router.push(`eleve/${inscriptionId}?debut=${debut}&fin=${fin}&nom=${encodeURIComponent(nom)}`);
-    // ↑ adapte ce chemin selon la route réelle de ta page dynamique
+    router.push(
+      `eleve/${inscriptionId}?debut=${debut}&fin=${fin}&nom=${encodeURIComponent(
+        nom
+      )}`
+    );
   };
+
+  // =========================================================
+  // PÉRIODE ACTUELLE
+  // =========================================================
+  const periodeActuelle = periodes.find(
+    (p) => String(p.id) === String(periodeSelectionnee)
+  );
 
   return (
     <div className="space-y-5 p-4">
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
       <div className="flex items-center gap-3">
         <span
           className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-          style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`, color: INK }}
+          style={{
+            background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})`,
+            color: INK,
+          }}
         >
           <Users size={20} />
         </span>
+
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Présences par classe</h1>
-          <p className="text-sm text-slate-500">Taux de présence des élèves sur la période sélectionnée.</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Présences par classe
+          </h1>
+
+          <p className="text-sm text-slate-500">
+            Taux de présence des élèves sur la période sélectionnée.
+          </p>
         </div>
       </div>
 
-      {/* FILTRES */}
+      {/* =====================================================
+          FILTRES
+      ====================================================== */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* CLASSE */}
         <select
           value={classeId}
           onChange={(e) => setClasseId(e.target.value)}
@@ -162,42 +264,57 @@ export default function PresenceStatsClassePage() {
           ))}
         </select>
 
-        {/* Sélecteur rapide Mois / Année */}
+        {/* PÉRIODE */}
         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
-          <select
-            value={moisSelectionne}
-            onChange={(e) => appliquerMois(Number(e.target.value), anneeSelectionnee)}
-            className="rounded-md border-none bg-transparent px-1 py-1 text-sm outline-none focus:ring-0"
-          >
-            {NOMS_MOIS.map((nom, index) => (
-              <option key={nom} value={index + 1}>
-                {nom}
-              </option>
-            ))}
-          </select>
+          <span className="px-1 text-xs font-medium text-slate-400">
+            Période
+          </span>
 
           <select
-            value={anneeSelectionnee}
-            onChange={(e) => appliquerMois(moisSelectionne, Number(e.target.value))}
-            className="rounded-md border-none bg-transparent px-1 py-1 text-sm outline-none focus:ring-0"
+            value={periodeSelectionnee}
+            onChange={(e) => changerPeriode(e.target.value)}
+            className="rounded-md border-none bg-transparent px-2 py-1 text-sm font-medium text-slate-700 outline-none focus:ring-0"
           >
-            {anneesDisponibles.map((a) => (
-              <option key={a} value={a}>
-                {a}
+            {periodes.length === 0 ? (
+              <option value="">
+                Aucune période
               </option>
-            ))}
+            ) : (
+              periodes.map((periode) => (
+                <option key={periode.id} value={periode.id}>
+                  {periode.nom}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
-        <span className="text-xs text-slate-300">ou plage personnalisée</span>
+        {/* ANNÉE SCOLAIRE */}
+        {anneeScolaire && (
+          <span className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600">
+            {anneeScolaire.libelle ||
+              anneeScolaire.nom ||
+              `${anneeScolaire.anneeDebut}-${anneeScolaire.anneeFin}`}
+          </span>
+        )}
 
+        <span className="text-xs text-slate-300">
+          ou plage personnalisée
+        </span>
+
+        {/* DATE DÉBUT */}
         <input
           type="date"
           value={debut}
           onChange={(e) => setDebut(e.target.value)}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#C89B3C]"
         />
-        <span className="text-sm text-slate-400">à</span>
+
+        <span className="text-sm text-slate-400">
+          à
+        </span>
+
+        {/* DATE FIN */}
         <input
           type="date"
           value={fin}
@@ -206,7 +323,32 @@ export default function PresenceStatsClassePage() {
         />
       </div>
 
-      {/* TABLE */}
+      {/* =====================================================
+          INFORMATIONS PÉRIODE
+      ====================================================== */}
+      {periodeActuelle && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="font-medium text-slate-700">
+            {periodeActuelle.nom}
+          </span>
+
+          <span>•</span>
+
+          <span>
+            Du {periodeActuelle.dateDebut || "—"}
+          </span>
+
+          <span>au</span>
+
+          <span>
+            {periodeActuelle.dateFin || "—"}
+          </span>
+        </div>
+      )}
+
+      {/* =====================================================
+          TABLE
+      ====================================================== */}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm shadow-slate-200/40">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -215,31 +357,52 @@ export default function PresenceStatsClassePage() {
                 className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400"
                 style={{ background: "#F8F7F2" }}
               >
-                <th className="px-4 py-3 font-medium">Élève</th>
-                <th className="px-4 py-3 font-medium">Présences</th>
-                <th className="px-4 py-3 font-medium">Absences</th>
-                <th className="px-4 py-3 font-medium">Taux de présence</th>
+                <th className="px-4 py-3 font-medium">
+                  Élève
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Présences
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Absences
+                </th>
+
+                <th className="px-4 py-3 font-medium">
+                  Taux de présence
+                </th>
+
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-50">
+              {/* AUCUNE DONNÉE */}
               {!loading && stats.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                  <td
+                    colSpan={5}
+                    className="px-4 py-10 text-center text-slate-400"
+                  >
                     Aucune donnée sur cette période.
                   </td>
                 </tr>
               )}
 
+              {/* LOADING */}
               {loading && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                  <td
+                    colSpan={5}
+                    className="px-4 py-10 text-center text-slate-400"
+                  >
                     Chargement...
                   </td>
                 </tr>
               )}
 
+              {/* STATS */}
               {!loading &&
                 stats.map((s) => {
                   const c = tauxColor(s.taux);
@@ -247,31 +410,53 @@ export default function PresenceStatsClassePage() {
                   return (
                     <tr
                       key={s.inscriptionId}
-                      onClick={() => goToEleve(s.inscriptionId, s.nom)}
+                      onClick={() =>
+                        goToEleve(
+                          s.inscriptionId,
+                          s.nom
+                        )
+                      }
                       className="cursor-pointer transition hover:bg-slate-50/70"
                     >
-                      <td className="px-4 py-3 font-medium text-slate-800">{s.nom}</td>
-                      <td className="px-4 py-3 text-slate-600">{s.present}</td>
-                      <td className="px-4 py-3 text-slate-600">{s.absent}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        {s.nom}
+                      </td>
+
+                      <td className="px-4 py-3 text-slate-600">
+                        {s.present}
+                      </td>
+
+                      <td className="px-4 py-3 text-slate-600">
+                        {s.absent}
+                      </td>
+
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
                             <div
                               className="h-full rounded-full"
                               style={{
-                                width: `${Math.min(s.taux, 100)}%`,
+                                width: `${Math.min(
+                                  s.taux,
+                                  100
+                                )}%`,
                                 background: c.text,
                               }}
                             />
                           </div>
+
                           <span
                             className="rounded-full px-2 py-0.5 text-xs font-medium"
-                            style={{ background: c.bg, color: c.text }}
+                            style={{
+                              background: c.bg,
+                              color: c.text,
+                            }}
                           >
                             {s.taux}%
                           </span>
                         </div>
                       </td>
+
                       <td className="px-4 py-3 text-right text-slate-300">
                         <ChevronRight size={16} />
                       </td>
