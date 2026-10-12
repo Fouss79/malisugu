@@ -3,7 +3,7 @@ import React from "react";
 import { AuthProvider } from "./context/AuthContext";
 
 export const metadata = {
-  title: "KalanSO - Logiciel de gestion scolaire",
+  title: "Danischool - Logiciel de gestion scolaire",
   description:
     "Gérez votre école facilement : élèves, enseignants, présences et paiements.",
 };

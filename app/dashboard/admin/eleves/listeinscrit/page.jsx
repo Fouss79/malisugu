@@ -594,6 +594,7 @@ export default function ElevesPage() {
   const [generatingFormulaire, setGeneratingFormulaire] = useState(false);
   const [generatingListeClasse, setGeneratingListeClasse] = useState(false);
   const [generatingCarteId, setGeneratingCarteId] = useState(null);
+  const [generatingCartesClasse, setGeneratingCartesClasse] = useState(false);
 const telechargerCarteScolaire = async (eleve) => {
   if (!eleve?.id) {
     alert("Impossible de générer la carte : inscription introuvable.");
@@ -759,6 +760,67 @@ const telechargerCarteScolaire = async (eleve) => {
     setGeneratingListeClasse(false);
   }
 };
+const telechargerCartesClasse = async () => {
+  if (!classeFilter) {
+    alert("Veuillez sélectionner une classe.");
+    return;
+  }
+
+  const inscriptionClasse = eleves.find((e) => e.classeNom === classeFilter);
+
+  if (!inscriptionClasse?.classeId || !inscriptionClasse?.anneeId) {
+    console.error("Données de l'inscription :", inscriptionClasse);
+    alert("Les informations de la classe ou de l'année sont introuvables.");
+    return;
+  }
+
+  setGeneratingCartesClasse(true);
+
+  try {
+    const response = await api.get(
+      `/cartes-scolaires/classe/${inscriptionClasse.classeId}/pdf`,
+      {
+        params: { anneeScolaireId: inscriptionClasse.anneeId },
+        responseType: "blob",
+      }
+    );
+
+    const blob = new Blob([response.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cartes-scolaires-${classeFilter}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Erreur génération cartes de la classe :", error);
+
+    const messageParDefaut = "Impossible de générer les cartes de la classe.";
+
+    if (error?.response?.data instanceof Blob) {
+      try {
+        const texte = await error.response.data.text();
+        const json = JSON.parse(texte);
+        alert(json?.message || json?.error || messageParDefaut);
+      } catch {
+        alert(messageParDefaut);
+      }
+    } else {
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          messageParDefaut
+      );
+    }
+  } finally {
+    setGeneratingCartesClasse(false);
+  }
+};
 
 
   const loadEleves = async () => {
@@ -916,6 +978,24 @@ const telechargerCarteScolaire = async (eleve) => {
     <>
       <Download size={18} />
       Liste de la classe
+    </>
+  )}
+</button>
+<button
+  onClick={telechargerCartesClasse}
+  disabled={generatingCartesClasse || !classeFilter}
+  className="flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+  style={{ background: GOLD }}
+>
+  {generatingCartesClasse ? (
+    <>
+      <Loader2 size={18} className="animate-spin" />
+      Génération des cartes...
+    </>
+  ) : (
+    <>
+      <IdCard size={18} />
+      Cartes de la classe
     </>
   )}
 </button>
