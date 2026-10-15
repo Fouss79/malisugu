@@ -15,7 +15,14 @@ import {
   Download,
   Loader2,
   IdCard,
+  User,
+  Phone,
+  GraduationCap,
+  Wallet,
+  CalendarCheck,
+  HeartPulse,
 } from "lucide-react";
+
 import Link from "next/link";
 import EleveForm from "../Component/ElevePage";
 import api from "../../../../../lib/api";
