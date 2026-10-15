@@ -190,19 +190,73 @@ function estPremierCycle(eleve) {
 }
 
 // --- Modal détail élève ---
+/* =========================================================
+   REMPLACE l'ancien EleveDetailModal.
+
+   1) Dans l'import lucide-react existant, AJOUTE ces icônes :
+      User, Phone, GraduationCap, Wallet, CalendarCheck, HeartPulse, MapPin
+
+   2) Garde tel quel : estPremierCycle, StatutBadge, Avatar,
+      formatMontant, api et les constantes de couleurs.
+      InfoRow et SectionTitle ne sont plus utilisés par ce modal
+      (tu peux les laisser ou les supprimer).
+========================================================= */
+
+/* ---------- Petits blocs réutilisables ---------- */
+
+function Carte({ icon: Icon, titre, couleur = TEAL, fond = TEAL_SOFT, children }) {
+  return (
+    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm shadow-slate-200/40">
+      <div className="mb-4 flex items-center gap-2.5">
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-lg"
+          style={{ background: fond, color: couleur }}
+        >
+          <Icon size={16} />
+        </span>
+        <h3 className="text-sm font-semibold text-slate-800">{titre}</h3>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Champ({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-slate-400">{label}</p>
+      <p className="mt-0.5 break-words text-sm font-medium text-slate-800">
+        {value || value === 0 ? value : "—"}
+      </p>
+    </div>
+  );
+}
+
+function Chiffre({ label, valeur, couleur = INK, fond = "#F8F7F2" }) {
+  return (
+    <div className="rounded-xl p-3" style={{ background: fond }}>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-base font-bold leading-tight" style={{ color: couleur }}>
+        {valeur}
+      </p>
+    </div>
+  );
+}
+
+/* ---------- Modal détail élève ---------- */
+
 function EleveDetailModal({ eleve, onClose }) {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [generatingFiche, setGeneratingFiche] = useState(false);
   const [generatingCertificat, setGeneratingCertificat] = useState(false);
 
-  const [absences, setAbsences] = useState(null); // { cours, jours }
+  const [absences, setAbsences] = useState(null);
   const [absencesLoading, setAbsencesLoading] = useState(false);
   const [absencesError, setAbsencesError] = useState(false);
 
   const premierCycle = estPremierCycle(eleve);
 
-  // Assiduité : le premier cycle lit ses absences dans les bulletins mensuels,
-  // les autres cycles dans les présences par cours
+  // Assiduité : premier cycle = bulletins mensuels, sinon présences par cours
   useEffect(() => {
     if (!eleve?.id) {
       setAbsences(null);
@@ -244,11 +298,12 @@ function EleveDetailModal({ eleve, onClose }) {
   useEffect(() => {
     const onEsc = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onEsc);
-
     return () => window.removeEventListener("keydown", onEsc);
   }, [onClose]);
 
   if (!eleve) return null;
+
+  /* ---------- Téléchargements ---------- */
 
   const telechargerBlob = (response, nomFichier) => {
     const blob = new Blob([response.data], { type: "application/pdf" });
@@ -268,7 +323,6 @@ function EleveDetailModal({ eleve, onClose }) {
   const gererErreurPdf = async (error, messageParDefaut) => {
     console.error(messageParDefaut, error);
 
-    // Si Spring renvoie une erreur alors que responseType = blob
     if (error?.response?.data instanceof Blob) {
       try {
         const texte = await error.response.data.text();
@@ -282,231 +336,177 @@ function EleveDetailModal({ eleve, onClose }) {
     }
   };
 
-  const genererRapportPaiement = async () => {
+  const nomFichier = (prefixe) => `${prefixe}-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`;
+
+  const telecharger = async (url, setLoading, prefixe, messageErreur) => {
     if (!eleve.id) {
-      alert("Impossible de générer le rapport : inscription introuvable.");
+      alert("Inscription introuvable.");
       return;
     }
 
-    setGeneratingPdf(true);
-
+    setLoading(true);
     try {
-      const response = await api.get(`/rapports/paiements/inscription/${eleve.id}/pdf`, {
-        responseType: "blob",
-      });
-
-      telechargerBlob(response, `rapport-paiement-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`);
+      const response = await api.get(url, { responseType: "blob" });
+      telechargerBlob(response, nomFichier(prefixe));
     } catch (error) {
-      await gererErreurPdf(error, "Erreur lors de la génération du rapport PDF.");
+      await gererErreurPdf(error, messageErreur);
     } finally {
-      setGeneratingPdf(false);
+      setLoading(false);
     }
   };
 
-  const genererCertificatScolarite = async () => {
-    if (!eleve?.id) {
-      alert("Impossible de générer le certificat : inscription introuvable.");
-      return;
-    }
+  const genererRapportPaiement = () =>
+    telecharger(
+      `/rapports/paiements/inscription/${eleve.id}/pdf`,
+      setGeneratingPdf,
+      "rapport-paiement",
+      "Erreur lors de la génération du rapport PDF."
+    );
 
-    setGeneratingCertificat(true);
+  const genererCertificatScolarite = () =>
+    telecharger(
+      `/inscriptions/${eleve.id}/certificat-scolarite`,
+      setGeneratingCertificat,
+      "certificat-scolarite",
+      "Impossible de générer le certificat de scolarité."
+    );
 
-    try {
-      const response = await api.get(`/inscriptions/${eleve.id}/certificat-scolarite`, {
-        responseType: "blob",
-      });
+  const genererFicheRenseignement = () =>
+    telecharger(
+      `/inscriptions/${eleve.id}/fiche-renseignement`,
+      setGeneratingFiche,
+      "fiche-renseignement",
+      "Erreur lors de la génération de la fiche."
+    );
 
-      telechargerBlob(response, `certificat-scolarite-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`);
-    } catch (error) {
-      await gererErreurPdf(error, "Impossible de générer le certificat de scolarité.");
-    } finally {
-      setGeneratingCertificat(false);
-    }
-  };
+  /* ---------- Valeurs calculées ---------- */
 
-  const genererFicheRenseignement = async () => {
-    // "eleve.id" est ici l'id de l'INSCRIPTION (données issues de
-    // /inscriptions/ecole/{id}/active) — même id que celui utilisé par
-    // le rapport de paiement ci-dessus.
-    if (!eleve.id) {
-      alert("Impossible de générer la fiche : inscription introuvable.");
-      return;
-    }
+  const nomTuteur = `${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim();
+  const aUnTuteur = Boolean(nomTuteur || eleve.telephoneTuteur);
 
-    setGeneratingFiche(true);
+  const total = Number(eleve.montantTotal) || 0;
+  const paye = Number(eleve.montantPaye) || 0;
+  const reste = Number(eleve.resteAPayer) || 0;
+  const pourcentage = total > 0 ? Math.min(100, Math.round((paye / total) * 100)) : 0;
+  const soldee = total > 0 && reste <= 0;
 
-    try {
-      const response = await api.get(`/inscriptions/${eleve.id}/fiche-renseignement`, {
-        responseType: "blob",
-      });
+  const valeurAbsence = (v) => (absencesLoading ? "…" : absencesError ? "—" : v ?? 0);
 
-      telechargerBlob(response, `fiche-renseignement-${eleve.prenom || "eleve"}-${eleve.nom || ""}.pdf`);
-    } catch (error) {
-      await gererErreurPdf(error, "Erreur lors de la génération de la fiche.");
-    } finally {
-      setGeneratingFiche(false);
-    }
-  };
+  /* ---------- Rendu ---------- */
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="h-full w-full overflow-y-auto bg-white shadow-xl sm:h-auto sm:max-h-[85vh] sm:max-w-lg sm:rounded-2xl"
+        className="flex h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-[#F8F7F2] shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-xl sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* =====================================================
-            HEADER
-        ====================================================== */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
-          <div className="flex items-center gap-3">
-            <Avatar nom={eleve.nom} prenom={eleve.prenom} sexe={eleve.sexe} size="h-11 w-11 text-sm" />
-
-            <div>
-              <h2 className="font-semibold text-slate-900">
-                {eleve.prenom} {eleve.nom}
-              </h2>
-
-              <p className="text-xs text-slate-400">Matricule {eleve.matricule || "—"}</p>
-            </div>
-          </div>
-
+        {/* ===== EN-TÊTE ===== */}
+        <div
+          className="relative shrink-0 px-5 pb-5 pt-5"
+          style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
+        >
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Fermer"
+            className="absolute right-4 top-4 rounded-lg p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
           >
             <X size={18} />
           </button>
+
+          <div className="flex items-center gap-4 pr-8">
+            <div className="rounded-full p-1" style={{ background: `linear-gradient(150deg, ${GOLD_2}, ${GOLD})` }}>
+              <Avatar nom={eleve.nom} prenom={eleve.prenom} sexe={eleve.sexe} size="h-16 w-16 text-xl" />
+            </div>
+
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-bold text-white">
+                {eleve.prenom} {eleve.nom}
+              </h2>
+              <p className="mt-0.5 text-sm text-white/60">Matricule {eleve.matricule || "—"}</p>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <StatutBadge statut={eleve.statut} />
+                {eleve.classeNom && (
+                  <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90">
+                    {eleve.classeNom}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* =====================================================
-            CONTENU
-        ====================================================== */}
-        <div className="space-y-6 p-5">
+        {/* ===== CONTENU ===== */}
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {/* IDENTITÉ */}
-          <div>
-            <SectionTitle>Identité</SectionTitle>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow label="Nom" value={eleve.nom} />
-              <InfoRow label="Prénom" value={eleve.prenom} />
-              <InfoRow label="Date de naissance" value={eleve.dateNaissance} />
-              <InfoRow label="Lieu de naissance" value={eleve.lieuNaissance} />
-              <InfoRow label="Sexe" value={eleve.sexe === "F" ? "Fille" : "Garçon"} />
-              <InfoRow label="Nationalité" value={eleve.nationalite} />
-              <InfoRow label="Matricule" value={eleve.matricule} />
-              <InfoRow label="Groupe sanguin" value={eleve.groupeSanguin} />
+          <Carte icon={User} titre="Identité">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              <Champ label="Date de naissance" value={eleve.dateNaissance} />
+              <Champ label="Lieu de naissance" value={eleve.lieuNaissance} />
+              <Champ label="Sexe" value={eleve.sexe === "F" ? "Fille" : "Garçon"} />
+              <Champ label="Nationalité" value={eleve.nationalite} />
+              <Champ label="Groupe sanguin" value={eleve.groupeSanguin} />
             </div>
 
             {eleve.allergiesMaladies && (
               <div
-                className="mt-3 rounded-lg p-3 text-sm"
-                style={{ background: `${GOLD}1A`, color: "#8A6A21" }}
+                className="mt-4 flex items-start gap-2.5 rounded-xl p-3 text-sm"
+                style={{ background: CORAL_SOFT, color: CORAL }}
               >
-                <span className="font-medium">Allergies / maladies : </span>
-                {eleve.allergiesMaladies}
+                <HeartPulse size={16} className="mt-0.5 shrink-0" />
+                <p>
+                  <span className="font-semibold">Allergies / maladies : </span>
+                  {eleve.allergiesMaladies}
+                </p>
               </div>
             )}
-          </div>
-
-          {/* CONTACT */}
-          <div>
-            <SectionTitle>Contact élève</SectionTitle>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow label="Adresse" value={eleve.adresse} />
-              <InfoRow label="Téléphone" value={eleve.telephone} />
-              <InfoRow label="Email" value={eleve.email} />
-            </div>
-          </div>
-
-          {/* TUTEUR */}
-          {(eleve.nomTuteur || eleve.telephoneTuteur) && (
-            <div>
-              <SectionTitle>Parent / Tuteur</SectionTitle>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <InfoRow
-                  label="Nom"
-                  value={`${eleve.prenomTuteur ?? ""} ${eleve.nomTuteur ?? ""}`.trim() || "—"}
-                />
-                <InfoRow label="Lien de parenté" value={eleve.lienParente} />
-                <InfoRow label="Téléphone" value={eleve.telephoneTuteur} />
-                <InfoRow label="Email" value={eleve.emailTuteur} />
-              </div>
-            </div>
-          )}
+          </Carte>
 
           {/* SCOLARITÉ */}
-          <div>
-            <SectionTitle>Scolarité</SectionTitle>
+          <Carte icon={GraduationCap} titre="Scolarité" couleur="#8A6A21" fond={`${GOLD}1A`}>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              <Champ label="Classe" value={eleve.classeNom} />
+              <Champ label="Cycle" value={eleve.cycleNom} />
+              <Champ label="Année scolaire" value={eleve.annee} />
+              <Champ label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
+            </div>
+          </Carte>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <InfoRow label="Classe" value={eleve.classeNom} />
-              <InfoRow label="Cycle" value={eleve.cycleNom} />
-              <InfoRow label="Année scolaire" value={eleve.annee} />
-              <InfoRow label="Date d'inscription" value={eleve.dateInscription?.substring(0, 10)} />
-
-              <div>
-                <p className="text-xs font-medium text-slate-400">Statut</p>
-
-                <div className="mt-1">
-                  <StatutBadge statut={eleve.statut} />
-                </div>
+          {/* CONTACTS */}
+          <Carte icon={Phone} titre="Contacts" couleur={VIOLET} fond={VIOLET_SOFT}>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              <Champ label="Téléphone de l'élève" value={eleve.telephone} />
+              <Champ label="Email de l'élève" value={eleve.email} />
+              <div className="col-span-2">
+                <Champ label="Adresse" value={eleve.adresse} />
               </div>
             </div>
 
-            {/* BOUTON FICHE DE RENSEIGNEMENT */}
-            <button
-              onClick={genererFicheRenseignement}
-              disabled={generatingFiche}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {generatingFiche ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Génération de la fiche...
-                </>
-              ) : (
-                <>
-                  <FileText size={16} />
-                  Fiche de renseignement
-                </>
-              )}
-            </button>
-
-            {/* BOUTON CERTIFICAT DE SCOLARITÉ */}
-            <button
-              onClick={genererCertificatScolarite}
-              disabled={generatingCertificat}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
-            >
-              {generatingCertificat ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Génération du certificat...
-                </>
-              ) : (
-                <>
-                  <FileText size={16} />
-                  Certificat de scolarité
-                </>
-              )}
-            </button>
-          </div>
+            {aUnTuteur && (
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <p className="mb-3 text-sm font-semibold text-slate-700">Parent / Tuteur</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+                  <Champ label="Nom" value={nomTuteur} />
+                  <Champ label="Lien de parenté" value={eleve.lienParente} />
+                  <Champ label="Téléphone" value={eleve.telephoneTuteur} />
+                  <Champ label="Email" value={eleve.emailTuteur} />
+                </div>
+              </div>
+            )}
+          </Carte>
 
           {/* ASSIDUITÉ */}
-          <div>
-            <SectionTitle>Assiduité</SectionTitle>
-
+          <Carte icon={CalendarCheck} titre="Assiduité">
             {premierCycle ? (
               <>
-                <InfoRow
+                <Chiffre
                   label="Absences (bulletins mensuels)"
-                  value={absencesLoading ? "…" : absencesError ? "—" : absences?.total}
+                  valeur={valeurAbsence(absences?.total)}
+                  couleur={CORAL}
+                  fond={CORAL_SOFT}
                 />
 
                 {!absencesLoading && !absencesError && absences?.parMois?.length > 0 && (
@@ -514,8 +514,7 @@ function EleveDetailModal({ eleve, onClose }) {
                     {absences.parMois.map((m) => (
                       <span
                         key={m.mois}
-                        className="rounded-full px-2.5 py-1 text-xs font-medium"
-                        style={{ background: "#F1F5F9", color: "#475569" }}
+                        className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
                       >
                         {m.mois} : {m.absences}
                       </span>
@@ -524,54 +523,75 @@ function EleveDetailModal({ eleve, onClose }) {
                 )}
               </>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <InfoRow
-                  label="Cours manqués"
-                  value={absencesLoading ? "…" : absencesError ? "—" : absences?.cours}
-                />
-                <InfoRow
-                  label="Jours d'absence"
-                  value={absencesLoading ? "…" : absencesError ? "—" : absences?.jours}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <Chiffre label="Cours manqués" valeur={valeurAbsence(absences?.cours)} />
+                <Chiffre label="Jours d'absence" valeur={valeurAbsence(absences?.jours)} />
               </div>
             )}
-          </div>
+          </Carte>
 
-          {/* =================================================
-              PAIEMENT
-          ================================================== */}
-          <div>
-            <SectionTitle>Paiement</SectionTitle>
-
-            <div className="grid grid-cols-1 gap-4 xs:grid-cols-2 sm:grid-cols-3">
-              <InfoRow label="Montant total" value={formatMontant(eleve.montantTotal)} />
-              <InfoRow label="Payé" value={formatMontant(eleve.montantPaye)} />
-              <InfoRow label="Reste à payer" value={formatMontant(eleve.resteAPayer)} />
+          {/* PAIEMENT */}
+          <Carte icon={Wallet} titre="Paiement" couleur={TEAL} fond={TEAL_SOFT}>
+            <div className="mb-3 flex items-end justify-between">
+              <p className="text-xs text-slate-500">Scolarité payée</p>
+              <p className="text-sm font-bold" style={{ color: soldee ? TEAL : INK }}>
+                {pourcentage}%
+              </p>
             </div>
 
-            {/* BOUTON RAPPORT */}
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${pourcentage}%`,
+                  background: soldee ? TEAL : `linear-gradient(90deg, ${GOLD}, ${GOLD_2})`,
+                }}
+              />
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <Chiffre label="Total" valeur={formatMontant(eleve.montantTotal)} />
+              <Chiffre label="Payé" valeur={formatMontant(eleve.montantPaye)} couleur={TEAL} fond={TEAL_SOFT} />
+              <Chiffre
+                label="Reste"
+                valeur={formatMontant(eleve.resteAPayer)}
+                couleur={reste > 0 ? CORAL : TEAL}
+                fond={reste > 0 ? CORAL_SOFT : TEAL_SOFT}
+              />
+            </div>
+          </Carte>
+        </div>
+
+        {/* ===== ACTIONS (toujours visibles) ===== */}
+        <div className="shrink-0 border-t border-slate-200 bg-white p-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <button
+              onClick={genererFicheRenseignement}
+              disabled={generatingFiche}
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generatingFiche ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              Fiche
+            </button>
+
+            <button
+              onClick={genererCertificatScolarite}
+              disabled={generatingCertificat}
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generatingCertificat ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+              Certificat
+            </button>
+
             <button
               onClick={genererRapportPaiement}
               disabled={generatingPdf}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               style={{ background: `linear-gradient(135deg, ${INK}, #182746)` }}
             >
-              {generatingPdf ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Génération du rapport...
-                </>
-              ) : (
-                <>
-                  <Download size={18} />
-                  Rapport des paiements
-                </>
-              )}
+              {generatingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              Paiements
             </button>
-
-            <p className="mt-2 text-center text-xs text-slate-400">
-              Télécharger l&apos;historique complet des paiements de cet élève
-            </p>
           </div>
         </div>
       </div>
