@@ -16,6 +16,7 @@ import {
   GraduationCap,
   FileText,
   Award,
+  ShieldCheck, // ← à ajouter
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -1908,6 +1909,27 @@ const importerExcel = async (event) => {
     <BarChart3 size={17} />
     Voir les résultats
   </button>
+    <button
+    type="button"
+    onClick={() => router.push("/dashboard/admin/notes/resultats")}
+    className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
+  >
+    <BarChart3 size={17} />
+    Voir les résultats
+  </button>
+
+  {/* ↓↓↓ NOUVEAU ↓↓↓ */}
+  <button
+    type="button"
+    onClick={() => router.push("/dashboard/admin/saisieconduite")}
+    className={`${STYLES.button.primary} bg-[#6E5DC6] shadow-sm hover:bg-[#5747A5]`}
+  >
+    <ShieldCheck size={17} />
+    Saisir la conduite
+  </button>
+  {/* ↑↑↑ NOUVEAU ↑↑↑ */}
+
+
   {estPrimaire && (
   <button
     type="button"
