@@ -1909,14 +1909,7 @@ const importerExcel = async (event) => {
     <BarChart3 size={17} />
     Voir les résultats
   </button>
-    <button
-    type="button"
-    onClick={() => router.push("/dashboard/admin/notes/resultats")}
-    className={`${STYLES.button.primary} bg-[#101B33] shadow-sm hover:bg-[#182746]`}
-  >
-    <BarChart3 size={17} />
-    Voir les résultats
-  </button>
+   
 
   {/* ↓↓↓ NOUVEAU ↓↓↓ */}
   <button
