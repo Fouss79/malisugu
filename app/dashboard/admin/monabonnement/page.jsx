@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
+import api from "../../../../lib/api";
 
 export default function AbonnementPage() {
 
@@ -17,13 +18,8 @@ export default function AbonnementPage() {
 
   // 📥 charger abonnement
   useEffect(() => {
-    fetch("http://localhost:8080/api/superadmin/abonnements/me", {
-      headers: {
-        "X-USER-EMAIL": user.email
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
+    api.get("/superadmin/abonnements/me")
+      .then(({ data }) => {
         setAbonnement(data);
         setPlan(data.plan || "BASIC");
       })
@@ -53,7 +49,6 @@ export default function AbonnementPage() {
 
   // 🔥 renouveler (sans paiement)
   const renouveler = async () => {
-
     await fetch(
       `http://localhost:8080/api/superadmin/abonnements/${user.ecole.id}?plan=${plan}&duree=${duree}`,
       { method: "PUT" }

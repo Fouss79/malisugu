@@ -292,14 +292,14 @@ const handlePhotoChange = (e) => {
       photoData.append("file", photo);
 
       await api.post(
-        `/eleves/${currentEleveId}/photo`,
-        photoData,
-        {
-          headers: {
-            "X-USER-EMAIL": user.email,
-            "Content-Type": "multipart/form-data",
-          },
-        }
+          `/eleves/${currentEleveId}/photo`,
+          photoData,
+          {
+            headers: {
+              "X-USER-EMAIL": user.email,
+              "Content-Type": "multipart/form-data",
+            },
+          }
       );
     }
 

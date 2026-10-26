@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.danischool.app",
+      "sha256_cert_fingerprints": [
+        "EA:42:81:6A:68:89:C8:C1:4E:40:25:9B:E7:01:8D:5A:53:45:A1:7F:C9:53:72:CB:DA:5A:4D:DA:29:F6:17:48"
+      ]
+    }
+  }
+]
